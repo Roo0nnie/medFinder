@@ -1,7 +1,5 @@
 import { Injectable } from "@nestjs/common"
 import { HealthCheckService } from "@nestjs/terminus"
-import fs from "node:fs"
-import path from "node:path"
 
 import { DBHealthIndicator } from "./indicators/db.health"
 
@@ -14,7 +12,6 @@ type HealthPayload = {
 	status: string
 	timestamp: string
 	uptime: number
-	version: string
 	checks: HealthChecks
 }
 
@@ -35,7 +32,6 @@ export class HealthService {
 			status: dbResult.status,
 			timestamp: now.toISOString(),
 			uptime,
-			version: this.getVersion(),
 			checks: {
 				database: dbResult.database,
 				cache: { status: "not_configured" },
@@ -67,17 +63,6 @@ export class HealthService {
 				status: "error",
 				database: database as { status: string; message?: string } & Record<string, unknown>,
 			}
-		}
-	}
-
-	private getVersion(): string {
-		try {
-			const pkgPath = path.resolve(__dirname, "..", "..", "package.json")
-			const contents = fs.readFileSync(pkgPath, "utf-8")
-			const parsed = JSON.parse(contents) as { version?: string }
-			return parsed.version ?? "unknown"
-		} catch {
-			return "unknown"
 		}
 	}
 }

@@ -1,5 +1,6 @@
 import { Controller, Get, VERSION_NEUTRAL } from "@nestjs/common"
 import { HealthCheck, HealthCheckService } from "@nestjs/terminus"
+import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
 import { HealthService } from "./health.service"
 
@@ -11,6 +12,7 @@ export class HealthController {
 	) {}
 
 	@Get()
+	@AllowAnonymous()
 	@HealthCheck()
 	async check() {
 		await this.health.check([])
