@@ -1,8 +1,14 @@
-import { ValidationPipe, VersioningType } from "@nestjs/common"
+import { VersioningType } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger"
+import { apiReference } from "@scalar/nestjs-api-reference"
 import { config } from "dotenv"
+import { patchNestJsSwagger, ZodValidationPipe } from "nestjs-zod"
 
 import { AppModule } from "./main.module"
+
+// Patch NestJS Swagger to work with Zod schemas
+patchNestJsSwagger()
 
 // Load .env file from app directory
 config()
@@ -18,13 +24,26 @@ async function bootstrap() {
 		type: VersioningType.URI,
 		defaultVersion: "1",
 	})
-	app.useGlobalPipes(
-		new ValidationPipe({
-			whitelist: true,
-			forbidNonWhitelisted: true,
-			transform: true,
+	app.useGlobalPipes(new ZodValidationPipe())
+
+	// Configure OpenAPI documentation
+	const swaggerConfig = new DocumentBuilder()
+		.setTitle("API Documentation")
+		.setDescription("Type-safe API with auto-generated documentation")
+		.setVersion("1.0")
+		.addTag("todos")
+		.build()
+
+	const document = SwaggerModule.createDocument(app, swaggerConfig)
+
+	// Use Scalar API Reference instead of default Swagger UI
+	app.use(
+		"/api/docs",
+		apiReference({
+			content: document,
 		})
 	)
+
 	await app.listen(process.env.PORT ?? 3000)
 }
 

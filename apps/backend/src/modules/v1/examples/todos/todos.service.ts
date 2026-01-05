@@ -1,12 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common"
 import { eq } from "drizzle-orm"
 
+import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database.providers"
-
-import { CreateTodoDto } from "./dto/create-todo.dto"
-import { UpdateTodoDto } from "./dto/update-todo.dto"
 
 export type Todo = {
 	id: number
