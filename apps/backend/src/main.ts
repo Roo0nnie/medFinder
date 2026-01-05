@@ -1,11 +1,11 @@
-import { VersioningType } from "@nestjs/common"
+import { VersioningType, type PipeTransform } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger"
 import { apiReference } from "@scalar/nestjs-api-reference"
 import { config } from "dotenv"
 import { patchNestJsSwagger, ZodValidationPipe } from "nestjs-zod"
 
-import { AppModule } from "./main.module"
+import { AppModule } from "@/main.module"
 
 // Patch NestJS Swagger to work with Zod schemas
 patchNestJsSwagger()
@@ -24,7 +24,7 @@ async function bootstrap() {
 		type: VersioningType.URI,
 		defaultVersion: "1",
 	})
-	app.useGlobalPipes(new ZodValidationPipe())
+	app.useGlobalPipes(new ZodValidationPipe() as PipeTransform)
 
 	// Configure OpenAPI documentation
 	const swaggerConfig = new DocumentBuilder()
