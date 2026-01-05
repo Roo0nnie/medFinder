@@ -2,7 +2,7 @@ import { ValidationPipe, VersioningType } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 import { config } from "dotenv"
 
-import { AppModule } from "./app.module"
+import { AppModule } from "./main.module"
 
 // Load .env file from app directory
 config()
