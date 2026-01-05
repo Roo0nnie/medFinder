@@ -22,7 +22,7 @@ type HealthPayload = {
 export class HealthService {
 	constructor(
 		private readonly health: HealthCheckService,
-		private readonly drizzleIndicator: DBHealthIndicator
+		private readonly dbIndicator: DBHealthIndicator
 	) {}
 
 	async check(): Promise<HealthPayload> {
@@ -48,7 +48,7 @@ export class HealthService {
 		database: { status: string; message?: string } & Record<string, unknown>
 	}> {
 		try {
-			const result = await this.health.check([() => this.drizzleIndicator.pingCheck("database")])
+			const result = await this.health.check([() => this.dbIndicator.pingCheck("database")])
 			const database = result.info?.database ??
 				result.details?.database ??
 				(result as unknown as Record<string, { status?: string; message?: string }>).database ?? {

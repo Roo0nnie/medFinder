@@ -26,7 +26,7 @@ describe("TodosController (v1)", () => {
 	]
 
 	beforeEach(() => {
-		// Create a mock database that implements the drizzle query builder pattern
+		// Create a mock database that implements the db query builder pattern
 		mockDb = {
 			select: jest.fn(() => ({
 				from: jest.fn(() => Promise.resolve(mockTodos)),
