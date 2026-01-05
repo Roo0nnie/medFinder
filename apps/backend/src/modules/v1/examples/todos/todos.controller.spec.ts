@@ -1,7 +1,9 @@
 import { type DBType } from "@/common/database/database.providers"
 
 import { TodosController } from "./todos.controller"
-import { TodosService, type Todo } from "./todos.service"
+import { Todo } from "@repo/contracts"
+
+import { TodosService } from "./todos.service"
 
 describe("TodosController (v1)", () => {
 	let controller: TodosController

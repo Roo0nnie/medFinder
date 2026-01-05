@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 
-import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
+import { CreateTodoDto, Todo, UpdateTodoDto } from "@repo/contracts"
 
-import { TodosService, type Todo } from "./todos.service"
+import { TodosService } from "./todos.service"
 
 type TodoV1 = Todo & { apiVersion: "1" }
 

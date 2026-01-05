@@ -1,18 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common"
 import { eq } from "drizzle-orm"
 
-import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
+import { CreateTodoDto, Todo, UpdateTodoDto } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database.providers"
-
-export type Todo = {
-	id: number
-	title: string
-	completed: boolean
-	createdAt: Date
-	updatedAt: Date
-}
 
 @Injectable()
 export class TodosService {
