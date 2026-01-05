@@ -8,9 +8,9 @@
 	"scripts": {
 		"build": "nest build",
 		"dev": "nest start --watch",
-		"format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+		"format": "prettier --write \"src/**/*.ts\"",
 		"start": "node dist/main",
-		"lint": "eslint --flag unstable_native_nodejs_ts_config \"{src,test}/**/*.ts\" --fix",
+		"lint": "eslint --flag unstable_native_nodejs_ts_config \"src/**/*.ts\" --fix",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
@@ -75,6 +75,9 @@
 			"**/*.(t|j)s"
 		],
 		"coverageDirectory": "../coverage",
-		"testEnvironment": "node"
+		"testEnvironment": "node",
+		"moduleNameMapper": {
+			"^@/(.*)$": "<rootDir>/$1"
+		}
 	}
 }
