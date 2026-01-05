@@ -22,7 +22,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		baseURL:
 			process.env.BETTER_AUTH_URL ??
 			process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??
-			"http://localhost:3001",
+			"http://localhost:3000",
 		secret: process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,
 		emailAndPassword: {
 			enabled: true,
@@ -37,5 +37,24 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 /**
  * Default Better Auth instance.
  * This is the shared instance used across all apps.
+ *
+ * Lazy initialization to ensure environment variables are loaded before creating the instance.
  */
-export const auth: ReturnType<typeof betterAuth> = createAuth()
+let _auth: ReturnType<typeof betterAuth> | null = null
+
+export function getAuth(): ReturnType<typeof betterAuth> {
+	if (!_auth) {
+		_auth = createAuth()
+	}
+	return _auth
+}
+
+/**
+ * Default Better Auth instance (lazy getter).
+ * Use this for backward compatibility, but prefer getAuth() for explicit initialization.
+ */
+export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
+	get(_target, prop) {
+		return getAuth()[prop as keyof ReturnType<typeof betterAuth>]
+	},
+})

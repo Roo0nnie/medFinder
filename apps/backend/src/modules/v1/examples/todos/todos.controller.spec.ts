@@ -1,7 +1,7 @@
 import { type DBType } from "@/common/database/database.providers"
 
 import { TodosController } from "./todos.controller"
-import { Todo } from "@repo/contracts"
+import { type Todo } from "@repo/contracts"
 
 import { TodosService } from "./todos.service"
 

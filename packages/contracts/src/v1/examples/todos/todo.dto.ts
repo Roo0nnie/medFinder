@@ -1,6 +1,6 @@
 import { createZodDto } from "nestjs-zod"
 
-import { CreateTodoSchema, TodoSchema, UpdateTodoSchema } from "./todo.schema"
+import { CreateTodoSchema, TodoSchema, UpdateTodoSchema } from "./todo.schema.js"
 
 export class CreateTodoDto extends createZodDto(CreateTodoSchema) {}
 
