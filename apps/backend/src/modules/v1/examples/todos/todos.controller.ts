@@ -14,7 +14,7 @@ export class TodosController {
 
 	@Get()
 	@ApiOperation({ summary: "Get all todos", description: "List of todos" })
-	@ApiResponse({ status: 200, type: TodoListResponseDto })
+	@ApiResponse({ status: 200, type: TodoListResponseDto, description: "List of todos" })
 	@AllowAnonymous()
 	async getTodos() {
 		const todos = await this.todosService.findAll()
