@@ -1,7 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common"
 import { eq } from "drizzle-orm"
 
-import { CreateTodoDto, Todo, UpdateTodoDto } from "@repo/contracts"
+import {
+	CreateTodoDto,
+	UpdateTodoDto,
+	type CreateTodo,
+	type Todo,
+	type UpdateTodo,
+} from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database.providers"
@@ -47,29 +53,21 @@ export class TodosService {
 			})
 			.where(eq(todos.id, id))
 			.returning()
-		if (!todo) {
-			throw new Error("Todo not replaced")
-		}
+		if (!todo) throw new Error("Todo not replaced")
 		return todo
 	}
 
 	async update(id: number, payload: UpdateTodoDto): Promise<Todo> {
-		const updateData: { title?: string; completed?: boolean; updatedAt: Date } = {
-			updatedAt: new Date(),
-		}
-
-		if ("title" in payload && payload.title !== undefined) {
-			updateData.title = payload.title
-		}
-
-		if ("completed" in payload && payload.completed !== undefined) {
-			updateData.completed = payload.completed
-		}
-
-		const [todo] = await this.db.update(todos).set(updateData).where(eq(todos.id, id)).returning()
-
+		const [todo] = await this.db
+			.update(todos)
+			.set({
+				title: payload.title,
+				completed: payload.completed ?? false,
+				updatedAt: new Date(),
+			})
+			.where(eq(todos.id, id))
+			.returning()
 		if (!todo) throw new Error("Todo not updated")
-
 		return todo
 	}
 
