@@ -1,6 +1,8 @@
 import { createZodDto } from "nestjs-zod"
 import { type z } from "zod"
 
+import { ApiSuccessResponseSchema } from "../common/common.schemas.js"
+
 /**
  * Type helper to extract the instance type from a DTO class
  * @example
@@ -36,6 +38,21 @@ export function createDto<T extends z.ZodTypeAny>(
 
 	return DtoClass
 }
+
+/**
+ * Convenience helper to create a DTO class for a standard
+ * success response envelope wrapping the provided schema.
+ *
+ * @example
+ * ```ts
+ * export class TodoListResponseDto extends ApiSuccessDto(z.array(TodoSchema), "TodoListResponseDto") {}
+ * ```
+ */
+export const ApiSuccessDto = <T extends z.ZodTypeAny>(
+	schema: T,
+	className: string
+): new () => z.infer<ReturnType<typeof ApiSuccessResponseSchema<T>>> =>
+	createDto(ApiSuccessResponseSchema(schema), className)
 
 /**
  * Batch create DTOs from multiple schemas

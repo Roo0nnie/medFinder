@@ -1,13 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common"
 import { eq } from "drizzle-orm"
 
-import {
-	CreateTodoDto,
-	UpdateTodoDto,
-	type CreateTodo,
-	type Todo,
-	type UpdateTodo,
-} from "@repo/contracts"
+import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
 import { DB, type DBType } from "@/common/database/database.providers"
@@ -16,11 +10,11 @@ import { DB, type DBType } from "@/common/database/database.providers"
 export class TodosService {
 	constructor(@Inject(DB) private readonly db: DBType) {}
 
-	async findAll(): Promise<Todo[]> {
+	async findAll() {
 		return this.db.select().from(todos)
 	}
 
-	async create(payload: CreateTodoDto): Promise<Todo> {
+	async create(payload: CreateTodoDto) {
 		const [todo] = await this.db
 			.insert(todos)
 			.values({
@@ -34,7 +28,7 @@ export class TodosService {
 		return todo
 	}
 
-	async findOne(id: number): Promise<Todo> {
+	async findOne(id: number) {
 		const [todo] = await this.db.select().from(todos).where(eq(todos.id, id))
 
 		if (!todo) throw new Error(`Todo ${id} not found`)
@@ -42,7 +36,7 @@ export class TodosService {
 		return todo
 	}
 
-	async replace(id: number, payload: CreateTodoDto): Promise<Todo> {
+	async replace(id: number, payload: CreateTodoDto) {
 		await this.findOne(id)
 		const [todo] = await this.db
 			.update(todos)
@@ -57,7 +51,7 @@ export class TodosService {
 		return todo
 	}
 
-	async update(id: number, payload: UpdateTodoDto): Promise<Todo> {
+	async update(id: number, payload: UpdateTodoDto) {
 		const [todo] = await this.db
 			.update(todos)
 			.set({
@@ -71,7 +65,7 @@ export class TodosService {
 		return todo
 	}
 
-	async remove(id: number): Promise<void> {
+	async remove(id: number) {
 		await this.findOne(id)
 		await this.db.delete(todos).where(eq(todos.id, id))
 	}

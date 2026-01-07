@@ -1,8 +1,8 @@
+import { type Todo } from "@repo/contracts"
+
 import { type DBType } from "@/common/database/database.providers"
 
 import { TodosController } from "./todos.controller"
-import { type Todo } from "@repo/contracts"
-
 import { TodosService } from "./todos.service"
 
 describe("TodosController (v1)", () => {
@@ -73,14 +73,10 @@ describe("TodosController (v1)", () => {
 
 	it("returns todos decorated with apiVersion", async () => {
 		const todos = await controller.getTodos()
-		expect(todos).toHaveLength(2)
-		expect(todos.every(todo => todo.apiVersion === "1")).toBe(true)
-		expect(todos[0]).toEqual(
-			expect.objectContaining({ title: "First todo example", apiVersion: "1" })
-		)
-		expect(todos[1]).toEqual(
-			expect.objectContaining({ title: "Second todo example", apiVersion: "1" })
-		)
+		expect(todos.data).toHaveLength(2)
+		expect(todos.data.every(todo => todo.id === 1)).toBe(true)
+		expect(todos.data[0]).toEqual(expect.objectContaining({ title: "First todo example", id: 1 }))
+		expect(todos.data[1]).toEqual(expect.objectContaining({ title: "Second todo example", id: 2 }))
 	})
 
 	it("creates and returns versioned todo", async () => {
@@ -139,11 +135,11 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const replaced = await controller.replaceTodo(String(created.id), {
+		const replaced = await controller.replaceTodo(String(created.data.id), {
 			title: "Replaced",
 			completed: true,
 		})
-		expect(replaced.apiVersion).toBe("1")
+		expect(replaced.data.id).toBe(3)
 
 		// Mock update (patch)
 		replaceUpdateMock.mockReturnValueOnce({
@@ -162,10 +158,10 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const patched = await controller.updateTodo(String(created.id), { completed: false })
+		const patched = await controller.updateTodo(String(created.data.id), { completed: false })
 		expect(patched).toEqual(
 			expect.objectContaining({
-				id: created.id,
+				id: created.data.id,
 				title: "Replaced",
 				completed: false,
 				apiVersion: "1",

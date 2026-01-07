@@ -53,7 +53,7 @@ export function zodToOpenAPISchema(schema: z.ZodTypeAny): OpenAPISchema {
 					try {
 						const fieldJsonSchema = (fieldSchema as z.ZodTypeAny).toJSONSchema()
 						properties[key] = fieldJsonSchema
-						if (!isOptional && fieldJsonSchema.type) {
+						if (!isOptional && (fieldJsonSchema as { type?: unknown }).type) {
 							required.push(key)
 						}
 					} catch {
@@ -102,7 +102,6 @@ export function registerSchemasInOpenAPI(
 			$schema?: unknown
 			[key: string]: unknown
 		}
-		// Suppress unused variable warning for destructured $schema
 		void _schema
 		document.components.schemas![dtoName] = cleanSchema
 	}
