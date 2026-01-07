@@ -1,7 +1,7 @@
 import { createZodDto } from "nestjs-zod"
 import { z } from "zod"
 
-import { ApiSuccessResponseSchema } from "../../../common/common.schemas.js"
+import { ApiSuccessResponseSchema } from "../../../common/common.contract.js"
 
 // ============================================================================
 // SCHEMAS
