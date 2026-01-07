@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm"
 import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
-import { DB, type DBType } from "@/common/database/database.providers"
+import { DB, type DBType } from "@/common/database/database-providers"
 
 @Injectable()
 export class TodosService {

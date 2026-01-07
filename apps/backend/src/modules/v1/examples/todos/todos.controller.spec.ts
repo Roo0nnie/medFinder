@@ -1,6 +1,8 @@
+// Package imports
 import { type Todo } from "@repo/contracts"
 
-import { type DBType } from "@/common/database/database.providers"
+// Internal imports
+import { type DBType } from "@/common/database/database-providers"
 
 import { TodosController } from "./todos.controller"
 import { TodosService } from "./todos.service"

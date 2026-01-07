@@ -4,7 +4,7 @@ import { Pool } from "pg"
 
 import { schema } from "@repo/db/schema"
 
-import { DB, POOL, type DBType } from "./database.providers"
+import { DB, POOL, type DBType } from "./database-providers"
 
 /**
  * Global NestJS module that provides Drizzle ORM database client and connection pool.
@@ -31,6 +31,7 @@ import { DB, POOL, type DBType } from "./database.providers"
 @Global()
 @Module({
 	providers: [
+		// Connection pool provider
 		{
 			provide: POOL,
 			useFactory: (): Pool => {
@@ -41,6 +42,7 @@ import { DB, POOL, type DBType } from "./database.providers"
 				return new Pool({ connectionString })
 			},
 		},
+		// Database client provider
 		{
 			provide: DB,
 			inject: [POOL],

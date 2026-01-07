@@ -4,14 +4,14 @@ import request from "supertest"
 import { type App } from "supertest/types"
 
 import { DB } from "@/common/database/database.providers"
-import { AppModule } from "@/main.module"
+import { MainModule } from "@/main.module"
 
 describe("Health (e2e)", () => {
 	let app: INestApplication<App>
 
 	beforeEach(async () => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
-			imports: [AppModule],
+			imports: [MainModule],
 		})
 			.overrideProvider(DB)
 			.useValue({

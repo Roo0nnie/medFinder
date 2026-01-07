@@ -1,27 +1,44 @@
 import "reflect-metadata"
 
-import { VersioningType, type PipeTransform } from "@nestjs/common"
+import { VersioningType } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
-import { ZodValidationPipe } from "nestjs-zod"
+import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger"
+import { apiReference } from "@scalar/nestjs-api-reference"
+import { cleanupOpenApiDoc } from "nestjs-zod"
 
-import { setupOpenApi } from "@/common/docs/openapi"
-import { AppModule } from "@/main.module"
+import { MainModule } from "@/main.module"
 
 async function bootstrap() {
-	const app = await NestFactory.create(AppModule, {
-		// Disable body parser to allow Better Auth to handle raw request body
-		// The library will automatically re-add the default body parsers
-		bodyParser: false,
-	})
+	const app = await NestFactory.create(MainModule, { bodyParser: false })
+
+	// Set the global prefix for the API
 	app.setGlobalPrefix("api")
 	app.enableVersioning({
 		type: VersioningType.URI,
 		defaultVersion: "1",
 	})
-	app.useGlobalPipes(new ZodValidationPipe() as PipeTransform)
 
-	// Configure OpenAPI / Scalar docs
-	setupOpenApi(app)
+	// Create the OpenAPI document
+	const openApiDoc = SwaggerModule.createDocument(
+		app,
+		new DocumentBuilder()
+			.setTitle("API Documentation")
+			.setDescription("Type-safe API with auto-generated documentation")
+			.setVersion("1.0")
+			.build()
+	) as OpenAPIObject
+
+	// Setup the Swagger module
+	SwaggerModule.setup("api", app, cleanupOpenApiDoc(openApiDoc) as OpenAPIObject)
+
+	// Setup the Scalar API Reference
+	app.use(
+		"/api/docs",
+		apiReference({
+			content: openApiDoc,
+			theme: "none",
+		})
+	)
 
 	await app.listen(process.env.PORT ?? 3000)
 }

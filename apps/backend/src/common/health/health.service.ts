@@ -1,63 +1,49 @@
-import { Injectable } from "@nestjs/common"
-import { HealthCheckService } from "@nestjs/terminus"
+import { Inject, Injectable } from "@nestjs/common"
+import { sql } from "drizzle-orm"
 
 import type { HealthCheck } from "@repo/contracts"
 
-import { DBHealthIndicator } from "./indicators/db.health"
+import { DB, type DBType } from "@/common/database/database-providers"
 
 type HealthPayload = HealthCheck
 
 @Injectable()
 export class HealthService {
-	constructor(
-		private readonly health: HealthCheckService,
-		private readonly dbIndicator: DBHealthIndicator
-	) {}
+	constructor(@Inject(DB) private readonly db: DBType) {}
 
 	async check(): Promise<HealthPayload> {
+		// System information
 		const now = new Date()
 		const uptime = Number(process.uptime().toFixed(3))
 		const version = process.env.npm_package_version ?? "0.0.0"
 		const environment = process.env.NODE_ENV ?? "development"
 
-		const dbResult = await this.runDbCheck()
+		// Health checks
+		const database = await this.checkDatabase()
+
+		const status = database.status === "up" ? "ok" : "error"
 
 		return {
-			status: dbResult.status,
+			status,
 			timestamp: now.toISOString(),
 			uptime,
 			version,
 			environment,
 			checks: {
-				database: dbResult.database,
+				database,
 				cache: { status: "not_configured" },
 			},
 		}
 	}
 
-	private async runDbCheck(): Promise<{
-		status: HealthPayload["status"]
-		database: HealthPayload["checks"]["database"]
-	}> {
+	private async checkDatabase(): Promise<HealthPayload["checks"]["database"]> {
 		try {
-			const result = await this.health.check([() => this.dbIndicator.pingCheck("database")])
-			const database = result.info?.database ??
-				result.details?.database ??
-				(result as unknown as Record<string, { status?: string; message?: string }>).database ?? {
-					status: result.status,
-				}
-			return {
-				status: result.status as HealthPayload["status"],
-				database: database as HealthPayload["checks"]["database"],
-			}
+			await this.db.execute(sql`select 1`)
+			return { status: "up" }
 		} catch (error: unknown) {
-			const database = {
+			return {
 				status: "down",
 				message: (error as Error)?.message ?? "database check failed",
-			}
-			return {
-				status: "error",
-				database: database as HealthPayload["checks"]["database"],
 			}
 		}
 	}

@@ -1,5 +1,4 @@
-export * from "./modules/v1/examples/todos/todo.schema.js"
-export * from "./modules/v1/examples/todos/todo.dto.js"
+export * from "./modules/v1/examples/todos.contract.js"
 export * from "./modules/v1/auth/auth.schema.js"
 export * from "./modules/v1/auth/auth.dto.js"
 export * from "./utils/dto-generator.js"
