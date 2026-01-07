@@ -6,6 +6,7 @@ export * from "./v1/examples/todos/todo.dto.js"
 export * from "./v1/auth/auth.schema.js"
 export * from "./v1/auth/auth.dto.js"
 export * from "./utils/dto-generator.js"
+export * from "./utils/openapi.js"
 
 /**
  * Map of schema names to Zod schemas for automatic OpenAPI registration
