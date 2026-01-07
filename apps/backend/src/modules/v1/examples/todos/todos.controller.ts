@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiExtraModels, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
 import { CreateTodoDto, TodoListResponseDto, TodoResponseDto, UpdateTodoDto } from "@repo/contracts"
@@ -7,6 +7,7 @@ import { CreateTodoDto, TodoListResponseDto, TodoResponseDto, UpdateTodoDto } fr
 import { TodosService } from "./todos.service"
 
 @ApiTags("Todos")
+@ApiExtraModels(TodoResponseDto, TodoListResponseDto)
 @Controller({ path: "examples/todos", version: "1" })
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}

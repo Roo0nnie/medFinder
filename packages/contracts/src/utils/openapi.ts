@@ -13,43 +13,42 @@ type ZodDef = {
 /**
  * Convert Zod schema to OpenAPI format
  * Handles date fields which Zod v4's toJSONSchema() doesn't support
+ * Also ensures proper conversion of nested object schemas
  */
 export function zodToOpenAPISchema(schema: z.ZodTypeAny): OpenAPISchema {
 	// Access internal Zod definition (not part of public API but needed for date detection)
 	const schemaDef = (schema as unknown as { _def?: ZodDef })._def
 
-	// Handle object schemas with date fields
+	// Handle object schemas
 	if (schemaDef?.shape && typeof schemaDef.shape === "object") {
 		const shape = schemaDef.shape
 		const properties: Record<string, OpenAPISchema> = {}
 		const required: string[] = []
 
-		// Check if any field is a date
-		const hasDateFields = Object.keys(shape).some(key => {
-			const fieldDef = (shape[key] as unknown as { _def?: ZodDef })?._def
-			return (
+		// Always manually convert object schemas to ensure proper nested schema handling
+		for (const [key, value] of Object.entries(shape)) {
+			const fieldSchema = value as z.ZodTypeAny
+			const fieldDef = (fieldSchema as unknown as { _def?: ZodDef })?._def
+			const isOptional = fieldDef?.type === "optional" || fieldDef?.type === "default"
+
+			// Handle date fields
+			if (
 				fieldDef?.type === "date" ||
 				(fieldDef?.type === "optional" && fieldDef.innerType?._def?.type === "date") ||
 				(fieldDef?.type === "default" && fieldDef.innerType?._def?.type === "date")
-			)
-		})
-
-		if (hasDateFields) {
-			for (const [key, value] of Object.entries(shape)) {
-				const fieldSchema = value as z.ZodTypeAny
-				const fieldDef = (fieldSchema as unknown as { _def?: ZodDef })?._def
-				const isOptional = fieldDef?.type === "optional" || fieldDef?.type === "default"
-
-				// Handle date fields
-				if (
-					fieldDef?.type === "date" ||
-					(fieldDef?.type === "optional" && fieldDef.innerType?._def?.type === "date") ||
-					(fieldDef?.type === "default" && fieldDef.innerType?._def?.type === "date")
-				) {
-					properties[key] = { type: "string", format: "date-time" }
-					if (!isOptional) required.push(key)
-				} else {
-					// Convert other fields
+			) {
+				properties[key] = { type: "string", format: "date-time" }
+				if (!isOptional) required.push(key)
+			} else {
+				// Convert other fields (including nested schemas)
+				try {
+					const fieldJsonSchema = zodToOpenAPISchema(fieldSchema)
+					properties[key] = fieldJsonSchema
+					if (!isOptional && (fieldJsonSchema as { type?: unknown }).type) {
+						required.push(key)
+					}
+				} catch {
+					// Fallback to Zod's toJSONSchema if recursive conversion fails
 					try {
 						const fieldJsonSchema = (fieldSchema as z.ZodTypeAny).toJSONSchema()
 						properties[key] = fieldJsonSchema
@@ -61,17 +60,17 @@ export function zodToOpenAPISchema(schema: z.ZodTypeAny): OpenAPISchema {
 					}
 				}
 			}
+		}
 
-			return {
-				type: "object",
-				properties,
-				...(required.length > 0 && { required }),
-				additionalProperties: false,
-			}
+		return {
+			type: "object",
+			properties,
+			...(required.length > 0 && { required }),
+			additionalProperties: false,
 		}
 	}
 
-	// Use normal conversion for schemas without dates
+	// Use normal conversion for non-object schemas
 	try {
 		return (schema as z.ZodTypeAny).toJSONSchema()
 	} catch {
@@ -103,6 +102,7 @@ export function registerSchemasInOpenAPI(
 			[key: string]: unknown
 		}
 		void _schema
+		// Force override any existing schema to ensure our Zod-converted schema is used
 		document.components.schemas![dtoName] = cleanSchema
 	}
 }
