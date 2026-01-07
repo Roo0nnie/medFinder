@@ -2,7 +2,19 @@
 
 ## Current Setup Analysis
 
-You're using **nestjs-zod** with Zod schemas, which automatically generates OpenAPI schemas from your Zod definitions. This means some decorators are redundant.
+You're using **nestjs-zod** with Zod schemas, which automatically generates OpenAPI schemas from your Zod definitions.
+
+### ⚠️ Important: Two Decorators Needed for Responses
+
+For response documentation, you need **both** decorators:
+
+1. **`@ZodSerializerDto(TodoResponseDto)`** - Handles runtime validation and serialization
+2. **`@ApiResponse({ type: TodoResponseDto })`** - Registers the type in OpenAPI/Swagger documentation
+
+**Why both?**
+- `@ZodSerializerDto` validates and serializes responses at runtime using your Zod schema
+- `@ApiResponse` with `type` tells Swagger/OpenAPI what the response structure looks like for documentation
+- They serve different purposes and both are required for proper type-safe responses with complete documentation
 
 ---
 
@@ -25,43 +37,45 @@ export class TodosController {}
 })
 ```
 
-### 3. **@ApiResponse()** ⚠️ Partially Redundant
-**With nestjs-zod**: You can simplify this!
+### 3. **@ApiResponse()** ✅ Required for OpenAPI Documentation
+**Important**: `@ZodSerializerDto` handles runtime serialization, but you still need `@ApiResponse` with `type` for OpenAPI documentation!
 
-**Current (verbose):**
+**Correct usage:**
 ```typescript
 @ZodSerializerDto(TodoResponseDto)
 @ApiResponse({
   status: 200,
   description: "Todo found",
-  type: TodoResponseDto,
+  type: TodoResponseDto, // Required for OpenAPI type documentation
 })
 ```
 
-**Better (with nestjs-zod):**
-```typescript
-@ZodSerializerDto(TodoResponseDto)
-@ApiResponse({ status: 200, description: "Todo found" })
-// The 'type' is redundant - ZodSerializerDto already handles it!
-```
+**Why both?**
+- `@ZodSerializerDto(TodoResponseDto)` - Validates and serializes the response at runtime
+- `@ApiResponse({ type: TodoResponseDto })` - Registers the response type in OpenAPI/Swagger documentation
 
-**Or even better - document ALL responses:**
+**Document ALL responses:**
 ```typescript
 @ZodSerializerDto(TodoResponseDto)
-@ApiResponse({ status: 200, description: "Todo found" })
+@ApiResponse({ 
+  status: 200, 
+  description: "Todo found",
+  type: TodoResponseDto 
+})
 @ApiResponse({ status: 404, description: "Todo not found" })
 @ApiResponse({ status: 400, description: "Invalid request" })
 ```
 
 ### 4. **@ZodSerializerDto()** ✅ Keep
-**Purpose**: Serializes response using Zod schema + registers in Swagger
+**Purpose**: Validates and serializes response using Zod schema at runtime
 ```typescript
 @ZodSerializerDto(TodoResponseDto)
 ```
 This automatically:
-- Validates the response matches the schema
-- Registers the DTO in Swagger
-- Generates OpenAPI schema from Zod
+- Validates the response matches the schema at runtime
+- Serializes the response according to the Zod schema
+
+**Note**: This does NOT automatically register the type in Swagger/OpenAPI. You still need `@ApiResponse({ type: TodoResponseDto })` for documentation.
 
 ### 5. **@ApiParam()** ✅ Keep for Path Parameters
 **Purpose**: Documents path parameters
@@ -190,10 +204,10 @@ export class MyController {}
    - Use `createZodDto()` to create DTOs
    - Let Zod generate OpenAPI schemas automatically
 
-2. **Document all response codes**
+2. **Document all response codes with types**
    ```typescript
    @ZodSerializerDto(TodoResponseDto)
-   @ApiOkResponse({ description: "Success" })
+   @ApiOkResponse({ type: TodoResponseDto, description: "Success" })
    @ApiNotFoundResponse({ description: "Todo not found" })
    @ApiBadRequestResponse({ description: "Invalid ID format" })
    ```
@@ -222,15 +236,15 @@ export class MyController {}
 
 ### ❌ DON'T:
 
-1. **Don't duplicate type information**
+1. **Always include type in @ApiResponse**
    ```typescript
-   // ❌ BAD - redundant
-   @ZodSerializerDto(TodoResponseDto)
-   @ApiResponse({ type: TodoResponseDto }) // 'type' is redundant!
-   
-   // ✅ GOOD
+   // ❌ BAD - missing type, OpenAPI won't show response schema
    @ZodSerializerDto(TodoResponseDto)
    @ApiResponse({ status: 200, description: "Success" })
+   
+   // ✅ GOOD - both decorators needed
+   @ZodSerializerDto(TodoResponseDto)
+   @ApiResponse({ status: 200, description: "Success", type: TodoResponseDto })
    ```
 
 2. **Don't use @ApiProperty in Zod DTOs**
@@ -256,7 +270,7 @@ export class TodosController {
   @ApiQuery({ name: "page", type: Number, required: false, example: 1 })
   @ApiQuery({ name: "limit", type: Number, required: false, example: 20 })
   @ZodSerializerDto(TodoListResponseDto)
-  @ApiOkResponse({ description: "List of todos" })
+  @ApiOkResponse({ type: TodoListResponseDto, description: "List of todos" })
   @ApiBadRequestResponse({ description: "Invalid query parameters" })
   async getTodos(@Query() query: PaginationDto) {}
 
@@ -264,7 +278,7 @@ export class TodosController {
   @ApiOperation({ summary: "Get a todo by ID" })
   @ApiParam({ name: "id", type: Number, description: "Todo ID", example: 1 })
   @ZodSerializerDto(TodoResponseDto)
-  @ApiOkResponse({ description: "Todo found" })
+  @ApiOkResponse({ type: TodoResponseDto, description: "Todo found" })
   @ApiNotFoundResponse({ description: "Todo not found" })
   @ApiBadRequestResponse({ description: "Invalid ID format" })
   async getTodo(@Param("id") id: string) {}
@@ -272,7 +286,7 @@ export class TodosController {
   @Post()
   @ApiOperation({ summary: "Create a new todo" })
   @ZodSerializerDto(TodoResponseDto)
-  @ApiCreatedResponse({ description: "Todo created successfully" })
+  @ApiCreatedResponse({ type: TodoResponseDto, description: "Todo created successfully" })
   @ApiBadRequestResponse({ description: "Invalid input data" })
   async createTodo(@Body() payload: CreateTodoDto) {}
 }
@@ -308,7 +322,7 @@ export class TodosController {
 @ApiOperation({ summary: "Get by ID" })
 @ApiParam({ name: "id", type: Number })
 @ZodSerializerDto(ResponseDto)
-@ApiOkResponse()
+@ApiOkResponse({ type: ResponseDto })
 @ApiNotFoundResponse()
 ```
 
@@ -317,7 +331,7 @@ export class TodosController {
 @Post()
 @ApiOperation({ summary: "Create" })
 @ZodSerializerDto(ResponseDto)
-@ApiCreatedResponse()
+@ApiCreatedResponse({ type: ResponseDto })
 @ApiBadRequestResponse()
 ```
 
@@ -327,7 +341,7 @@ export class TodosController {
 @ApiOperation({ summary: "List" })
 @ApiQuery({ name: "page", type: Number, required: false })
 @ZodSerializerDto(ListResponseDto)
-@ApiOkResponse()
+@ApiOkResponse({ type: ListResponseDto })
 ```
 
 ### Pattern 4: Protected Endpoint
@@ -336,6 +350,6 @@ export class TodosController {
 @ApiBearerAuth()
 @ApiOperation({ summary: "Get profile" })
 @ZodSerializerDto(ProfileDto)
-@ApiOkResponse()
+@ApiOkResponse({ type: ProfileDto })
 @ApiUnauthorizedResponse()
 ```
