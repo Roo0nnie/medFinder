@@ -1,19 +1,11 @@
 import { Injectable } from "@nestjs/common"
 import { HealthCheckService } from "@nestjs/terminus"
 
+import type { HealthCheck } from "@repo/contracts"
+
 import { DBHealthIndicator } from "./indicators/db.health"
 
-type HealthChecks = {
-	database: { status: string; message?: string } & Record<string, unknown>
-	cache: { status: string; message?: string }
-}
-
-type HealthPayload = {
-	status: string
-	timestamp: string
-	uptime: number
-	checks: HealthChecks
-}
+type HealthPayload = HealthCheck
 
 @Injectable()
 export class HealthService {
@@ -25,6 +17,8 @@ export class HealthService {
 	async check(): Promise<HealthPayload> {
 		const now = new Date()
 		const uptime = Number(process.uptime().toFixed(3))
+		const version = process.env.npm_package_version ?? "0.0.0"
+		const environment = process.env.NODE_ENV ?? "development"
 
 		const dbResult = await this.runDbCheck()
 
@@ -32,6 +26,8 @@ export class HealthService {
 			status: dbResult.status,
 			timestamp: now.toISOString(),
 			uptime,
+			version,
+			environment,
 			checks: {
 				database: dbResult.database,
 				cache: { status: "not_configured" },
@@ -40,8 +36,8 @@ export class HealthService {
 	}
 
 	private async runDbCheck(): Promise<{
-		status: string
-		database: { status: string; message?: string } & Record<string, unknown>
+		status: HealthPayload["status"]
+		database: HealthPayload["checks"]["database"]
 	}> {
 		try {
 			const result = await this.health.check([() => this.dbIndicator.pingCheck("database")])
@@ -51,8 +47,8 @@ export class HealthService {
 					status: result.status,
 				}
 			return {
-				status: result.status,
-				database: database as { status: string; message?: string } & Record<string, unknown>,
+				status: result.status as HealthPayload["status"],
+				database: database as HealthPayload["checks"]["database"],
 			}
 		} catch (error: unknown) {
 			const database = {
@@ -61,7 +57,7 @@ export class HealthService {
 			}
 			return {
 				status: "error",
-				database: database as { status: string; message?: string } & Record<string, unknown>,
+				database: database as HealthPayload["checks"]["database"],
 			}
 		}
 	}

@@ -31,10 +31,23 @@ export const PaginationSchema = z.object({
 })
 
 export const HealthCheckSchema = z.object({
-	status: z.literal("ok"),
-	timestamp: z.string().datetime(),
+	status: z.enum(["ok", "error"]),
+	timestamp: z.iso.datetime(),
 	uptime: z.number(),
+	version: z.string(),
 	environment: z.string(),
+	checks: z.object({
+		database: z
+			.object({
+				status: z.string(),
+				message: z.string().optional(),
+			})
+			.catchall(z.unknown()),
+		cache: z.object({
+			status: z.string(),
+			message: z.string().optional(),
+		}),
+	}),
 })
 
 // ============================================================================
@@ -47,4 +60,3 @@ export type ApiSuccessResponse<T> = z.infer<
 	ReturnType<typeof ApiSuccessResponseSchema<z.ZodType<T>>>
 >
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>
-

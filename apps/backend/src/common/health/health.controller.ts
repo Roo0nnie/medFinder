@@ -3,6 +3,8 @@ import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { HealthCheck, HealthCheckService } from "@nestjs/terminus"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
+import { HealthCheckDto } from "@repo/contracts"
+
 import { HealthService } from "./health.service"
 
 @ApiTags("Health")
@@ -16,7 +18,11 @@ export class HealthController {
 	@Get()
 	@AllowAnonymous()
 	@ApiOperation({ summary: "Health check" })
-	@ApiResponse({ status: 200, description: "Health check passed" })
+	@ApiResponse({
+		status: 200,
+		description: "Health check passed",
+		type: HealthCheckDto,
+	})
 	@HealthCheck()
 	async check() {
 		await this.health.check([])

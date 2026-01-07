@@ -11,6 +11,7 @@ export * from "./modules/v1/auth/auth.schema.js"
 export * from "./modules/v1/auth/auth.dto.js"
 export * from "./utils/dto-generator.js"
 export * from "./common/common.schemas.js"
+export * from "./common/common.dto.js"
 export * from "./utils/openapi.js"
 
 /**
