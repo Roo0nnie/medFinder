@@ -15,15 +15,15 @@ describe("TodosController (v1)", () => {
 			id: 1,
 			title: "First todo example",
 			completed: false,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 		{
 			id: 2,
 			title: "Second todo example",
 			completed: true,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
 		},
 	]
 
