@@ -1,8 +1,7 @@
 import type { INestApplication } from "@nestjs/common"
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger"
 import { apiReference } from "@scalar/nestjs-api-reference"
-
-import { registerSchemasInOpenAPI, schemaMap } from "@repo/contracts"
+import { cleanupOpenApiDoc } from "nestjs-zod"
 
 export function setupOpenApi(app: INestApplication): void {
 	const swaggerConfig = new DocumentBuilder()
@@ -13,12 +12,12 @@ export function setupOpenApi(app: INestApplication): void {
 
 	const document = SwaggerModule.createDocument(app, swaggerConfig)
 
-	registerSchemasInOpenAPI(document, schemaMap)
+	const cleanedDocument = cleanupOpenApiDoc(document)
 
 	app.use(
 		"/api/docs",
 		apiReference({
-			content: document,
+			content: cleanedDocument,
 			theme: "none",
 		})
 	)

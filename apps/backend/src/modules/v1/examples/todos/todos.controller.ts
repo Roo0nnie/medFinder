@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
-import { ApiExtraModels, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
+import { ZodSerializerDto } from "nestjs-zod"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
 import { CreateTodoDto, TodoListResponseDto, TodoResponseDto, UpdateTodoDto } from "@repo/contracts"
@@ -7,13 +8,13 @@ import { CreateTodoDto, TodoListResponseDto, TodoResponseDto, UpdateTodoDto } fr
 import { TodosService } from "./todos.service"
 
 @ApiTags("Todos")
-@ApiExtraModels(TodoResponseDto, TodoListResponseDto)
 @Controller({ path: "examples/todos", version: "1" })
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}
 
 	@Get()
 	@ApiOperation({ summary: "Get all todos" })
+	@ZodSerializerDto(TodoListResponseDto)
 	@ApiResponse({
 		status: 200,
 		description: "List of todos",
@@ -31,6 +32,7 @@ export class TodosController {
 	@Get(":id")
 	@ApiOperation({ summary: "Get a todo by ID" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
+	@ZodSerializerDto(TodoResponseDto)
 	@ApiResponse({
 		status: 200,
 		description: "Todo found",
@@ -46,6 +48,7 @@ export class TodosController {
 
 	@Post()
 	@ApiOperation({ summary: "Create a new todo" })
+	@ZodSerializerDto(TodoResponseDto)
 	@ApiResponse({
 		status: 201,
 		description: "Todo created successfully",
@@ -63,6 +66,7 @@ export class TodosController {
 	@Put(":id")
 	@ApiOperation({ summary: "Replace a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
+	@ZodSerializerDto(TodoResponseDto)
 	@ApiResponse({
 		status: 200,
 		description: "Todo replaced successfully",
@@ -79,6 +83,7 @@ export class TodosController {
 	@Patch(":id")
 	@ApiOperation({ summary: "Update a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
+	@ZodSerializerDto(TodoResponseDto)
 	@ApiResponse({
 		status: 200,
 		description: "Todo updated successfully",
@@ -95,6 +100,7 @@ export class TodosController {
 	@Delete(":id")
 	@ApiOperation({ summary: "Delete a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
+	@ZodSerializerDto(TodoResponseDto)
 	@ApiResponse({
 		status: 200,
 		description: "Todo deleted successfully",

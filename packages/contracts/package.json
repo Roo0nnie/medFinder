@@ -22,7 +22,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"nestjs-zod": "^4.0.1",
+		"nestjs-zod": "^5.1.0",
 		"zod": "catalog:"
 	},
 	"devDependencies": {

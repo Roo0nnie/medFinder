@@ -14,7 +14,7 @@ catalog:
   "@trpc/client": ^11.8.1
   "@trpc/server": ^11.8.1
   "@trpc/tanstack-react-query": ^11.8.1
-  "@turbo/gen": ^2.7.2
+  "@turbo/gen": ^2.7.3
   "@types/node": ^22.19.3
   "@types/react": 19.2.7
   "@types/react-dom": 19.2.3
@@ -25,10 +25,10 @@ catalog:
   react: 19.2.3
   react-dom: 19.2.3
   tailwindcss: ^4.1.18
-  turbo: ^2.7.2
+  turbo: ^2.7.3
   typescript: ^5.9.3
-  typescript-eslint: ^8.51.0
-  zod: ^4.3.4
+  typescript-eslint: ^8.52.0
+  zod: ^4.3.5
 
 catalogs:
   react19:

@@ -2,13 +2,10 @@ import "reflect-metadata"
 
 import { VersioningType, type PipeTransform } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
-import { patchNestJsSwagger, ZodValidationPipe } from "nestjs-zod"
+import { ZodValidationPipe } from "nestjs-zod"
 
 import { setupOpenApi } from "@/common/docs/openapi"
 import { AppModule } from "@/main.module"
-
-// Patch NestJS Swagger to work with Zod schemas (required for v4.0.1)
-patchNestJsSwagger()
 
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule, {

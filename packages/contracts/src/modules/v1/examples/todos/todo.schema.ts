@@ -19,11 +19,9 @@ export const TodoSchema = z
 		id: z.number(),
 		title: z.string(),
 		completed: z.boolean(),
-		createdAt: z.date(),
-		updatedAt: z.date(),
+		createdAt: z.iso.datetime(),
+		updatedAt: z.iso.datetime(),
 	})
 	.meta({ id: "TodoDto" })
 
-export type CreateTodo = z.infer<typeof CreateTodoSchema>
-export type UpdateTodo = z.infer<typeof UpdateTodoSchema>
 export type Todo = z.infer<typeof TodoSchema>

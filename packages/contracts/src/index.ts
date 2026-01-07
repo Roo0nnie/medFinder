@@ -5,12 +5,3 @@ export * from "./modules/v1/auth/auth.dto.js"
 export * from "./utils/dto-generator.js"
 export * from "./common/common.schemas.js"
 export * from "./common/common.dto.js"
-export * from "./utils/openapi.js"
-export * from "./openapi/index.js"
-
-/**
- * Map of schema names to Zod schemas for automatic OpenAPI registration
- * Key: DTO name (e.g., "CreateTodoDto")
- * Value: Corresponding Zod schema
- */
-export { schemaMap } from "./openapi/schema-map.js"
