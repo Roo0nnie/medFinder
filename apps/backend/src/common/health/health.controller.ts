@@ -1,9 +1,11 @@
 import { Controller, Get, VERSION_NEUTRAL } from "@nestjs/common"
+import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { HealthCheck, HealthCheckService } from "@nestjs/terminus"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
 import { HealthService } from "./health.service"
 
+@ApiTags("Health")
 @Controller({ path: "health", version: VERSION_NEUTRAL })
 export class HealthController {
 	constructor(
@@ -13,6 +15,8 @@ export class HealthController {
 
 	@Get()
 	@AllowAnonymous()
+	@ApiOperation({ summary: "Health check" })
+	@ApiResponse({ status: 200, description: "Health check passed" })
 	@HealthCheck()
 	async check() {
 		await this.health.check([])

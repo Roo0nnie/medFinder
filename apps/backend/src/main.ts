@@ -27,7 +27,6 @@ async function bootstrap() {
 		.setTitle("API Documentation")
 		.setDescription("Type-safe API with auto-generated documentation")
 		.setVersion("1.0")
-		.addTag("todos")
 		.build()
 
 	const document = SwaggerModule.createDocument(app, swaggerConfig)
