@@ -39,7 +39,7 @@ export const sessions = pgTable("sessions", {
 export const accounts = pgTable(
 	"accounts",
 	{
-		id: text("id").primaryKey(),
+		id: text("id"),
 		accountId: text("account_id").notNull(),
 		providerId: text("provider_id").notNull(),
 		userId: text("user_id")
@@ -56,7 +56,7 @@ export const accounts = pgTable(
 		updatedAt: timestamp("updated_at").notNull().defaultNow(),
 	},
 	table => ({
-		// Composite unique constraint on provider and account
+		// Composite primary key on provider and account
 		providerAccount: primaryKey({ columns: [table.providerId, table.accountId] }),
 	})
 )
@@ -68,7 +68,7 @@ export const accounts = pgTable(
 export const verifications = pgTable(
 	"verifications",
 	{
-		id: text("id").primaryKey(),
+		id: text("id"),
 		identifier: text("identifier").notNull(),
 		value: text("value").notNull(),
 		expiresAt: timestamp("expires_at").notNull(),
@@ -76,7 +76,7 @@ export const verifications = pgTable(
 		updatedAt: timestamp("updated_at").defaultNow(),
 	},
 	table => ({
-		// Composite unique constraint on identifier and value
+		// Composite primary key on identifier and value
 		identifierValue: primaryKey({ columns: [table.identifier, table.value] }),
 	})
 )
