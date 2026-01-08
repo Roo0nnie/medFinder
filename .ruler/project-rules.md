@@ -14,7 +14,7 @@ This is a **Turborepo monorepo** template with three applications and shared pac
 
 | Layer           | Technology                               | Location              |
 | --------------- | ---------------------------------------- | --------------------- |
-| Frontend        | Next.js 15 (App Router)                  | `apps/web/`           |
+| Frontend        | Next.js 16 (App Router)                  | `apps/web/`           |
 | Backend         | NestJS                                   | `apps/backend/`       |
 | Mobile          | Flutter                                  | `apps/mobile/`        |
 | Database        | Drizzle ORM + PostgreSQL                 | `packages/db/`        |
