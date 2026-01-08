@@ -26,7 +26,7 @@ function Calendar({
 		<DayPicker
 			showOutsideDays={showOutsideDays}
 			className={cn(
-				"bg-background group/calendar p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
+				"bg-background group/calendar p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
 				String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
 				String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
 				className
@@ -115,15 +115,27 @@ function Calendar({
 				...classNames,
 			}}
 			components={{
-				Root: ({ className, rootRef, ...props }) => {
+				Root: ({
+					className,
+					rootRef,
+					...props
+				}: React.ComponentProps<"div"> & { rootRef?: React.Ref<HTMLDivElement> }) => {
 					return <div data-slot="calendar" ref={rootRef} className={cn(className)} {...props} />
 				},
-				Chevron: ({ className, orientation, ...props }) => {
+				Chevron: ({
+					className,
+					orientation,
+					strokeWidth,
+					...props
+				}: React.ComponentProps<"svg"> & {
+					orientation?: "left" | "right" | "up" | "down"
+					strokeWidth?: number
+				}) => {
 					if (orientation === "left") {
 						return (
 							<HugeiconsIcon
 								icon={ArrowLeftIcon}
-								strokeWidth={2}
+								strokeWidth={strokeWidth ?? 2}
 								className={cn("size-4", className)}
 								{...props}
 							/>
@@ -134,7 +146,7 @@ function Calendar({
 						return (
 							<HugeiconsIcon
 								icon={ArrowRightIcon}
-								strokeWidth={2}
+								strokeWidth={strokeWidth ?? 2}
 								className={cn("size-4", className)}
 								{...props}
 							/>
@@ -144,7 +156,7 @@ function Calendar({
 					return (
 						<HugeiconsIcon
 							icon={ArrowDownIcon}
-							strokeWidth={2}
+							strokeWidth={strokeWidth ?? 2}
 							className={cn("size-4", className)}
 							{...props}
 						/>
