@@ -58,19 +58,55 @@ import { todos } from "@repo/db/schema"
 ## Development Workflow
 
 1. Use `pnpm` for all package management
-2. Run `pnpm check` before committing
-3. Update `.env.example` and `env.ts` when adding environment variables
-4. Keep features isolated in their own folders
+2. Run `pnpm lint && pnpm typecheck` before committing
+3. Run `pnpm format:fix` to fix formatting issues
+4. Update `.env.example` and `env.ts` when adding environment variables
+5. Keep features isolated in their own folders
 
 ## Common Scripts
 
+### Development
+
 ```bash
-pnpm dev          # Start all apps in development
-pnpm build        # Build all apps for production
-pnpm check        # Run linting and type checks
-pnpm db:push      # Push database schema changes
-pnpm db:generate  # Generate Drizzle types
-pnpm db:studio    # Open Drizzle Studio
+pnpm dev              # Start all apps in development (watch mode)
+pnpm dev:web          # Start only web app
+pnpm dev:backend      # Start only backend app
+pnpm dev:mobile       # Start only mobile app
+pnpm start            # Start all apps in production mode
+```
+
+### Build & Clean
+
+```bash
+pnpm build            # Build all apps for production
+pnpm clean            # Remove root node_modules
+pnpm clean:workspaces # Clean all workspace node_modules
+```
+
+### Code Quality
+
+```bash
+pnpm lint             # Run ESLint across all packages
+pnpm lint:fix         # Run ESLint and auto-fix issues
+pnpm format           # Check formatting with Prettier
+pnpm format:fix       # Fix formatting with Prettier
+pnpm typecheck        # Run TypeScript type checking
+pnpm lint:ws          # Check workspace dependencies (sherif)
+```
+
+### Database
+
+```bash
+pnpm db:push          # Push schema changes to database
+pnpm db:generate      # Generate Drizzle types/migrations
+pnpm db:migrate       # Run database migrations
+pnpm db:studio        # Open Drizzle Studio GUI
+```
+
+### Auth
+
+```bash
+pnpm auth:generate    # Generate Better Auth types
 ```
 
 ## TypeScript Standards
