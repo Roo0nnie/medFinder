@@ -14,7 +14,7 @@ export const env = createEnv({
 	 * This way you can ensure the app isn't built with invalid env vars.
 	 */
 	server: {
-		POSTGRES_URL: z.url(),
+		// POSTGRES_URL: z.url(),
 	},
 
 	/**
@@ -27,9 +27,9 @@ export const env = createEnv({
 	/**
 	 * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
 	 */
-	experimental__runtimeEnv: {
+	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
-
+		// POSTGRES_URL: process.env.POSTGRES_URL,
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
 	},
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
