@@ -5,7 +5,6 @@
 	"private": true,
 	"license": "UNLICENSED",
 	"scripts": {
-		"build": "flutter build apk",
 		"build:android": "flutter build apk",
 		"build:ios": "flutter build ios",
 		"build:all": "flutter build apk && flutter build ios",
