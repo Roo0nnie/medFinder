@@ -2,18 +2,19 @@ import "dotenv/config"
 
 import type { NextConfig } from "next"
 
-// Import env files to validate at build time
 import "./env"
 
 /** @type {import("next").NextConfig} */
 const config: NextConfig = {
-	/** Enables hot reloading for local packages without a build step */
+	// output: "standalone",
+	// /** Enables hot reloading for local packages without a build step */
 	// transpilePackages: [
-	//   "@repo/api",
-	//   "@repo/auth",
-	//   "@repo/db",
-	//   "@repo/ui",
-	//   "@repo/validators",
+	// 	"@repo/auth",
+	// 	"@repo/backend",
+	// 	"@repo/contracts",
+	// 	"@repo/db",
+	// 	"@t3-oss/env-core",
+	// 	"@t3-oss/env-nextjs",
 	// ],
 
 	typescript: { ignoreBuildErrors: true },

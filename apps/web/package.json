@@ -34,7 +34,6 @@
 		"baseline-browser-mapping": "^2.9.11",
 		"dotenv": "^16.6.1",
 		"eslint": "catalog:",
-		"jiti": "^2.6.1",
 		"prettier": "catalog:",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:"

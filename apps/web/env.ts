@@ -25,11 +25,10 @@ export const env = createEnv({
 		NEXT_PUBLIC_BETTER_AUTH_URL: z.url().optional(),
 	},
 	/**
-	 * Destructure all variables from `process.env` to make sure they aren't tree-shaken away.
+	 * Destructure all  client variables from `process.env` to make sure they aren't tree-shaken away.
 	 */
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
-		// POSTGRES_URL: process.env.POSTGRES_URL,
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
 	},
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
