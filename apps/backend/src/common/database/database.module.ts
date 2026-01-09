@@ -1,8 +1,7 @@
 import { Global, Inject, Module, type OnModuleDestroy } from "@nestjs/common"
-import { drizzle } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 
-import { schema } from "@repo/db/schema"
+import { createDBClientFromPool } from "@repo/db/client"
 
 import { DB, POOL, type DBType } from "./database-providers"
 
@@ -47,7 +46,7 @@ import { DB, POOL, type DBType } from "./database-providers"
 			provide: DB,
 			inject: [POOL],
 			useFactory: (pool: Pool): DBType => {
-				return drizzle(pool, { schema })
+				return createDBClientFromPool(pool)
 			},
 		},
 	],

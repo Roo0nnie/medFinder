@@ -1,12 +1,12 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 
-import { schema, type Schema } from "./schema/index.js"
+import { schema } from "./schema.js"
 
 /**
  * Type for the Drizzle database client
  */
-export type DBClient = NodePgDatabase<Schema>
+export type DBClient = NodePgDatabase<typeof schema>
 
 /**
  * Creates a PostgreSQL connection pool
@@ -32,6 +32,7 @@ export function createPool(connectionString?: string): Pool {
  */
 export function createDBClient(connectionString?: string): DBClient {
 	const pool = createPool(connectionString)
+	// @ts-expect-error - Drizzle beta types may not correctly infer Pool overload
 	return drizzle(pool, { schema })
 }
 
@@ -42,5 +43,6 @@ export function createDBClient(connectionString?: string): DBClient {
  * @returns A Drizzle database client
  */
 export function createDBClientFromPool(pool: Pool): DBClient {
+	// @ts-expect-error - Drizzle beta types may not correctly infer Pool overload
 	return drizzle(pool, { schema })
 }
