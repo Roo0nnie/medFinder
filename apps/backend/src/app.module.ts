@@ -9,7 +9,7 @@ import { auth } from "@repo/auth"
 import { DBModule } from "@/common/database/database.module"
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
 import { HealthModule } from "@/common/health/health.module"
-import { AppModule as V1AppModule } from "@/modules/v1/app.module"
+import { V1Module } from "@/modules/v1/v1.module"
 
 @Module({
 	imports: [
@@ -23,8 +23,8 @@ import { AppModule as V1AppModule } from "@/modules/v1/app.module"
 		HealthModule,
 		// Authentication
 		AuthModule.forRoot({ auth }),
-		// Feature modules
-		V1AppModule,
+		// Versioned modules
+		V1Module,
 	],
 	providers: [
 		// Global providers

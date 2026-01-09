@@ -5,4 +5,4 @@ import { ExamplesModule } from "./examples/examples.module"
 @Module({
 	imports: [ExamplesModule],
 })
-export class AppModule {}
+export class V1Module {}

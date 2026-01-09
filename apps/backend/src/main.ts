@@ -6,7 +6,7 @@ import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swag
 import { apiReference } from "@scalar/nestjs-api-reference"
 import { cleanupOpenApiDoc } from "nestjs-zod"
 
-import { MainModule } from "@/main.module"
+import { MainModule } from "@/app.module"
 
 async function bootstrap() {
 	const app = await NestFactory.create(MainModule, { bodyParser: false })
