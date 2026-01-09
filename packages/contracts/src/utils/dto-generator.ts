@@ -1,4 +1,4 @@
-import { createZodDto } from "nestjs-zod"
+import { createZodDto, type ZodDto } from "nestjs-zod"
 import { type z } from "zod"
 
 /**
@@ -10,11 +10,8 @@ import { type z } from "zod"
  * export class CreateTodoDto extends createDto(CreateTodoSchema, "CreateTodoDto") {}
  * ```
  */
-export function createDto<T extends z.ZodTypeAny>(
-	schema: T,
-	className: string
-): new () => z.infer<T> {
-	const DtoClass = createZodDto(schema) as new () => z.infer<T>
+export function createDto<T extends z.ZodTypeAny>(schema: T, className: string): ZodDto<T, false> {
+	const DtoClass = createZodDto(schema)
 
 	// Set the class name for better debugging and documentation
 	Object.defineProperty(DtoClass, "name", { value: className })

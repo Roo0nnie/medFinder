@@ -1,5 +1,11 @@
-import { createZodDto } from "nestjs-zod"
+import { createZodDto, type ZodDto } from "nestjs-zod"
 import { z } from "zod"
+
+// ============================================================================
+// RESPONSE HELPERS
+// ============================================================================
+
+import { serialize, type Serialize } from "../utils/types.js"
 
 // ============================================================================
 // SCHEMAS
@@ -19,7 +25,7 @@ export const ApiErrorResponseSchema = z.object({
 		message: z.string(),
 		details: z.any().optional(),
 	}),
-	timestamp: z.string().datetime(),
+	timestamp: z.iso.datetime(),
 })
 
 export const PaginationSchema = z.object({
@@ -36,6 +42,75 @@ export type ApiSuccessResponse<T> = z.infer<
 >
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>
 export type Pagination = z.infer<typeof PaginationSchema>
+
+/**
+ * Creates a success response with proper literal typing.
+ * Does NOT serialize data - use `ok()` if you need serialization.
+ *
+ * @example
+ * ```ts
+ * return success(alreadySerializedData)
+ * ```
+ */
+export function success<T>(
+	data: T,
+	message?: string
+): { success: true; data: T; message?: string } {
+	return message ? { success: true, data, message } : { success: true, data }
+}
+
+/**
+ * Creates a success response AND serializes the data (Date → string, etc.).
+ * This is the recommended helper for controller responses.
+ *
+ * @example
+ * ```ts
+ * return ok(todo)                    // Single item
+ * return ok(todos)                   // Array
+ * return ok(todo, "Created!")        // With message
+ * ```
+ */
+export function ok<T>(
+	data: T,
+	message?: string
+): { success: true; data: Serialize<T>; message?: string } {
+	const serialized = serialize(data)
+	return message
+		? { success: true, data: serialized, message }
+		: { success: true, data: serialized }
+}
+
+/** Pagination metadata for list responses */
+export interface PaginationMeta {
+	page: number
+	limit: number
+	total: number
+	totalPages: number
+}
+
+/**
+ * Creates a paginated success response with serialization.
+ *
+ * @example
+ * ```ts
+ * const todos = await db.select().from(todosTable).limit(limit).offset((page - 1) * limit)
+ * const total = await db.select({ count: count() }).from(todosTable)
+ * return paginated(todos, { page, limit, total: total[0].count })
+ * ```
+ */
+export function paginated<T>(
+	data: T[],
+	meta: { page: number; limit: number; total: number }
+): { success: true; data: Serialize<T>[]; meta: PaginationMeta } {
+	return {
+		success: true,
+		data: serialize(data) as Serialize<T>[],
+		meta: {
+			...meta,
+			totalPages: Math.ceil(meta.total / meta.limit),
+		},
+	}
+}
 
 // ============================================================================
 // DTOs
@@ -57,10 +132,8 @@ export class PaginationDto extends createZodDto(PaginationSchema) {}
 export const ApiSuccessDto = <T extends z.ZodTypeAny>(
 	schema: T,
 	className: string
-): new () => z.infer<ReturnType<typeof ApiSuccessResponseSchema<T>>> => {
-	const DtoClass = createZodDto(ApiSuccessResponseSchema(schema)) as new () => z.infer<
-		ReturnType<typeof ApiSuccessResponseSchema<T>>
-	>
+): ZodDto<ReturnType<typeof ApiSuccessResponseSchema<T>>, false> => {
+	const DtoClass = createZodDto(ApiSuccessResponseSchema(schema))
 
 	// Set the class name for better debugging and documentation
 	Object.defineProperty(DtoClass, "name", { value: className })

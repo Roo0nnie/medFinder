@@ -1,21 +1,11 @@
-import { createZodDto } from "nestjs-zod"
 import { z } from "zod"
 
-import { ApiSuccessResponseSchema } from "../../../common/common.contract.js"
+import { ApiSuccessDto } from "../../../common/common.contract.js"
+import { createDto } from "../../../utils/dto-generator.js"
 
 // ============================================================================
 // SCHEMAS
 // ============================================================================
-
-export const CreateTodoSchema = z.object({
-	title: z.string().min(1).max(255),
-	completed: z.boolean().optional(),
-})
-
-export const UpdateTodoSchema = z.object({
-	title: z.string().min(1).max(255).optional(),
-	completed: z.boolean().optional(),
-})
 
 export const TodoSchema = z.object({
 	id: z.number(),
@@ -25,18 +15,25 @@ export const TodoSchema = z.object({
 	updatedAt: z.iso.datetime(),
 })
 
+export const CreateTodoSchema = TodoSchema.pick({
+	title: true,
+	completed: true,
+})
+export const UpdateTodoSchema = TodoSchema.pick({
+	title: true,
+	completed: true,
+})
+
 export type Todo = z.infer<typeof TodoSchema>
 
 // ============================================================================
 // DTOs
 // ============================================================================
 
-export class CreateTodoDto extends createZodDto(CreateTodoSchema) {}
+export class CreateTodoDto extends createDto(CreateTodoSchema, "CreateTodoDto") {}
 
-export class UpdateTodoDto extends createZodDto(UpdateTodoSchema) {}
+export class UpdateTodoDto extends createDto(UpdateTodoSchema, "UpdateTodoDto") {}
 
-export class TodoResponseDto extends createZodDto(ApiSuccessResponseSchema(TodoSchema)) {}
+export class TodoDto extends ApiSuccessDto(TodoSchema, "TodoDto") {}
 
-export class TodoListResponseDto extends createZodDto(
-	ApiSuccessResponseSchema(TodoSchema.array())
-) {}
+export class TodoListDto extends ApiSuccessDto(TodoSchema.array(), "TodoListDto") {}

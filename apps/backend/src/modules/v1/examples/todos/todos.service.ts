@@ -66,7 +66,8 @@ export class TodosService {
 	}
 
 	async remove(id: number) {
-		await this.findOne(id)
+		const todo = await this.findOne(id)
 		await this.db.delete(todos).where(eq(todos.id, id))
+		return todo
 	}
 }
