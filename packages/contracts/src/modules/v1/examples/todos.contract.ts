@@ -11,6 +11,7 @@ export const TodoSchema = z.object({
 	id: z.number(),
 	title: z.string(),
 	completed: z.boolean(),
+	authorId: z.string(),
 	createdAt: z.iso.datetime(),
 	updatedAt: z.iso.datetime(),
 })

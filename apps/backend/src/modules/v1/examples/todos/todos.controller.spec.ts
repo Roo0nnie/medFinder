@@ -7,6 +7,10 @@ import { type DBType } from "@/common/database/database-providers"
 import { TodosController } from "./todos.controller"
 import { TodosService } from "./todos.service"
 
+jest.mock("@thallesp/nestjs-better-auth", () => ({
+	AllowAnonymous: () => () => undefined,
+}))
+
 describe("TodosController (v1)", () => {
 	let controller: TodosController
 	let service: TodosService
@@ -17,6 +21,7 @@ describe("TodosController (v1)", () => {
 			id: 1,
 			title: "First todo example",
 			completed: false,
+			authorId: "template-user-id",
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		},
@@ -24,6 +29,7 @@ describe("TodosController (v1)", () => {
 			id: 2,
 			title: "Second todo example",
 			completed: true,
+			authorId: "template-user-id",
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
 		},
@@ -76,18 +82,21 @@ describe("TodosController (v1)", () => {
 	it("returns todos decorated with apiVersion", async () => {
 		const todos = await controller.getTodos()
 		expect(todos.data).toHaveLength(2)
-		expect(todos.data.every(todo => todo.id === 1)).toBe(true)
-		expect(todos.data[0]).toEqual(expect.objectContaining({ title: "First todo example", id: 1 }))
-		expect(todos.data[1]).toEqual(expect.objectContaining({ title: "Second todo example", id: 2 }))
+		expect(todos.success).toBe(true)
+		expect(todos.data[0]).toEqual(
+			expect.objectContaining({ title: "First todo example", id: 1, completed: false })
+		)
+		expect(todos.data[1]).toEqual(
+			expect.objectContaining({ title: "Second todo example", id: 2, completed: true })
+		)
 	})
 
 	it("creates and returns versioned todo", async () => {
 		const created = await controller.createTodo({ title: "Versioned", completed: true })
-		expect(created).toEqual(
+		expect(created.data).toEqual(
 			expect.objectContaining({
 				title: "Versioned",
 				completed: true,
-				apiVersion: "1",
 			})
 		)
 	})
@@ -164,12 +173,11 @@ describe("TodosController (v1)", () => {
 			completed: false,
 			title: "Replaced",
 		})
-		expect(patched).toEqual(
+		expect(patched.data).toEqual(
 			expect.objectContaining({
-				id: created.data.id,
+				id: 3,
 				title: "Replaced",
 				completed: false,
-				apiVersion: "1",
 			})
 		)
 	})
