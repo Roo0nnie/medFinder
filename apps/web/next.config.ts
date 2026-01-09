@@ -19,6 +19,10 @@ const config: NextConfig = {
 
 	typescript: { ignoreBuildErrors: true },
 	reactCompiler: true,
+
+	devIndicators: {
+		position: "bottom-right",
+	},
 }
 
 export default config
