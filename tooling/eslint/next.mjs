@@ -1,6 +1,7 @@
 import * as path from "node:path"
 import { includeIgnoreFile } from "@eslint/compat"
 import nextPlugin from "@next/eslint-plugin-next"
+import pluginQuery from "@tanstack/eslint-plugin-query"
 import prettier from "eslint-config-prettier"
 import react from "eslint-plugin-react"
 import reactHooks from "eslint-plugin-react-hooks"
@@ -9,7 +10,7 @@ import tseslint from "typescript-eslint"
 
 /**
  * ESLint config preset for Next.js applications
- * Includes: base TypeScript rules, React, Next.js, and Prettier integration
+ * Includes: base TypeScript rules, React, Next.js, TanStack Query, and Prettier integration
  */
 export const appConfig = defineConfig(
 	// Ignore files not tracked by VCS and any config files
@@ -87,6 +88,8 @@ export const appConfig = defineConfig(
 			"react/react-in-jsx-scope": "off",
 		},
 	},
+	// TanStack Query
+	...pluginQuery.configs["flat/recommended"],
 	// Prettier (must be last to override conflicting rules)
 	prettier
 )

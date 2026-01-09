@@ -109,7 +109,7 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const created = await controller.createTodo({ title: "Updatable" })
+		const created = await controller.createTodo({ title: "Updatable", completed: false })
 
 		// Mock findOne to return the created todo
 		const selectMock = mockDb.select as jest.Mock
@@ -160,7 +160,10 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const patched = await controller.updateTodo(String(created.data.id), { completed: false })
+		const patched = await controller.updateTodo(String(created.data.id), {
+			completed: false,
+			title: "Replaced",
+		})
 		expect(patched).toEqual(
 			expect.objectContaining({
 				id: created.data.id,

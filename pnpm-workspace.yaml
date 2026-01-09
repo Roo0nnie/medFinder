@@ -10,6 +10,7 @@ catalog:
   "@nestjs/core": ^11.1.11
   "@tailwindcss/postcss": ^4.1.18
   "@tanstack/react-form": ^1.27.7
+  "@tanstack/eslint-plugin-query": ^5.91.2
   "@tanstack/react-query": ^5.90.16
   "@trpc/client": ^11.8.1
   "@trpc/server": ^11.8.1

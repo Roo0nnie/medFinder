@@ -4,7 +4,7 @@ import request from "supertest"
 import { type App } from "supertest/types"
 
 import { MainModule } from "@/app.module"
-import { DB } from "@/common/database/database.providers"
+import { DB } from "@/common/database/database-providers"
 
 describe("Health (e2e)", () => {
 	let app: INestApplication<App>
