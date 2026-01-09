@@ -1,19 +1,18 @@
-import { Global, Inject, Module, type OnModuleDestroy } from "@nestjs/common"
-import { Pool } from "pg"
+import { Global, Module } from "@nestjs/common"
+import { drizzle } from "drizzle-orm/node-postgres"
 
-import { createDBClientFromPool } from "@repo/db/client"
+import { schema } from "@repo/db/schema"
 
-import { DB, POOL, type DBType } from "./database-providers"
+import { DB, type DBType } from "./database-providers"
 
 /**
- * Global NestJS module that provides Drizzle ORM database client and connection pool.
+ * Global NestJS module that provides Drizzle ORM database client.
  *
  * This module should be imported once in your root AppModule.
  * It provides:
- * - DB: The Drizzle database client (injectable, required)
- * - POOL: The PostgreSQL connection pool (injectable, required)
+ * - DB: The Drizzle database client (injectable)
  *
- * The connection pool is automatically closed when the module is destroyed.
+ * Drizzle manages its own connection pool internally.
  *
  * Requires POSTGRES_URL environment variable to be set.
  *
@@ -30,32 +29,17 @@ import { DB, POOL, type DBType } from "./database-providers"
 @Global()
 @Module({
 	providers: [
-		// Connection pool provider
 		{
-			provide: POOL,
-			useFactory: (): Pool => {
+			provide: DB,
+			useFactory: (): DBType => {
 				const connectionString = process.env.POSTGRES_URL
 				if (!connectionString) {
 					throw new Error("POSTGRES_URL environment variable is required when using DatabaseModule")
 				}
-				return new Pool({ connectionString })
-			},
-		},
-		// Database client provider
-		{
-			provide: DB,
-			inject: [POOL],
-			useFactory: (pool: Pool): DBType => {
-				return createDBClientFromPool(pool)
+				return drizzle(connectionString, { schema })
 			},
 		},
 	],
-	exports: [DB, POOL],
+	exports: [DB],
 })
-export class DBModule implements OnModuleDestroy {
-	constructor(@Inject(POOL) private readonly pool: Pool) {}
-
-	async onModuleDestroy(): Promise<void> {
-		await this.pool.end()
-	}
-}
+export class DBModule {}
