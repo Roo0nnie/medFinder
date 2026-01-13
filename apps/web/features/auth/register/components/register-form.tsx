@@ -43,8 +43,6 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 			name: "",
 		},
 		validators: {
-			onChange: RegisterSchema,
-			onBlur: RegisterSchema,
 			onSubmit: RegisterSchema,
 		},
 		onSubmit: async ({ value }) => {

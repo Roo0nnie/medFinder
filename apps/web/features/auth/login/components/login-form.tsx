@@ -42,8 +42,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			password: "",
 		},
 		validators: {
-			onChange: LoginSchema,
-			onBlur: LoginSchema,
 			onSubmit: LoginSchema,
 		},
 		onSubmit: async ({ value }) => {
