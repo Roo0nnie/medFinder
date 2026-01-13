@@ -34,7 +34,7 @@ export const PaginationSchema = z.object({
 })
 
 // ============================================================================
-// TYPE EXPORTS
+// TYPEs
 // ============================================================================
 
 export type ApiSuccessResponse<T> = z.infer<

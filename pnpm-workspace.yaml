@@ -4,18 +4,18 @@ packages:
   - tooling/*
 
 catalog:
-  "@better-auth/cli": 1.4.0-beta.9
-  "@eslint/js": ^9.39.2
-  "@nestjs/common": ^11.1.11
-  "@nestjs/core": ^11.1.11
-  "@tailwindcss/postcss": ^4.1.18
-  "@tanstack/react-form": ^1.27.7
-  "@tanstack/eslint-plugin-query": ^5.91.2
-  "@tanstack/react-query": ^5.90.16
-  "@turbo/gen": ^2.7.3
-  "@types/node": ^22.19.3
-  "@types/react": 19.2.7
-  "@types/react-dom": 19.2.3
+  '@better-auth/cli': 1.4.0-beta.9
+  '@eslint/js': ^9.39.2
+  '@nestjs/common': ^11.1.11
+  '@nestjs/core': ^11.1.11
+  '@tailwindcss/postcss': ^4.1.18
+  '@tanstack/eslint-plugin-query': ^5.91.2
+  '@tanstack/react-form': ^1.27.7
+  '@tanstack/react-query': ^5.90.16
+  '@turbo/gen': ^2.7.3
+  '@types/node': ^22.19.3
+  '@types/react': 19.2.7
+  '@types/react-dom': 19.2.3
   better-auth: 1.4.0-beta.9
   eslint: ^9.39.2
   next: 16.1.1
@@ -30,16 +30,16 @@ catalog:
 
 catalogs:
   react19:
-    "@types/react": ^19.2.7
-    "@types/react-dom": ^19.2.3
+    '@types/react': ^19.2.7
+    '@types/react-dom': ^19.2.3
     react: 19.2.3
     react-dom: 19.2.3
 
 linkWorkspacePackages: true
 
 onlyBuiltDependencies:
-  - "@nestjs/core"
-  - "@scarf/scarf"
+  - '@nestjs/core'
+  - '@scarf/scarf'
   - argon2
   - better-sqlite3
   - core-js-pure
@@ -49,10 +49,10 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
-  "@types/minimatch": 5.1.2
-  "@types/react": 19.2.7
-  "@types/react-dom": 19.2.3
+  '@types/minimatch': 5.1.2
+  '@types/react': 19.2.7
+  '@types/react-dom': 19.2.3
 
 publicHoistPattern:
-  - "@ianvs/prettier-plugin-sort-imports"
+  - '@ianvs/prettier-plugin-sort-imports'
   - prettier-plugin-tailwindcss

@@ -26,7 +26,7 @@ export const HealthCheckSchema = z.object({
 })
 
 // ============================================================================
-// TYPE EXPORTS
+// TYPEs
 // ============================================================================
 
 export type HealthCheck = z.infer<typeof HealthCheckSchema>

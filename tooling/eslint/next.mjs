@@ -73,6 +73,7 @@ export const appConfig = defineConfig(
 		},
 		rules: {
 			...react.configs.recommended.rules,
+			"react/no-children-prop": "off",
 		},
 	},
 	// Next.js
