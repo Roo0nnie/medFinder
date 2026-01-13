@@ -4,14 +4,14 @@ import Link from "next/link"
 
 import { buttonVariants } from "@/core/components/ui/button"
 import { Separator } from "@/core/components/ui/separator"
-import { signOut, useSession } from "@/services/better-auth/auth-client"
+import { authClient } from "@/services/better-auth/auth-client"
 
 export function NavigationLinks() {
-	const session = useSession()
+	const session = authClient.useSession()
 	const isLoggedIn = !!session.data?.user
 
 	const handleSignOut = async () => {
-		await signOut()
+		await authClient.signOut()
 	}
 
 	return (

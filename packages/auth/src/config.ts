@@ -18,7 +18,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		database: drizzleAdapter(db, {
 			provider: "pg", // PostgreSQL
 		}),
-		basePath: "/api/auth",
+		basePath: "/auth", // Backend has global prefix "/api", so this becomes "/api/auth"
 		baseURL:
 			process.env.BETTER_AUTH_URL ??
 			process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??

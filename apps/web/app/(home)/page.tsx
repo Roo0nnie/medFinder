@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation"
 import { LoginSquare01FreeIcons } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import { signOut, useSession } from "@/services/better-auth/auth-client"
+import { authClient } from "@/services/better-auth/auth-client"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default function Home() {
 	const router = useRouter()
-	const session = useSession()
+	const session = authClient.useSession()
 	const isLoggedIn = !!session.data?.user
 	const isLoading = session.isPending
 
@@ -20,7 +20,7 @@ export default function Home() {
 	}
 
 	const handleLogout = async () => {
-		await signOut()
+		await authClient.signOut()
 	}
 
 	return (
