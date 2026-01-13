@@ -2,20 +2,30 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { LoginSquare01FreeIcons } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import { useSession } from "@/services/better-auth/auth-client"
-
-import { NavigationLinks } from "./navigation-links"
+import { signOut, useSession } from "@/services/better-auth/auth-client"
+import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default function Home() {
+	const router = useRouter()
 	const session = useSession()
-	const isLoggedIn = session.data?.user !== null
+	const isLoggedIn = !!session.data?.user
+	const isLoading = session.isPending
+
+	const handleLogin = () => {
+		router.push("/login")
+	}
+
+	const handleLogout = async () => {
+		await signOut()
+	}
 
 	return (
-		<div className="min-h-screen bg-white font-sans dark:bg-black">
-			<nav className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
+		<div className="min-h-screen font-sans">
+			<nav className="border-border border-b">
 				<div className="mx-auto flex max-w-7xl items-center px-8 py-5">
 					<Link href="/">
 						<Image
@@ -43,22 +53,28 @@ export default function Home() {
 
 					<NavigationLinks />
 
-					{!isLoggedIn ? (
+					{!isLoading && (
 						<div className="pt-4">
-							<button className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
-								<HugeiconsIcon
-									icon={LoginSquare01FreeIcons}
-									strokeWidth={2}
-									className="pointer-events-none shrink-0"
-								/>
-								Login
-							</button>
-						</div>
-					) : (
-						<div className="pt-4">
-							<button className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200">
-								Logout
-							</button>
+							{!isLoggedIn ? (
+								<button
+									onClick={handleLogin}
+									className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+								>
+									<HugeiconsIcon
+										icon={LoginSquare01FreeIcons}
+										strokeWidth={2}
+										className="pointer-events-none shrink-0"
+									/>
+									Login
+								</button>
+							) : (
+								<button
+									onClick={handleLogout}
+									className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+								>
+									Logout
+								</button>
+							)}
 						</div>
 					)}
 				</div>

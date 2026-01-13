@@ -7,5 +7,5 @@ import { env } from "@/env"
  * Provides hooks like useSession, signIn, signOut, etc.
  */
 export const { signIn, signUp, signOut, useSession } = createAuthClient({
-	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "http://localhost:3000",
+	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "http://localhost:3001",
 })

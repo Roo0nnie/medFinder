@@ -8,7 +8,7 @@ import { signOut, useSession } from "@/services/better-auth/auth-client"
 
 export function NavigationLinks() {
 	const session = useSession()
-	const isLoggedIn = session.data?.user !== null
+	const isLoggedIn = !!session.data?.user
 
 	const handleSignOut = async () => {
 		await signOut()
@@ -29,7 +29,7 @@ export function NavigationLinks() {
 					Dashboard
 				</Link>
 				<Separator orientation="vertical" />
-				<Link href="/todos" className={buttonVariants({ variant: "ghost", size: "lg" })}>
+				<Link href="/examples/todos" className={buttonVariants({ variant: "ghost", size: "lg" })}>
 					Todos
 				</Link>
 				{isLoggedIn && (
