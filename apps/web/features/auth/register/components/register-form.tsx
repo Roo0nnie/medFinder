@@ -17,9 +17,9 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
-import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { cn } from "@/core/lib/utils"
 import { authClient } from "@/services/better-auth/auth-client"
+import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 
 import { useRegisterMutation } from "../api/register.api"
 import { RegisterSchema, type Register } from "../api/register.schema"
