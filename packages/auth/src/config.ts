@@ -30,7 +30,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		},
 		trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS
 			? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
-			: undefined,
+			: ["http://localhost:3000", "http://localhost:3001"],
 	})
 }
 

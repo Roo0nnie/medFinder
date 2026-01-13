@@ -1,3 +1,4 @@
+import "dotenv/config"
 import "reflect-metadata"
 
 import { VersioningType } from "@nestjs/common"
@@ -39,6 +40,16 @@ async function bootstrap() {
 			theme: "none",
 		})
 	)
+
+	// Enable CORS
+	app.enableCors({
+		origin: [
+			"http://localhost:3000",
+			"http://localhost:3001",
+			process.env.NEXT_PUBLIC_APP_URL,
+		].filter(Boolean),
+		credentials: true,
+	})
 
 	await app.listen(process.env.PORT ?? 3000)
 }
