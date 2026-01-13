@@ -3,6 +3,7 @@ import { Figtree, Geist, Geist_Mono } from "next/font/google"
 
 import "@/core/styles/globals.css"
 
+import { BreakpointIndicator } from "@/core/components/breakpoint-indicator"
 import { Toaster } from "@/core/components/ui/sonner"
 import { ThemeProvider } from "@/core/context/theme-provider"
 import { QueryProvider } from "@/services/tanstack-query/provider"
@@ -39,6 +40,7 @@ export default function RootLayout({
 						enableSystem
 						disableTransitionOnChange
 					>
+						<BreakpointIndicator />
 						{children}
 						<Toaster richColors closeButton />
 					</ThemeProvider>
