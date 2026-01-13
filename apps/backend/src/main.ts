@@ -43,11 +43,7 @@ async function bootstrap() {
 
 	// Enable CORS
 	app.enableCors({
-		origin: [
-			"http://localhost:3000",
-			"http://localhost:3001",
-			process.env.NEXT_PUBLIC_APP_URL,
-		].filter(Boolean),
+		origin: ["http://localhost:3000", "http://localhost:3001"].filter(Boolean),
 		credentials: true,
 	})
 
