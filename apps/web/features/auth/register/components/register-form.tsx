@@ -160,7 +160,11 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							/>
 
 							<Field>
-								<Button type="submit" disabled={registerMutation.isPending} className="w-full">
+								<Button
+									type="submit"
+									disabled={registerMutation.isPending}
+									className="w-full hover:cursor-pointer"
+								>
 									{registerMutation.isPending ? "Creating account..." : "Create account"}
 								</Button>
 							</Field>

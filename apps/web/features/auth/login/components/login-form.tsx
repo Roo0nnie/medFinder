@@ -17,9 +17,9 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
-import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { cn } from "@/core/lib/utils"
 import { authClient } from "@/services/better-auth/auth-client"
+import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 
 import { useLoginMutation } from "../api/login.api"
 import { LoginSchema } from "../api/login.schema"
@@ -136,7 +136,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							/>
 
 							<Field>
-								<Button type="submit" disabled={loginMutation.isPending} className="w-full">
+								<Button
+									type="submit"
+									disabled={loginMutation.isPending}
+									className="w-full hover:cursor-pointer"
+								>
 									{loginMutation.isPending ? "Signing in..." : "Login"}
 								</Button>
 							</Field>

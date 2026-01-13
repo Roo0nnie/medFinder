@@ -20,15 +20,30 @@ export function SocialLoginButtons({
 
 	return (
 		<Field className="grid grid-cols-3 gap-4">
-			<Button variant="outline" type="button" onClick={onAppleClick}>
+			<Button
+				variant="outline"
+				type="button"
+				onClick={onAppleClick}
+				className="hover:cursor-pointer"
+			>
 				<AppleIcon />
 				<span className="sr-only">{actionText} with Apple</span>
 			</Button>
-			<Button variant="outline" type="button" onClick={onGoogleClick}>
+			<Button
+				variant="outline"
+				type="button"
+				onClick={onGoogleClick}
+				className="hover:cursor-pointer"
+			>
 				<GoogleIcon />
 				<span className="sr-only">{actionText} with Google</span>
 			</Button>
-			<Button variant="outline" type="button" onClick={onMetaClick}>
+			<Button
+				variant="outline"
+				type="button"
+				onClick={onMetaClick}
+				className="hover:cursor-pointer"
+			>
 				<MetaIcon />
 				<span className="sr-only">{actionText} with Meta</span>
 			</Button>
