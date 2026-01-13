@@ -6,10 +6,10 @@ import { env } from "@/env"
  * Better Auth client for React components
  * Provides hooks like useSession, signIn, signOut, etc.
  *
- * Points to the Next.js API route handler at /api/auth/[...all]
- * The basePath should match the API route path
+ * Points to the NestJS backend at localhost:3000 for auth operations.
+ * The basePath should match the backend's auth route prefix.
  */
 export const authClient = createAuthClient({
-	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3001"),
+	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "http://localhost:3000",
 	basePath: "/api/auth",
 })

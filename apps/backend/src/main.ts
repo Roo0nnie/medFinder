@@ -16,6 +16,12 @@ import { generateBetterAuthSchema, mergeBetterAuthSchema } from "@/utils/openapi
 async function bootstrap() {
 	const app = await NestFactory.create(MainModule, { bodyParser: false })
 
+	// Enable CORS first (before any routes are registered)
+	app.enableCors({
+		origin: ["http://localhost:3000", "http://localhost:3001"],
+		credentials: true,
+	})
+
 	// Configure API prefix and versioning
 	app.setGlobalPrefix("api")
 	app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" })
@@ -45,12 +51,6 @@ async function bootstrap() {
 			res.json(await generateBetterAuthSchema())
 		}
 	)
-
-	// Enable CORS
-	app.enableCors({
-		origin: ["http://localhost:3000", "http://localhost:3001"],
-		credentials: true,
-	})
 
 	await app.listen(process.env.PORT ?? 3000)
 }
