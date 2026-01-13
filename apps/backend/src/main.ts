@@ -31,14 +31,57 @@ async function bootstrap() {
 			.build()
 	) as OpenAPIObject
 
+	// Merge Better Auth OpenAPI schema into the main OpenAPI document
+	let mergedOpenApiDoc: OpenAPIObject = openApiDoc
+
+	try {
+		const betterAuthSchema = (await (getAuth().api as any).generateOpenAPISchema()) as OpenAPIObject
+		const oldTag = "Default"
+		const newTag = "Auth"
+
+		betterAuthSchema.tags = betterAuthSchema.tags?.map(tag =>
+			tag.name === oldTag ? { ...tag, name: newTag } : tag
+		) ?? [{ name: newTag, description: "Authentication endpoints" }]
+
+		// 2) Update operation-level tags
+		for (const path of Object.values(betterAuthSchema.paths ?? {})) {
+			for (const op of Object.values(path ?? {})) {
+				if (!op || !("tags" in op) || !Array.isArray((op as any).tags)) continue
+				;(op as any).tags = (op as any).tags.map((t: string) => (t === oldTag ? newTag : t))
+			}
+		}
+		mergedOpenApiDoc = {
+			...openApiDoc,
+			paths: {
+				...(openApiDoc.paths ?? {}),
+				...(betterAuthSchema.paths ?? {}),
+			},
+			tags: [...(openApiDoc.tags ?? []), ...(betterAuthSchema.tags ?? [])],
+			components: {
+				...(openApiDoc.components ?? {}),
+				...(betterAuthSchema.components ?? {}),
+				schemas: {
+					...(openApiDoc.components?.schemas ?? {}),
+					...(betterAuthSchema.components?.schemas ?? {}),
+				},
+				securitySchemes: {
+					...(openApiDoc.components?.securitySchemes ?? {}),
+					...(betterAuthSchema.components?.securitySchemes ?? {}),
+				},
+			},
+		}
+	} catch (error) {
+		console.error("Failed to merge Better Auth OpenAPI schema", error)
+	}
+
 	// Setup the Swagger module
-	SwaggerModule.setup("api", app, cleanupOpenApiDoc(openApiDoc) as OpenAPIObject)
+	SwaggerModule.setup("api", app, cleanupOpenApiDoc(mergedOpenApiDoc) as OpenAPIObject)
 
 	// Setup the Scalar API Reference for the main API
 	app.use(
 		"/api/docs",
 		apiReference({
-			content: openApiDoc,
+			content: mergedOpenApiDoc,
 			theme: "none",
 		})
 	)
