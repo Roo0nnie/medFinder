@@ -43,7 +43,6 @@ async function bootstrap() {
 			tag.name === oldTag ? { ...tag, name: newTag } : tag
 		) ?? [{ name: newTag, description: "Authentication endpoints" }]
 
-		// 2) Update operation-level tags
 		for (const path of Object.values(betterAuthSchema.paths ?? {})) {
 			for (const op of Object.values(path ?? {})) {
 				if (!op || !("tags" in op) || !Array.isArray((op as any).tags)) continue
