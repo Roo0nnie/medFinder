@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LoginSquare01FreeIcons } from "@hugeicons/core-free-icons"
@@ -28,13 +27,13 @@ export default function Home() {
 			<nav className="border-border border-b">
 				<div className="mx-auto flex max-w-7xl items-center px-8 py-5">
 					<Link href="/">
-						<Image
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img
 							className="dark:invert"
 							src="/next.svg"
 							alt="Turbo Template logo"
 							width={80}
 							height={20}
-							priority
 						/>
 					</Link>
 				</div>
