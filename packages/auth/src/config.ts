@@ -27,8 +27,8 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			},
 			usePlural: true,
 		}),
-		// Do not include the global Nest prefix here; Nest adds `api/` already.
-		basePath: "/auth",
+		// Include /api prefix since nestjs-better-auth bypasses NestJS global prefix.
+		basePath: "/api/auth",
 		baseURL:
 			process.env.BETTER_AUTH_URL ??
 			process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??

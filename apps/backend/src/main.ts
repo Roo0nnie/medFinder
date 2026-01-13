@@ -5,6 +5,7 @@ import { VersioningType } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger"
 import { apiReference } from "@scalar/nestjs-api-reference"
+import { toNodeHandler } from "better-auth/node"
 import { cleanupOpenApiDoc } from "nestjs-zod"
 
 import { getAuth } from "@repo/auth"
@@ -85,10 +86,16 @@ async function bootstrap() {
 		})
 	)
 
-	// Expose Better Auth OpenAPI schema as JSON
+	// Get the underlying Express instance for custom route registration
 	const httpAdapter = app.getHttpAdapter()
 	const httpServer = httpAdapter.getInstance()
 
+	// Register Better Auth handler to catch all /api/auth/* requests
+	// This is needed because @thallesp/nestjs-better-auth's route registration
+	// doesn't properly intercept requests despite initialization logs
+	httpServer.all("/api/auth/*splat", toNodeHandler(getAuth()))
+
+	// Expose Better Auth OpenAPI schema as JSON
 	httpServer.get("/api/auth/open-api", async (_req: unknown, res: unknown) => {
 		// Use Better Auth's built-in OpenAPI generator
 		// Type cast is used because the OpenAPI helper is not yet in the public types.
