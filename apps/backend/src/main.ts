@@ -7,6 +7,8 @@ import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swag
 import { apiReference } from "@scalar/nestjs-api-reference"
 import { cleanupOpenApiDoc } from "nestjs-zod"
 
+import { getAuth } from "@repo/auth"
+
 import { MainModule } from "@/app.module"
 
 async function bootstrap() {
@@ -32,7 +34,7 @@ async function bootstrap() {
 	// Setup the Swagger module
 	SwaggerModule.setup("api", app, cleanupOpenApiDoc(openApiDoc) as OpenAPIObject)
 
-	// Setup the Scalar API Reference
+	// Setup the Scalar API Reference for the main API
 	app.use(
 		"/api/docs",
 		apiReference({
@@ -40,6 +42,18 @@ async function bootstrap() {
 			theme: "none",
 		})
 	)
+
+	// Expose Better Auth OpenAPI schema as JSON
+	const httpAdapter = app.getHttpAdapter()
+	const httpServer = httpAdapter.getInstance()
+
+	httpServer.get("/api/auth/open-api", async (_req: unknown, res: unknown) => {
+		// Use Better Auth's built-in OpenAPI generator
+		// Type cast is used because the OpenAPI helper is not yet in the public types.
+		// See: https://better-auth.vercel.app/docs/plugins/open-api
+		const schema = (await (getAuth().api as any).generateOpenAPISchema()) as OpenAPIObject
+		;(res as { json: (body: OpenAPIObject) => void }).json(schema)
+	})
 
 	// Enable CORS
 	app.enableCors({

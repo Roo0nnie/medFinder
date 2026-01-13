@@ -127,7 +127,7 @@ pnpm add @repo/auth better-auth better-auth/react
 ```typescript
 import { toNextJsHandler } from "better-auth/next-js"
 
-import { auth } from "@/lib/auth"
+import { auth } from "@repo/auth"
 
 export const { GET, POST } = toNextJsHandler(auth)
 ```

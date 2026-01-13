@@ -6,11 +6,10 @@ import { env } from "@/env"
  * Better Auth client for React components
  * Provides hooks like useSession, signIn, signOut, etc.
  *
- * Points to the backend API where Better Auth is configured.
- * Backend runs on port 3000 with global prefix "/api", and auth basePath is "/auth",
- * so auth routes are at "/api/auth"
+ * Points to the Next.js API route handler at /api/auth/[...all]
+ * The basePath should match the API route path
  */
 export const authClient = createAuthClient({
-	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? "http://localhost:3000",
+	baseURL: env.NEXT_PUBLIC_BETTER_AUTH_URL ?? (typeof window !== "undefined" ? window.location.origin : "http://localhost:3001"),
 	basePath: "/api/auth",
 })

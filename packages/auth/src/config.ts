@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { openAPI } from "better-auth/plugins"
 
 import { createDBClient } from "@repo/db/client"
+import { accounts, sessions, users, verifications } from "@repo/db/schema"
 
 /**
  * Creates a Better Auth instance configured with Drizzle adapter.
@@ -16,9 +18,17 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 
 	return betterAuth({
 		database: drizzleAdapter(db, {
-			provider: "pg", // PostgreSQL
+			provider: "pg",
+			schema: {
+				users,
+				sessions,
+				accounts,
+				verifications,
+			},
+			usePlural: true,
 		}),
-		basePath: "/auth", // Backend has global prefix "/api", so this becomes "/api/auth"
+		// Do not include the global Nest prefix here; Nest adds `api/` already.
+		basePath: "/auth",
 		baseURL:
 			process.env.BETTER_AUTH_URL ??
 			process.env.NEXT_PUBLIC_BETTER_AUTH_URL ??
@@ -26,11 +36,17 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 		secret: process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,
 		emailAndPassword: {
 			enabled: true,
-			requireEmailVerification: false, // Can be enabled later
+			requireEmailVerification: false,
 		},
 		trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS
 			? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
 			: ["http://localhost:3000", "http://localhost:3001"],
+		plugins: [
+			openAPI({
+				// Served under /api/auth/reference because basePath is /auth and Nest adds /api
+				path: "/reference",
+			}),
+		],
 	})
 }
 
@@ -51,10 +67,30 @@ export function getAuth(): ReturnType<typeof betterAuth> {
 
 /**
  * Default Better Auth instance (lazy getter).
- * Use this for backward compatibility, but prefer getAuth() for explicit initialization.
+ *
+ * Uses a Proxy to ensure the instance is created on first access.
+ * This ensures environment variables are loaded before initialization.
+ *
+ * Note: The Proxy properly forwards all properties including `handler`
+ * which is required by NestJS Better Auth adapter.
  */
 export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
 	get(_target, prop) {
-		return getAuth()[prop as keyof ReturnType<typeof betterAuth>]
+		const instance = getAuth()
+		const value = instance[prop as keyof ReturnType<typeof betterAuth>]
+		// Ensure functions are bound to the instance
+		if (typeof value === "function") {
+			return value.bind(instance)
+		}
+		return value
+	},
+	has(_target, prop) {
+		return prop in getAuth()
+	},
+	getOwnPropertyDescriptor(_target, prop) {
+		return Object.getOwnPropertyDescriptor(getAuth(), prop)
+	},
+	ownKeys(_target) {
+		return Reflect.ownKeys(getAuth())
 	},
 })

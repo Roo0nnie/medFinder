@@ -4,7 +4,7 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from "@nestjs/core"
 import { AuthModule } from "@thallesp/nestjs-better-auth"
 import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 
-import { auth } from "@repo/auth"
+import { getAuth } from "@repo/auth"
 
 import { DBModule } from "@/common/database/database.module"
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
@@ -22,7 +22,7 @@ import { V1Module } from "@/modules/v1/v1.module"
 		DBModule,
 		HealthModule,
 		// Authentication
-		AuthModule.forRoot({ auth }),
+		AuthModule.forRoot({ auth: getAuth() }),
 		// Versioned modules
 		V1Module,
 	],
