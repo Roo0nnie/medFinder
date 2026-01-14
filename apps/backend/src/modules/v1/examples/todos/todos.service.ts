@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common"
+import { Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
 import { eq } from "drizzle-orm"
 
 import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
@@ -23,17 +23,13 @@ export class TodosService {
 				authorId,
 			})
 			.returning()
-
-		if (!todo) throw new Error("Todo not created")
-
+		if (!todo) throw new InternalServerErrorException("Todo not created")
 		return todo
 	}
 
 	async findOne(id: number) {
 		const [todo] = await this.db.select().from(todos).where(eq(todos.id, id))
-
-		if (!todo) throw new Error(`Todo ${id} not found`)
-
+		if (!todo) throw new NotFoundException(`Todo with ID ${id} not found`)
 		return todo
 	}
 
@@ -48,11 +44,12 @@ export class TodosService {
 			})
 			.where(eq(todos.id, id))
 			.returning()
-		if (!todo) throw new Error("Todo not replaced")
+		if (!todo) throw new InternalServerErrorException("Todo not replaced")
 		return todo
 	}
 
 	async update(id: number, payload: UpdateTodoDto) {
+		await this.findOne(id)
 		const [todo] = await this.db
 			.update(todos)
 			.set({
@@ -62,7 +59,7 @@ export class TodosService {
 			})
 			.where(eq(todos.id, id))
 			.returning()
-		if (!todo) throw new Error("Todo not updated")
+		if (!todo) throw new InternalServerErrorException("Todo not updated")
 		return todo
 	}
 

@@ -94,7 +94,7 @@ describe("TodosController (v1)", () => {
 	})
 
 	it("creates and returns versioned todo", async () => {
-		const mockSession = { user: { id: "template-user-id" } }
+		const mockSession = { user: { id: "template-user-id" } } as any
 		const created = await controller.createTodo(
 			{ title: "Versioned", completed: true },
 			mockSession
@@ -125,7 +125,7 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const mockSession = { user: { id: "template-user-id" } }
+		const mockSession = { user: { id: "template-user-id" } } as any
 		const created = await controller.createTodo(
 			{ title: "Updatable", completed: false },
 			mockSession

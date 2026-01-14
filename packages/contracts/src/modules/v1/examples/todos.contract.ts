@@ -20,10 +20,11 @@ export const CreateTodoSchema = TodoSchema.pick({
 	title: true,
 	completed: true,
 })
+
 export const UpdateTodoSchema = TodoSchema.pick({
 	title: true,
 	completed: true,
-})
+}).partial()
 
 // ============================================================================
 // TYPEs

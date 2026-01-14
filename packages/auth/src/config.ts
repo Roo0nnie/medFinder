@@ -43,7 +43,6 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			: ["http://localhost:3000", "http://localhost:3001"],
 		plugins: [
 			openAPI({
-				// Served under /api/auth/reference because basePath is /auth and Nest adds /api
 				path: "/reference",
 			}),
 		],
