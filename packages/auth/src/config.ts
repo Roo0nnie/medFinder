@@ -64,33 +64,3 @@ export function getAuth(): ReturnType<typeof betterAuth> {
 	}
 	return _auth
 }
-
-/**
- * Default Better Auth instance (lazy getter).
- *
- * Uses a Proxy to ensure the instance is created on first access.
- * This ensures environment variables are loaded before initialization.
- *
- * Note: The Proxy properly forwards all properties including `handler`
- * which is required by NestJS Better Auth adapter.
- */
-export const auth = new Proxy({} as ReturnType<typeof betterAuth>, {
-	get(_target, prop) {
-		const instance = getAuth()
-		const value = instance[prop as keyof ReturnType<typeof betterAuth>]
-		// Ensure functions are bound to the instance
-		if (typeof value === "function") {
-			return value.bind(instance)
-		}
-		return value
-	},
-	has(_target, prop) {
-		return prop in getAuth()
-	},
-	getOwnPropertyDescriptor(_target, prop) {
-		return Object.getOwnPropertyDescriptor(getAuth(), prop)
-	},
-	ownKeys(_target) {
-		return Reflect.ownKeys(getAuth())
-	},
-})

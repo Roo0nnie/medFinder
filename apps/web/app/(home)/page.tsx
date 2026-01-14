@@ -1,26 +1,13 @@
-"use client"
-
+import { headers } from "next/headers"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { LoginSquare01FreeIcons } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
 
-import { authClient } from "@/services/better-auth/auth-client"
+import { auth } from "@/services/better-auth/auth"
+import { GetStartedButton } from "@/features/home/get-started-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
-export default function Home() {
-	const router = useRouter()
-	const session = authClient.useSession()
-	const isLoggedIn = !!session.data?.user
-	const isLoading = session.isPending
-
-	const handleLogin = () => {
-		router.push("/login")
-	}
-
-	const handleLogout = async () => {
-		await authClient.signOut()
-	}
+export default async function Home() {
+	const session = await auth.api.getSession({ headers: await headers() })
+	const user = session?.user
 
 	return (
 		<div className="min-h-screen font-sans">
@@ -40,7 +27,10 @@ export default function Home() {
 			</nav>
 			<main className="mx-auto flex min-h-[calc(100vh-73px)] max-w-3xl flex-col items-center justify-center px-8 py-20">
 				<div className="flex w-full flex-col items-center gap-12 text-center">
-					<div className="flex flex-col items-center gap-6">
+					<div className="flex flex-col items-center gap-3">
+						<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
+							Hello <span className="font-semibold">{user?.name ?? user?.email ?? "User"}</span>.
+						</p>
 						<h1 className="text-6xl font-bold tracking-tight text-black md:text-7xl dark:text-zinc-50">
 							TURBO TEMPLATE.
 						</h1>
@@ -52,30 +42,7 @@ export default function Home() {
 
 					<NavigationLinks />
 
-					{!isLoading && (
-						<div className="pt-4">
-							{!isLoggedIn ? (
-								<button
-									onClick={handleLogin}
-									className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-								>
-									<HugeiconsIcon
-										icon={LoginSquare01FreeIcons}
-										strokeWidth={2}
-										className="pointer-events-none shrink-0"
-									/>
-									Login
-								</button>
-							) : (
-								<button
-									onClick={handleLogout}
-									className="flex h-10 items-center justify-center gap-2 rounded-lg bg-black px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-								>
-									Logout
-								</button>
-							)}
-						</div>
-					)}
+					<GetStartedButton href={user ? "/dashboard" : "/login"} />
 				</div>
 			</main>
 		</div>
