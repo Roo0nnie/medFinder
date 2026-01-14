@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "@tanstack/react-form"
 
-import { Button } from "@/core/components/ui/button"
+import { Button, buttonVariants } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,
@@ -20,6 +20,7 @@ import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
 import { authClient } from "@/services/better-auth/auth-client"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
+import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
 import { useRegisterMutation } from "../api/register.api"
 import { RegisterSchema, type Register } from "../api/register.schema"
@@ -174,7 +175,16 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							<SocialLoginButtons action="signup" />
 
 							<FieldDescription className="text-center">
-								Already have an account? <Link href="/login">Sign in</Link>
+								Already have an account?{" "}
+								<Link
+									className={cn(
+										buttonVariants({ variant: "link" }),
+										"text-muted-foreground h-auto px-0"
+									)}
+									href="/login"
+								>
+									Sign in
+								</Link>
 							</FieldDescription>
 						</FieldGroup>
 					</form>
@@ -188,10 +198,7 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 					</div>
 				</CardContent>
 			</Card>
-			<FieldDescription className="px-6 text-center">
-				By clicking continue, you agree to our <Link href="#">Terms of Service</Link> and{" "}
-				<Link href="#">Privacy Policy</Link>.
-			</FieldDescription>
+			<TermsPrivacyNote />
 		</div>
 	)
 }

@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useForm } from "@tanstack/react-form"
 
-import { Button } from "@/core/components/ui/button"
+import { Button, buttonVariants } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,
@@ -20,6 +20,7 @@ import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
 import { authClient } from "@/services/better-auth/auth-client"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
+import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
 import { useLoginMutation } from "../api/login.api"
 import { LoginSchema } from "../api/login.schema"
@@ -110,7 +111,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 												<FieldLabel htmlFor={field.name}>Password</FieldLabel>
 												<Link
 													href="#"
-													className="ml-auto text-sm underline-offset-2 hover:underline"
+													className={cn(
+														buttonVariants({ size: "sm", variant: "link" }),
+														"text-card-foreground ml-auto h-auto"
+													)}
 												>
 													Forgot your password?
 												</Link>
@@ -150,7 +154,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							<SocialLoginButtons action="login" />
 
 							<FieldDescription className="text-center">
-								Don&apos;t have an account? <Link href="/register">Sign up</Link>
+								Don&apos;t have an account?{" "}
+								<Link
+									className={cn(
+										buttonVariants({ variant: "link" }),
+										"text-muted-foreground h-auto px-0"
+									)}
+									href="/register"
+								>
+									Sign up
+								</Link>
 							</FieldDescription>
 						</FieldGroup>
 					</form>
@@ -164,10 +177,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 					</div>
 				</CardContent>
 			</Card>
-			<FieldDescription className="px-6 text-center">
-				By clicking continue, you agree to our <Link href="#">Terms of Service</Link> and{" "}
-				<Link href="#">Privacy Policy</Link>.
-			</FieldDescription>
+			<TermsPrivacyNote />
 		</div>
 	)
 }
