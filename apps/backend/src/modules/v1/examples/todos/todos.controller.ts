@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
-import { AllowAnonymous, Session, UserSession } from "@thallesp/nestjs-better-auth"
+import { Session, UserSession } from "@thallesp/nestjs-better-auth"
 import { ZodResponse } from "nestjs-zod"
 
 import { CreateTodoDto, ok, TodoDto, TodoListDto, UpdateTodoDto } from "@repo/contracts"
@@ -15,7 +15,6 @@ export class TodosController {
 	@Get()
 	@ApiOperation({ summary: "Get all todos", description: "List of todos" })
 	@ZodResponse({ status: 200, type: TodoListDto, description: "List of todos" })
-	@AllowAnonymous()
 	async getTodos() {
 		const todos = await this.todosService.findAll()
 		return ok(todos)
