@@ -14,11 +14,7 @@ export class TodosService {
 		return this.db.select().from(todos)
 	}
 
-	async create(payload: CreateTodoDto) {
-		// TODO: Get authorId from authenticated user session
-		// For now, using a placeholder user ID for the template
-		const authorId = "template-user-id"
-
+	async create(payload: CreateTodoDto, authorId: string) {
 		const [todo] = await this.db
 			.insert(todos)
 			.values({

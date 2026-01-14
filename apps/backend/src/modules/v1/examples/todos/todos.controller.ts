@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
-import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
+import { AllowAnonymous, Session, UserSession } from "@thallesp/nestjs-better-auth"
 import { ZodResponse } from "nestjs-zod"
 
 import { CreateTodoDto, ok, TodoDto, TodoListDto, UpdateTodoDto } from "@repo/contracts"
@@ -33,9 +33,8 @@ export class TodosController {
 	@Post()
 	@ApiOperation({ summary: "Create a new todo" })
 	@ZodResponse({ status: 201, description: "Todo created successfully", type: TodoDto })
-	@AllowAnonymous()
-	async createTodo(@Body() payload: CreateTodoDto) {
-		const todo = await this.todosService.create(payload)
+	async createTodo(@Body() payload: CreateTodoDto, @Session() session: UserSession) {
+		const todo = await this.todosService.create(payload, session.user.id)
 		return ok(todo)
 	}
 

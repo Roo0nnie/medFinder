@@ -34,6 +34,65 @@ const AUTH_OPERATION_SUMMARIES: Record<string, string> = {
 	"/error": "Error",
 }
 
+/**
+ * Maps tags from old tag name to new tag name
+ */
+function mapTags<T extends { name: string }>(tags: T[], oldTag: string, newTag: string): T[] {
+	return tags.map(tag => (tag.name === oldTag ? { ...tag, name: newTag } : tag))
+}
+
+/**
+ * Merges two component objects of the same type
+ */
+function mergeComponents<T extends Record<string, unknown>>(
+	base?: T,
+	additional?: T
+): T | undefined {
+	if (!base && !additional) return undefined
+	if (!base) return additional
+	if (!additional) return base
+	return { ...base, ...additional } as T
+}
+
+/**
+ * Transforms path operations by adding prefix, summaries, and mapping tags
+ */
+function transformPathOperations(
+	paths: OpenAPIObject["paths"],
+	prefix: string,
+	summaries: Record<string, string>,
+	oldTag: string,
+	newTag: string
+): OpenAPIObject["paths"] {
+	const transformed: OpenAPIObject["paths"] = {}
+
+	for (const [path, methods] of Object.entries(paths ?? {})) {
+		const prefixedPath = `${prefix}${path}`
+		const summary = summaries[path]
+
+		const transformedMethods: Record<string, object> = {}
+		for (const [method, op] of Object.entries(methods ?? {})) {
+			if (!op || typeof op !== "object") continue
+
+			const operation = op as Record<string, unknown>
+			const tags = (operation.tags as string[] | undefined) ?? []
+
+			transformedMethods[method] = {
+				...operation,
+				summary: summary ?? path.replace(/^\//, "").replace(/-/g, " "),
+				tags: mapTags(
+					tags.map(t => ({ name: t })),
+					oldTag,
+					newTag
+				).map(t => t.name),
+			}
+		}
+		transformed[prefixedPath] = transformedMethods
+	}
+
+	return transformed
+}
+
 /** Generate Better Auth OpenAPI schema */
 export async function generateBetterAuthSchema(): Promise<OpenAPIObject> {
 	const api = getAuth().api as unknown as { generateOpenAPISchema: () => Promise<OpenAPIObject> }
@@ -47,31 +106,17 @@ export async function mergeBetterAuthSchema(baseDoc: OpenAPIObject): Promise<Ope
 		const oldTag = "Default"
 		const newTag = "Auth"
 
-		// Update tags
-		const updatedTags = betterAuthSchema.tags?.map(tag =>
-			tag.name === oldTag ? { ...tag, name: newTag } : tag
-		) ?? [{ name: newTag, description: "Authentication endpoints" }]
+		const updatedTags = betterAuthSchema.tags
+			? mapTags(betterAuthSchema.tags, oldTag, newTag)
+			: [{ name: newTag, description: "Authentication endpoints" }]
 
-		// Transform paths: add /api/auth prefix and friendly summaries
-		const prefixedPaths: OpenAPIObject["paths"] = {}
-
-		for (const [path, methods] of Object.entries(betterAuthSchema.paths ?? {})) {
-			const prefixedPath = `/api/auth${path}`
-			const summary = AUTH_OPERATION_SUMMARIES[path]
-
-			const updatedMethods: Record<string, object> = {}
-			for (const [method, op] of Object.entries(methods ?? {})) {
-				if (!op || typeof op !== "object") continue
-				updatedMethods[method] = {
-					...op,
-					summary: summary ?? path.replace(/^\//, "").replace(/-/g, " "),
-					tags: (((op as Record<string, unknown>).tags as string[]) ?? []).map((t: string) =>
-						t === oldTag ? newTag : t
-					),
-				}
-			}
-			prefixedPaths[prefixedPath] = updatedMethods
-		}
+		const prefixedPaths = transformPathOperations(
+			betterAuthSchema.paths,
+			"/api/auth",
+			AUTH_OPERATION_SUMMARIES,
+			oldTag,
+			newTag
+		)
 
 		return {
 			...baseDoc,
@@ -83,14 +128,11 @@ export async function mergeBetterAuthSchema(baseDoc: OpenAPIObject): Promise<Ope
 			components: {
 				...(baseDoc.components ?? {}),
 				...(betterAuthSchema.components ?? {}),
-				schemas: {
-					...(baseDoc.components?.schemas ?? {}),
-					...(betterAuthSchema.components?.schemas ?? {}),
-				},
-				securitySchemes: {
-					...(baseDoc.components?.securitySchemes ?? {}),
-					...(betterAuthSchema.components?.securitySchemes ?? {}),
-				},
+				schemas: mergeComponents(baseDoc.components?.schemas, betterAuthSchema.components?.schemas),
+				securitySchemes: mergeComponents(
+					baseDoc.components?.securitySchemes,
+					betterAuthSchema.components?.securitySchemes
+				),
 			},
 		}
 	} catch (error) {

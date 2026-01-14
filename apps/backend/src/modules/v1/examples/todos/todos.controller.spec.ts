@@ -9,6 +9,7 @@ import { TodosService } from "./todos.service"
 
 jest.mock("@thallesp/nestjs-better-auth", () => ({
 	AllowAnonymous: () => () => undefined,
+	Session: () => () => ({ user: { id: "template-user-id" } }),
 }))
 
 describe("TodosController (v1)", () => {
@@ -49,6 +50,7 @@ describe("TodosController (v1)", () => {
 							id: 3,
 							title: "Versioned",
 							completed: true,
+							authorId: "template-user-id",
 							createdAt: new Date(),
 							updatedAt: new Date(),
 						},
@@ -92,7 +94,11 @@ describe("TodosController (v1)", () => {
 	})
 
 	it("creates and returns versioned todo", async () => {
-		const created = await controller.createTodo({ title: "Versioned", completed: true })
+		const mockSession = { user: { id: "template-user-id" } }
+		const created = await controller.createTodo(
+			{ title: "Versioned", completed: true },
+			mockSession
+		)
 		expect(created.data).toEqual(
 			expect.objectContaining({
 				title: "Versioned",
@@ -111,6 +117,7 @@ describe("TodosController (v1)", () => {
 						id: 3,
 						title: "Updatable",
 						completed: false,
+						authorId: "template-user-id",
 						createdAt: new Date(),
 						updatedAt: new Date(),
 					},
@@ -118,7 +125,11 @@ describe("TodosController (v1)", () => {
 			})),
 		})
 
-		const created = await controller.createTodo({ title: "Updatable", completed: false })
+		const mockSession = { user: { id: "template-user-id" } }
+		const created = await controller.createTodo(
+			{ title: "Updatable", completed: false },
+			mockSession
+		)
 
 		// Mock findOne to return the created todo
 		const selectMock = mockDb.select as jest.Mock
