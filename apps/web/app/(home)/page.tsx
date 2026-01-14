@@ -2,12 +2,13 @@ import { headers } from "next/headers"
 import Link from "next/link"
 
 import { auth } from "@/services/better-auth/auth"
-import { GetStartedButton } from "@/features/home/get-started-button"
+import { HomeCtaButton } from "@/features/home/home-cta-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default async function Home() {
 	const session = await auth.api.getSession({ headers: await headers() })
 	const user = session?.user
+	const isLoggedIn = !!user
 
 	return (
 		<div className="min-h-screen font-sans">
@@ -29,7 +30,15 @@ export default async function Home() {
 				<div className="flex w-full flex-col items-center gap-12 text-center">
 					<div className="flex flex-col items-center gap-3">
 						<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
-							Hello <span className="font-semibold">{user?.name ?? user?.email ?? "User"}</span>.
+							{isLoggedIn ? (
+								<>
+									Hello <span className="font-semibold">{user?.name ?? user?.email ?? "User"}</span>
+								</>
+							) : (
+								<>
+									Welcome <span className="font-semibold">Everyone!</span>
+								</>
+							)}
 						</p>
 						<h1 className="text-6xl font-bold tracking-tight text-black md:text-7xl dark:text-zinc-50">
 							TURBO TEMPLATE.
@@ -42,7 +51,7 @@ export default async function Home() {
 
 					<NavigationLinks />
 
-					<GetStartedButton href={user ? "/dashboard" : "/login"} />
+					<HomeCtaButton href={isLoggedIn ? "/dashboard" : "/login"} isLoggedIn={isLoggedIn} />
 				</div>
 			</main>
 		</div>

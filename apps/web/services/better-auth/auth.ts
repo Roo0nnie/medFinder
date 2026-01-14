@@ -7,6 +7,4 @@ import { getAuth } from "@repo/auth"
  * server components and route handlers in the web app can import
  * a ready-to-use auth instance.
  */
-export { getAuth } from "@repo/auth"
-
 export const auth = getAuth()

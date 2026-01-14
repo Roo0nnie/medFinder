@@ -1,0 +1,42 @@
+"use client"
+
+import Link from "next/link"
+import { ArrowRight01FreeIcons, Logout01FreeIcons } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+
+import { Button, buttonVariants } from "@/core/components/ui/button"
+import { authClient } from "@/services/better-auth/auth-client"
+
+interface HomeCtaButtonProps {
+	href: string
+	isLoggedIn: boolean
+}
+
+/**
+ * Primary call-to-action button for the home page.
+ *
+ * Note: the server page (`app/(home)/page.tsx`) already knows whether the user
+ * is logged in. We accept `isLoggedIn` as a prop to avoid client-side session
+ * flicker on first paint.
+ */
+export function HomeCtaButton({ href, isLoggedIn }: HomeCtaButtonProps) {
+	const handleSignOut = async () => {
+		await authClient.signOut()
+	}
+
+	if (isLoggedIn) {
+		return (
+			<Button size="lg" onClick={handleSignOut}>
+				<HugeiconsIcon icon={Logout01FreeIcons} strokeWidth={2} className="size-4" />
+				Logout
+			</Button>
+		)
+	}
+
+	return (
+		<Link href={href} className={buttonVariants({ size: "lg" })}>
+			<HugeiconsIcon icon={ArrowRight01FreeIcons} strokeWidth={2} className="size-4" />
+			Get Started
+		</Link>
+	)
+}
