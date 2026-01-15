@@ -22,7 +22,7 @@ import { authClient } from "@/services/better-auth/auth-client"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
-import { useLoginMutation } from "../api/login.api"
+import { useLoginMutation } from "../api/login.hooks"
 import { LoginSchema } from "../api/login.schema"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {

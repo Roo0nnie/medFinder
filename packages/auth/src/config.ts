@@ -38,6 +38,13 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			enabled: true,
 			requireEmailVerification: false,
 		},
+		socialProviders: {
+			google: {
+				prompt: "select_account",
+				clientId: process.env.GOOGLE_CLIENT_ID as string,
+				clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+			},
+		},
 		trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS
 			? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
 			: ["http://localhost:3000", "http://localhost:3001"],

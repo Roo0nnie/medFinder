@@ -22,7 +22,7 @@ import { authClient } from "@/services/better-auth/auth-client"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
-import { useRegisterMutation } from "../api/register.api"
+import { useRegisterMutation } from "../api/register.hooks"
 import { RegisterSchema, type Register } from "../api/register.schema"
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<"div">) {
