@@ -4,44 +4,75 @@ import request from "supertest"
 import { type App } from "supertest/types"
 
 import { MainModule } from "@/app.module"
-import { DB } from "@/common/database/database-providers"
+import { db } from "@/common/database/database.client"
+
+const API_PREFIX = "api"
+const API_VERSION = "1"
+const HEALTH_ENDPOINT = `/api/health`
 
 describe("Health (e2e)", () => {
 	let app: INestApplication<App>
 
-	beforeEach(async () => {
+	const createTestApp = async (): Promise<INestApplication<App>> => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
 			imports: [MainModule],
 		})
-			.overrideProvider(DB)
+			.overrideProvider(db)
 			.useValue({
 				execute: jest.fn(async () => [] as any[]),
 			})
 			.compile()
 
-		app = moduleFixture.createNestApplication()
-		app.setGlobalPrefix("api")
-		app.enableVersioning({
+		const nestApp = moduleFixture.createNestApplication()
+		nestApp.setGlobalPrefix(API_PREFIX)
+		nestApp.enableVersioning({
 			type: VersioningType.URI,
-			defaultVersion: "1",
+			defaultVersion: API_VERSION,
 		})
-		app.useGlobalPipes(
+		nestApp.useGlobalPipes(
 			new ValidationPipe({
 				whitelist: true,
 				forbidNonWhitelisted: true,
 				transform: true,
 			})
 		)
-		await app.init()
+		await nestApp.init()
+		return nestApp
+	}
+
+	const getHealth = () => request(app.getHttpServer()).get(HEALTH_ENDPOINT)
+
+	beforeEach(async () => {
+		app = await createTestApp()
 	})
 
-	it("/api/health (GET)", async () => {
-		const response = await request(app.getHttpServer()).get("/api/health").expect(200)
-		expect(response.body.status).toBe("ok")
-		expect(response.body.checks.database.status).toBe("up")
-		expect(response.body.checks.cache.status).toBe("not_configured")
+	afterEach(async () => {
+		await app.close()
+	})
+
+	it("returns health status with all checks", async () => {
+		const response = await getHealth().expect(200)
+
+		expect(response.body).toMatchObject({
+			status: "ok",
+			checks: {
+				database: { status: "up" },
+				cache: { status: "not_configured" },
+			},
+		})
+		expect(response.body.uptime).toBeDefined()
 		expect(typeof response.body.uptime).toBe("number")
 		expect(response.body.timestamp).toBeDefined()
 		expect(response.body.version).toBeDefined()
+	})
+
+	it("database check is up", async () => {
+		const response = await getHealth().expect(200)
+		expect(response.body.checks.database.status).toBe("up")
+	})
+
+	it("cache check is not configured", async () => {
+		const response = await getHealth().expect(200)
+		expect(response.body.checks.cache.status).toBe("not_configured")
 	})
 })

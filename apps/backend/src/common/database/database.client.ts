@@ -18,9 +18,3 @@ import { env } from "@/config/env.config"
  * ```
  */
 export const db = drizzle(env.DATABASE_URL, { schema })
-
-/**
- * Type alias for the database client
- * This is the type that should be used when typing database operations
- */
-export type DBType = typeof db
