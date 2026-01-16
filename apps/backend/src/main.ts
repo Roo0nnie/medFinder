@@ -11,6 +11,7 @@ import { cleanupOpenApiDoc } from "nestjs-zod"
 import { getAuth } from "@repo/auth"
 
 import { MainModule } from "@/app.module"
+import { env } from "@/config/env.config"
 import { generateBetterAuthSchema, mergeBetterAuthSchema } from "@/utils/openapi"
 
 async function bootstrap() {
@@ -52,7 +53,7 @@ async function bootstrap() {
 		}
 	)
 
-	await app.listen(process.env.PORT ?? 3000)
+	await app.listen(env.PORT)
 }
 
 bootstrap().catch(error => {

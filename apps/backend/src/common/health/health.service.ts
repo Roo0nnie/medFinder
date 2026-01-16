@@ -1,22 +1,21 @@
-import { Inject, Injectable } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
 import { sql } from "drizzle-orm"
 
 import type { HealthCheck } from "@repo/contracts"
 
-import { DB, type DBType } from "@/common/database/database-providers"
+import { db } from "@/common/database/database.client"
+import { env } from "@/config/env.config"
 
 type HealthPayload = HealthCheck
 
 @Injectable()
 export class HealthService {
-	constructor(@Inject(DB) private readonly db: DBType) {}
-
 	async check(): Promise<HealthPayload> {
 		// System information
 		const now = new Date()
 		const uptime = Number(process.uptime().toFixed(3))
 		const version = process.env.npm_package_version ?? "0.0.0"
-		const environment = process.env.NODE_ENV ?? "development"
+		const environment = env.NODE_ENV
 
 		// Health checks
 		const database = await this.checkDatabase()
@@ -38,7 +37,7 @@ export class HealthService {
 
 	private async checkDatabase(): Promise<HealthPayload["checks"]["database"]> {
 		try {
-			await this.db.execute(sql`select 1`)
+			await db.execute(sql`select 1`)
 			return { status: "up" }
 		} catch (error: unknown) {
 			return {

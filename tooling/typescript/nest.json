@@ -24,9 +24,9 @@
 		"forceConsistentCasingInFileNames": true,
 
 		/* Base Options */
-		"module": "commonjs",
-		"moduleResolution": "node",
-		"resolvePackageJsonExports": false,
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"resolvePackageJsonExports": true,
 		"allowSyntheticDefaultImports": true,
 		"baseUrl": "./",
 

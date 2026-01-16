@@ -6,7 +6,6 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 
 import { getAuth } from "@repo/auth"
 
-import { DBModule } from "@/common/database/database.module"
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
 import { HealthModule } from "@/common/health/health.module"
 import { V1Module } from "@/modules/v1/v1.module"
@@ -19,7 +18,6 @@ import { V1Module } from "@/modules/v1/v1.module"
 			envFilePath: ".env",
 		}),
 		// Common modules
-		DBModule,
 		HealthModule,
 		// Authentication
 		AuthModule.forRoot({ auth: getAuth() }),

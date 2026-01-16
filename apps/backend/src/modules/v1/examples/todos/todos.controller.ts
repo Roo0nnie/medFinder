@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
-import { Session, UserSession } from "@thallesp/nestjs-better-auth"
+import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 import { ZodResponse } from "nestjs-zod"
 
 import { CreateTodoDto, ok, TodoDto, TodoListDto, UpdateTodoDto } from "@repo/contracts"

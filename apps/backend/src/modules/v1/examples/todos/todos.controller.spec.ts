@@ -2,7 +2,7 @@
 import { type Todo } from "@repo/contracts"
 
 // Internal imports
-import { type DBType } from "@/common/database/database-providers"
+import { type DBType } from "@/common/database/database.client"
 
 import { TodosController } from "./todos.controller"
 import { TodosService } from "./todos.service"
@@ -12,10 +12,21 @@ jest.mock("@thallesp/nestjs-better-auth", () => ({
 	Session: () => () => ({ user: { id: "template-user-id" } }),
 }))
 
+// Mock the database client module
+const mockDb = {
+	select: jest.fn(),
+	insert: jest.fn(),
+	update: jest.fn(),
+	delete: jest.fn(),
+} as unknown as DBType
+
+jest.mock("@/common/database/database.client", () => ({
+	db: mockDb,
+}))
+
 describe("TodosController (v1)", () => {
 	let controller: TodosController
 	let service: TodosService
-	let mockDb: DBType
 
 	const mockTodos: Todo[] = [
 		{
@@ -37,47 +48,48 @@ describe("TodosController (v1)", () => {
 	]
 
 	beforeEach(() => {
-		// Create a mock database that implements the db query builder pattern
-		mockDb = {
-			select: jest.fn(() => ({
-				from: jest.fn(() => Promise.resolve(mockTodos)),
-				where: jest.fn(() => Promise.resolve([mockTodos[0]])),
+		// Reset mocks and set up default return values
+		jest.clearAllMocks()
+
+		// Setup default mock implementations
+		;(mockDb.select as jest.Mock).mockReturnValue({
+			from: jest.fn(() => Promise.resolve(mockTodos)),
+			where: jest.fn(() => Promise.resolve([mockTodos[0]])),
+		})
+		;(mockDb.insert as jest.Mock).mockReturnValue({
+			values: jest.fn(() => ({
+				returning: jest.fn(async () => [
+					{
+						id: 3,
+						title: "Versioned",
+						completed: true,
+						authorId: "template-user-id",
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					},
+				]),
 			})),
-			insert: jest.fn(() => ({
-				values: jest.fn(() => ({
+		})
+		;(mockDb.update as jest.Mock).mockReturnValue({
+			set: jest.fn(() => ({
+				where: jest.fn(() => ({
 					returning: jest.fn(async () => [
 						{
 							id: 3,
-							title: "Versioned",
-							completed: true,
-							authorId: "template-user-id",
+							title: "Replaced",
+							completed: false,
 							createdAt: new Date(),
 							updatedAt: new Date(),
 						},
 					]),
 				})),
 			})),
-			update: jest.fn(() => ({
-				set: jest.fn(() => ({
-					where: jest.fn(() => ({
-						returning: jest.fn(async () => [
-							{
-								id: 3,
-								title: "Replaced",
-								completed: false,
-								createdAt: new Date(),
-								updatedAt: new Date(),
-							},
-						]),
-					})),
-				})),
-			})),
-			delete: jest.fn(() => ({
-				where: jest.fn(() => Promise.resolve(undefined)),
-			})),
-		} as unknown as DBType
+		})
+		;(mockDb.delete as jest.Mock).mockReturnValue({
+			where: jest.fn(() => Promise.resolve(undefined)),
+		})
 
-		service = new TodosService(mockDb)
+		service = new TodosService()
 		controller = new TodosController(service)
 	})
 
