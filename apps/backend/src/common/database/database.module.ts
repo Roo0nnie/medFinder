@@ -14,7 +14,7 @@ import { DB, type DBType } from "./database-providers"
  *
  * Drizzle manages its own connection pool internally.
  *
- * Requires POSTGRES_URL environment variable to be set.
+ * Requires DATABASE_URL environment variable to be set.
  *
  * @example
  * ```typescript
@@ -32,9 +32,9 @@ import { DB, type DBType } from "./database-providers"
 		{
 			provide: DB,
 			useFactory: (): DBType => {
-				const connectionString = process.env.POSTGRES_URL
+				const connectionString = process.env.DATABASE_URL
 				if (!connectionString) {
-					throw new Error("POSTGRES_URL environment variable is required when using DatabaseModule")
+					throw new Error("DATABASE_URL environment variable is required when using DatabaseModule")
 				}
 				return drizzle(connectionString, { schema })
 			},

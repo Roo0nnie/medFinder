@@ -18,7 +18,7 @@ export const env = createEnv({
 		AUTH_SECRET: z.string().optional(),
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
 		VERCEL_URL: z.string().optional(),
-		POSTGRES_URL: z.url(),
+		DATABASE_URL: z.url(),
 	},
 
 	/**
@@ -38,7 +38,7 @@ export const env = createEnv({
 		AUTH_SECRET: process.env.AUTH_SECRET,
 		BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
 		VERCEL_URL: process.env.VERCEL_URL,
-		POSTGRES_URL: process.env.POSTGRES_URL,
+		DATABASE_URL: process.env.DATABASE_URL,
 	},
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 })

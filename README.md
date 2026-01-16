@@ -105,7 +105,7 @@ turbo-template/
 
 | Variable             | Description                  | Default                 |
 | -------------------- | ---------------------------- | ----------------------- |
-| `POSTGRES_URL`       | PostgreSQL connection string | —                       |
+| `DATABASE_URL`       | PostgreSQL connection string | —                       |
 | `PORT`               | Server port                  | `3000`                  |
 | `BETTER_AUTH_SECRET` | Secret key for auth tokens   | —                       |
 | `BETTER_AUTH_URL`    | Base URL for Better Auth     | `http://localhost:3000` |
@@ -114,7 +114,7 @@ turbo-template/
 
 | Variable                      | Description                  | Default                 |
 | ----------------------------- | ---------------------------- | ----------------------- |
-| `POSTGRES_URL`                | PostgreSQL connection string | —                       |
+| `DATABASE_URL`                | PostgreSQL connection string | —                       |
 | `BETTER_AUTH_SECRET`          | Secret key for auth tokens   | —                       |
 | `BETTER_AUTH_URL`             | Base URL for Better Auth     | `http://localhost:3000` |
 | `NEXT_PUBLIC_BETTER_AUTH_URL` | Public auth URL for client   | —                       |

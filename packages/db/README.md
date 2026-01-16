@@ -16,7 +16,7 @@ const db = createDrizzleClient()
 const allTodos = await db.select().from(todos)
 ```
 
-The `createDrizzleClient()` function creates a Drizzle client configured with your schema. It requires the `POSTGRES_URL` environment variable.
+The `createDrizzleClient()` function creates a Drizzle client configured with your schema. It requires the `DATABASE_URL` environment variable.
 
 ### Schema Only
 

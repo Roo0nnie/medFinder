@@ -282,7 +282,7 @@ The auth package requires the following environment variables:
 - `BETTER_AUTH_SECRET` or `AUTH_SECRET` - Secret key for signing tokens (required)
 - `BETTER_AUTH_URL` or `NEXT_PUBLIC_BETTER_AUTH_URL` - Base URL of your application (default: `http://localhost:3000`)
 - `BETTER_AUTH_TRUSTED_ORIGINS` - Comma-separated list of trusted origins for CORS (optional)
-- `POSTGRES_URL` - Database connection string (from `@repo/db`)
+- `DATABASE_URL` - Database connection string (from `@repo/db`)
 
 ## Database Schema
 

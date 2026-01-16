@@ -61,7 +61,7 @@ $ pnpm run test:cov
 
 - Route: `GET /api/health` (version-neutral)
 - Response: includes overall status, uptime (seconds), ISO timestamp, app version, database check result (Postgres via Drizzle), and a cache entry marked `not_configured`.
-- Database: uses `POSTGRES_URL` from `.env` to perform a lightweight Drizzle query; if not set, the database status is reported as `not_configured`.
+- Database: uses `DATABASE_URL` from `.env` to perform a lightweight Drizzle query; if not set, the database status is reported as `not_configured`.
 
 ## Deployment
 

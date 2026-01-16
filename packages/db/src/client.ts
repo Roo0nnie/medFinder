@@ -10,14 +10,14 @@ export type DBClient = NodePgDatabase<typeof schema>
 /**
  * Creates a Drizzle ORM client with the configured schema
  *
- * @param connectionString - Optional connection string. If not provided, uses POSTGRES_URL environment variable
+ * @param connectionString - Optional connection string. If not provided, uses DATABASE_URL environment variable
  * @returns A Drizzle database client
- * @throws Error if connection string is not provided and POSTGRES_URL is not set
+ * @throws Error if connection string is not provided and DATABASE_URL is not set
  */
 export function createDBClient(connectionString?: string): DBClient {
-	const connString = connectionString ?? process.env.POSTGRES_URL
+	const connString = connectionString ?? process.env.DATABASE_URL
 	if (!connString) {
-		throw new Error("POSTGRES_URL environment variable is not set")
+		throw new Error("DATABASE_URL environment variable is not set")
 	}
 	return drizzle(connString, { schema })
 }
