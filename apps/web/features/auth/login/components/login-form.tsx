@@ -16,6 +16,7 @@ import {
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
+import { PasswordInput } from "@/features/auth/components/password-input"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
@@ -105,10 +106,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 													Forgot your password?
 												</Link>
 											</div>
-											<Input
+											<PasswordInput
 												id={field.name}
 												name={field.name}
-												type="password"
 												value={field.state.value}
 												onBlur={field.handleBlur}
 												onChange={e => field.handleChange(e.target.value)}
