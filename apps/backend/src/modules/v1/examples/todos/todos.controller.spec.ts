@@ -103,14 +103,14 @@ describe("TodosController (v1)", () => {
 
 		const result = await controller.getTodos()
 
-		expect(result.success).toBe(true)
-		expect(result.data).toHaveLength(2)
-		expect(result.data[0]).toMatchObject({
+		expect(result).toBe(true)
+		expect(result).toHaveLength(2)
+		expect(result).toMatchObject({
 			title: "First todo example",
 			id: 1,
 			completed: false,
 		})
-		expect(result.data[1]).toMatchObject({
+		expect(result).toMatchObject({
 			title: "Second todo example",
 			id: 2,
 			completed: true,
@@ -124,7 +124,7 @@ describe("TodosController (v1)", () => {
 		const mockSession = { user: { id: USER_ID } } as UserSession
 		const result = await controller.createTodo({ title: "Versioned", completed: true }, mockSession)
 
-		expect(result.data).toMatchObject({
+		expect(result).toMatchObject({
 			title: "Versioned",
 			completed: true,
 		})
@@ -147,7 +147,7 @@ describe("TodosController (v1)", () => {
 			completed: true,
 		})
 
-		expect(result.data).toMatchObject({
+		expect(result).toMatchObject({
 			id: 3,
 			title: "Replaced",
 			completed: true,
@@ -169,7 +169,7 @@ describe("TodosController (v1)", () => {
 			title: "Updated Title",
 		})
 
-		expect(result.data).toMatchObject({
+		expect(result).toMatchObject({
 			id: 3,
 			title: "Updated Title",
 		})

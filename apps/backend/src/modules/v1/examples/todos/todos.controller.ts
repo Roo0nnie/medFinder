@@ -1,9 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common"
-import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger"
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger"
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
-import { ZodResponse } from "nestjs-zod"
 
-import { CreateTodoDto, ok, TodoDto, TodoListDto, UpdateTodoDto } from "@repo/contracts"
+import {
+	ApiErrorResponseDto,
+	CreateTodoDto,
+	TodoDto,
+	TodoListDto,
+	UpdateTodoDto,
+} from "@repo/contracts"
 
 import { TodosService } from "./todos.service"
 
@@ -14,53 +19,53 @@ export class TodosController {
 
 	@Get()
 	@ApiOperation({ summary: "Get all todos", description: "List of todos" })
-	@ZodResponse({ status: 200, type: TodoListDto, description: "List of todos" })
+	@ApiResponse({ status: 200, description: "List of todos", type: TodoListDto })
 	async getTodos() {
-		const todos = await this.todosService.findAll()
-		return ok(todos)
+		return this.todosService.findAll()
 	}
 
 	@Get(":id")
 	@ApiOperation({ summary: "Get a todo by ID" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
-	@ZodResponse({ status: 200, description: "Todo found", type: TodoDto })
+	@ApiResponse({ status: 200, description: "Todo found", type: TodoDto })
+	@ApiResponse({ status: 404, description: "Todo not found", type: ApiErrorResponseDto })
 	async getTodo(@Param("id") id: string) {
-		const todo = await this.todosService.findOne(Number(id))
-		return ok(todo)
+		return this.todosService.findOne(Number(id))
 	}
 
 	@Post()
 	@ApiOperation({ summary: "Create a new todo" })
-	@ZodResponse({ status: 201, description: "Todo created successfully", type: TodoDto })
+	@ApiResponse({ status: 201, description: "Todo created", type: TodoDto })
+	@ApiResponse({ status: 400, description: "Validation error", type: ApiErrorResponseDto })
+	@ApiResponse({ status: 401, description: "Unauthorized", type: ApiErrorResponseDto })
 	async createTodo(@Body() payload: CreateTodoDto, @Session() session: UserSession) {
-		const todo = await this.todosService.create(payload, session.user.id)
-		return ok(todo)
+		return this.todosService.create(payload, session.user.id)
 	}
 
 	@Put(":id")
 	@ApiOperation({ summary: "Replace a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
-	@ZodResponse({ status: 200, description: "Todo replaced successfully", type: TodoDto })
+	@ApiResponse({ status: 200, description: "Todo replaced", type: TodoDto })
+	@ApiResponse({ status: 404, description: "Todo not found", type: ApiErrorResponseDto })
 	async replaceTodo(@Param("id") id: string, @Body() payload: CreateTodoDto) {
-		const todo = await this.todosService.replace(Number(id), payload)
-		return ok(todo)
+		return this.todosService.replace(Number(id), payload)
 	}
 
 	@Patch(":id")
 	@ApiOperation({ summary: "Update a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
-	@ZodResponse({ status: 200, description: "Todo updated successfully", type: TodoDto })
+	@ApiResponse({ status: 200, description: "Todo updated", type: TodoDto })
+	@ApiResponse({ status: 404, description: "Todo not found", type: ApiErrorResponseDto })
 	async updateTodo(@Param("id") id: string, @Body() payload: UpdateTodoDto) {
-		const todo = await this.todosService.update(Number(id), payload)
-		return ok(todo)
+		return this.todosService.update(Number(id), payload)
 	}
 
 	@Delete(":id")
 	@ApiOperation({ summary: "Delete a todo" })
 	@ApiParam({ name: "id", type: Number, description: "Todo ID" })
-	@ZodResponse({ status: 200, description: "Todo deleted successfully", type: TodoDto })
+	@ApiResponse({ status: 200, description: "Todo deleted", type: TodoDto })
+	@ApiResponse({ status: 404, description: "Todo not found", type: ApiErrorResponseDto })
 	async removeTodo(@Param("id") id: string) {
-		const todo = await this.todosService.remove(Number(id))
-		return ok(todo)
+		return this.todosService.remove(Number(id))
 	}
 }

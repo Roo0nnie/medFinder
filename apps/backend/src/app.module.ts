@@ -8,7 +8,10 @@ import { getAuth } from "@repo/auth"
 
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
 import { HealthModule } from "@/common/health/health.module"
+import { ResponseWrapperInterceptor } from "@/common/interceptors/response-wrapper.interceptor"
 import { V1Module } from "@/modules/v1/v1.module"
+
+import { env } from "./config/env.config"
 
 @Module({
 	imports: [
@@ -16,6 +19,7 @@ import { V1Module } from "@/modules/v1/v1.module"
 		ConfigModule.forRoot({
 			isGlobal: true,
 			envFilePath: ".env",
+			load: [() => env],
 		}),
 		// Common modules
 		HealthModule,
@@ -29,6 +33,10 @@ import { V1Module } from "@/modules/v1/v1.module"
 		{
 			provide: APP_PIPE,
 			useClass: ZodValidationPipe,
+		},
+		{
+			provide: APP_INTERCEPTOR,
+			useClass: ResponseWrapperInterceptor,
 		},
 		{
 			provide: APP_INTERCEPTOR,

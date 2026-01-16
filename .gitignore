@@ -10,6 +10,9 @@ node_modules
 out/
 next-env.d.ts
 
+# nest.js
+apps/backend/src/metadata.ts
+
 # nitro
 .nitro/
 .output/
