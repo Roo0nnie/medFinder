@@ -18,7 +18,6 @@ import {
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
-import { authClient } from "@/services/better-auth/auth-client"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
@@ -26,16 +25,7 @@ import { useRegisterMutation } from "../api/register.hooks"
 import { RegisterSchema, type Register } from "../api/register.schema"
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<"div">) {
-	const router = useRouter()
-	const session = authClient.useSession()
 	const registerMutation = useRegisterMutation()
-
-	// Redirect if already logged in
-	useEffect(() => {
-		if (session.data?.user && !session.isPending) {
-			router.push("/")
-		}
-	}, [session.data?.user, session.isPending, router])
 
 	const form = useForm({
 		defaultValues: {
