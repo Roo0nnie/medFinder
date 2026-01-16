@@ -1,9 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useForm } from "@tanstack/react-form"
 
 import { Button, buttonVariants } from "@/core/components/ui/button"
@@ -22,10 +20,10 @@ import { SocialLoginButtons } from "@/features/auth/components/social-login-butt
 import { TermsPrivacyNote } from "@/features/auth/components/terms-privacy-note"
 
 import { useRegisterMutation } from "../api/register.hooks"
-import { RegisterSchema, type Register } from "../api/register.schema"
+import { RegisterSchema } from "../api/register.schema"
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<"div">) {
-	const registerMutation = useRegisterMutation()
+	const { mutateAsync: register, isPending, isError, error } = useRegisterMutation()
 
 	const form = useForm({
 		defaultValues: {
@@ -37,13 +35,7 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 			onSubmit: RegisterSchema,
 		},
 		onSubmit: async ({ value }) => {
-			// Transform empty string to undefined to match Register type
-			const registerData: Register = {
-				email: value.email,
-				password: value.password,
-				name: value.name || "",
-			}
-			await registerMutation.mutateAsync(registerData)
+			await register(value)
 		},
 	})
 
@@ -64,11 +56,9 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 								<p className="text-muted-foreground text-balance">Sign up to get started</p>
 							</div>
 
-							{registerMutation.isError && (
+							{isError && (
 								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
-									{registerMutation.error instanceof Error
-										? registerMutation.error.message
-										: "An unexpected error occurred"}
+									{error instanceof Error ? error.message : "An unexpected error occurred"}
 								</div>
 							)}
 
@@ -89,7 +79,7 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 												aria-invalid={isInvalid}
 												placeholder="John Doe"
 												autoComplete="name"
-												disabled={registerMutation.isPending}
+												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}
 										</Field>
@@ -115,7 +105,7 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 												placeholder="m@example.com"
 												autoComplete="email"
 												required
-												disabled={registerMutation.isPending}
+												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}
 										</Field>
@@ -140,7 +130,7 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 												aria-invalid={isInvalid}
 												required
 												autoComplete="new-password"
-												disabled={registerMutation.isPending}
+												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}
 										</Field>
@@ -149,12 +139,8 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							/>
 
 							<Field>
-								<Button
-									type="submit"
-									disabled={registerMutation.isPending}
-									className="w-full hover:cursor-pointer"
-								>
-									{registerMutation.isPending ? "Creating account..." : "Create account"}
+								<Button type="submit" disabled={isPending} className="w-full hover:cursor-pointer">
+									{isPending ? "Creating account..." : "Create account"}
 								</Button>
 							</Field>
 

@@ -13,11 +13,7 @@ export function useRegisterMutation() {
 
 	return useMutation({
 		mutationFn: async (data: Register) => {
-			const result = await authClient.signUp.email({
-				email: data.email,
-				password: data.password,
-				name: data.name || "",
-			})
+			const result = await authClient.signUp.email(data)
 			if (result.error) {
 				throw new Error(result.error.message || "Failed to sign up")
 			}
