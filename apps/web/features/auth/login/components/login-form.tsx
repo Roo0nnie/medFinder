@@ -1,9 +1,7 @@
 "use client"
 
-import { useEffect } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useForm } from "@tanstack/react-form"
 
 import { Button, buttonVariants } from "@/core/components/ui/button"
@@ -25,7 +23,7 @@ import { useLoginMutation } from "../api/login.hooks"
 import { LoginSchema } from "../api/login.schema"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
-	const loginMutation = useLoginMutation()
+	const { mutateAsync: login, isPending, isError, error } = useLoginMutation()
 
 	const form = useForm({
 		defaultValues: {
@@ -36,7 +34,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			onSubmit: LoginSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await loginMutation.mutateAsync(value)
+			await login(value)
 		},
 	})
 
@@ -57,11 +55,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 								<p className="text-muted-foreground text-balance">Login to your account</p>
 							</div>
 
-							{loginMutation.isError && (
+							{isError && (
 								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
-									{loginMutation.error instanceof Error
-										? loginMutation.error.message
-										: "An unexpected error occurred"}
+									{error instanceof Error ? error.message : "An unexpected error occurred"}
 								</div>
 							)}
 
@@ -83,7 +79,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 												placeholder="m@example.com"
 												autoComplete="email"
 												required
-												disabled={loginMutation.isPending}
+												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}
 										</Field>
@@ -119,7 +115,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 												aria-invalid={isInvalid}
 												required
 												autoComplete="current-password"
-												disabled={loginMutation.isPending}
+												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}
 										</Field>
@@ -128,12 +124,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							/>
 
 							<Field>
-								<Button
-									type="submit"
-									disabled={loginMutation.isPending}
-									className="w-full hover:cursor-pointer"
-								>
-									{loginMutation.isPending ? "Signing in..." : "Login"}
+								<Button type="submit" disabled={isPending} className="w-full hover:cursor-pointer">
+									{isPending ? "Signing in..." : "Login"}
 								</Button>
 							</Field>
 

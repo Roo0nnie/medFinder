@@ -20,7 +20,6 @@ export function useLoginMutation() {
 			return result
 		},
 		onSuccess: () => {
-			// Invalidate any session-related queries if needed
 			queryClient.invalidateQueries({ queryKey: ["session"] })
 			router.push("/")
 			router.refresh()
