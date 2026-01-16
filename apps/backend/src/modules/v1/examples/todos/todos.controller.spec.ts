@@ -142,7 +142,7 @@ describe("TodosController (v1)", () => {
 		// Second mock call: update and return
 		setupUpdateMock(replaced)
 
-		const result = await controller.replaceTodo("3", {
+		const result = await controller.replaceTodo(3, {
 			title: "Replaced",
 			completed: true,
 		})
@@ -165,7 +165,7 @@ describe("TodosController (v1)", () => {
 		// Second mock call: update and return
 		setupUpdateMock(updated)
 
-		const result = await controller.updateTodo("3", {
+		const result = await controller.updateTodo(3, {
 			title: "Updated Title",
 		})
 
@@ -182,7 +182,7 @@ describe("TodosController (v1)", () => {
 		// Second mock call: delete
 		setupDeleteMock()
 
-		await controller.removeTodo("3")
+		await controller.removeTodo(3)
 
 		expect(mockDb.delete).toHaveBeenCalled()
 	})
