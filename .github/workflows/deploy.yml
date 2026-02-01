@@ -1,0 +1,163 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  # Required: Set these in GitHub Actions > Variables
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB || format('{0}/web', vars.PROJECT_NAME) }}
+  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND || format('{0}/backend', vars.PROJECT_NAME) }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER || format('{0}-cluster', vars.PROJECT_NAME) }}
+  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB || format('{0}-web-service', vars.PROJECT_NAME) }}
+  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND || format('{0}-backend-service', vars.PROJECT_NAME) }}
+  ECS_TASK_DEFINITION_WEB: ${{ vars.ECS_TASK_DEFINITION_WEB || format('{0}/web', vars.PROJECT_NAME) }}
+  ECS_TASK_DEFINITION_BACKEND: ${{ vars.ECS_TASK_DEFINITION_BACKEND || format('{0}/backend', vars.PROJECT_NAME) }}
+
+  # Required: Set these in GitHub Actions > Secrets
+  # AWS_ACCESS_KEY_ID: (your AWS access key)
+  # AWS_SECRET_ACCESS_KEY: (your AWS secret key)
+
+jobs:
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push Web image to ECR
+        id: build-web
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          LATEST_TAG: latest
+        run: |
+          docker buildx build \
+            --file apps/web/Dockerfile \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_WEB:$LATEST_TAG \
+            .
+
+          # Update cache for next run
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Build and push Backend image to ECR
+        id: build-backend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          LATEST_TAG: latest
+        run: |
+          docker buildx build \
+            --file apps/backend/Dockerfile \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --push \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG \
+            --tag $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$LATEST_TAG \
+            .
+
+          # Update cache for next run
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Get Web task definition
+        id: get-task-def-web
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION_WEB --query 'taskDefinition' --output json)
+          echo "task_def=$TASK_DEF" >> $GITHUB_OUTPUT
+
+      - name: Update Web task definition
+        id: update-task-def-web
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.get-task-def-web.outputs.task_def }}
+          container-name: web
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_WEB }}:${{ github.sha }}
+          environment-variables: |
+            NODE_ENV=production
+
+      - name: Register Web task definition
+        id: register-task-def-web
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.update-task-def-web.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE_WEB }}
+          wait-for-service-stability: true
+          force-new-deployment: true
+
+      - name: Get Backend task definition
+        id: get-task-def-backend
+        run: |
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION_BACKEND --query 'taskDefinition' --output json)
+          echo "task_def=$TASK_DEF" >> $GITHUB_OUTPUT
+
+      - name: Update Backend task definition
+        id: update-task-def-backend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.get-task-def-backend.outputs.task_def }}
+          container-name: backend
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}
+          environment-variables: |
+            NODE_ENV=production
+            PORT=3000
+
+      - name: Register Backend task definition
+        id: register-task-def-backend
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.update-task-def-backend.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE_BACKEND }}
+          wait-for-service-stability: true
+          force-new-deployment: true
+
+      - name: Deployment summary
+        run: |
+          echo "=========================================="
+          echo "Deployment completed successfully!"
+          echo "=========================================="
+          echo "Project: ${{ env.PROJECT_NAME }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+          echo "Web Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_WEB }}:${{ github.sha }}"
+          echo "Backend Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}"
+          echo "Cluster: ${{ env.ECS_CLUSTER }}"
+          echo "Web Service: ${{ env.ECS_SERVICE_WEB }}"
+          echo "Backend Service: ${{ env.ECS_SERVICE_BACKEND }}"
+          echo "=========================================="
