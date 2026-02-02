@@ -3,7 +3,7 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - main
+      - production
   workflow_dispatch:
 
 env:
@@ -237,27 +237,3 @@ jobs:
           # Set output for easy access
           echo "web_image_url=${{ steps.build-web.outputs.image }}" >> $GITHUB_ENV
           echo "backend_image_url=${{ steps.build-backend.outputs.image }}" >> $GITHUB_ENV
-
-      - name: Comment deployment status on PR (if applicable)
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `### Deployment successful! 🚀
-
-              **Commit**: \`${{ github.sha }}\`
-
-              **Web**:
-              - Image: \`${{ steps.build-web.outputs.image }}\`
-              - Task Definition: \`${{ steps.update-task-def-web.outputs.task_def_arn }}\`
-
-              **Backend**:
-              - Image: \`${{ steps.build-backend.outputs.image }}\`
-              - Task Definition: \`${{ steps.update-task-def-backend.outputs.task_def_arn }}\`
-
-              The deployment is now live in ECS!`
-            })

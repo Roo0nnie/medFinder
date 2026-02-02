@@ -147,11 +147,16 @@ If you already have AWS resources set up, you can skip the infrastructure setup.
 
 ### Automatic Deployment
 
-The deployment workflow triggers automatically on every push to the `main` branch.
+The deployment workflow triggers automatically on every push to the `production` branch.
+
+**Your workflow:**
+1. Push to `main` branch for development
+2. Create a pull request from `main` to `production`
+3. Merge the pull request to trigger deployment
 
 ```mermaid
 graph LR
-    A[Push to main] --> B[GitHub Actions Triggered]
+    A[Merge to production] --> B[GitHub Actions Triggered]
     B --> C[Build Docker Images]
     C --> D[Push to ECR]
     D --> E[Update Task Definitions]
@@ -162,12 +167,12 @@ graph LR
 
 ### Manual Deployment
 
-To deploy manually without pushing to main:
+To deploy manually without merging:
 
 1. Navigate to **Actions** tab
 2. Select **Deploy to AWS ECS** workflow
 3. Click **Run workflow**
-4. Select branch to deploy
+4. Select branch to deploy (must be `production`)
 5. Click **Run workflow**
 
 ### Deployment Process
@@ -200,9 +205,10 @@ If a deployment causes issues:
 
 **Option 1: Rollback to previous commit**
 ```bash
-# On GitHub, revert to previous commit or cherry-pick a good commit
+# On GitHub, revert production branch to previous commit or cherry-pick a good commit
+git checkout production
 git revert HEAD
-git push origin main
+git push origin production
 ```
 
 **Option 2: Manual rollback via AWS Console**
@@ -506,7 +512,8 @@ docker exec -it <CONTAINER_ID> /bin/bash
 ┌─────────────────────────────────────────────────────────────┐
 │                     GitHub Repository                     │
 │                                                         │
-│  Push to main → GitHub Actions → AWS ECS Deployment      │
+│  Main branch (development)                                 │
+│  Create PR → Merge to production → Deployment    │
 └───────────────────────────┬─────────────────────────────┘
                         │
                         ↓
