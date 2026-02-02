@@ -11,25 +11,21 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Create minimal .gitignore for linting (not in .dockerignore)
+RUN touch .gitignore
 
 # Copy workspace dependencies
 COPY packages ./packages
+COPY tooling ./tooling
+COPY apps ./apps
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy backend source
-COPY apps/backend/package.json ./apps/backend/
-COPY apps/backend/tsconfig.json ./apps/backend/
-COPY apps/backend/tsconfig.build.json ./apps/backend/
-COPY apps/backend/tsconfig.spec.json ./apps/backend/
-COPY apps/backend/nest-cli.json ./apps/backend/
-COPY apps/backend/.swcrc ./apps/backend/
-COPY apps/backend/src ./apps/backend/src
-
-# Build NestJS application
-RUN cd apps/backend && pnpm build
+# Build all packages using turbo
+RUN pnpm build
 
 # Production stage
 FROM node:22-alpine AS production
@@ -46,18 +42,14 @@ WORKDIR /app
 # Set environment to production
 ENV NODE_ENV=production
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy workspace dependencies
-COPY packages ./packages
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built NestJS app
-COPY --from=base --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
-COPY --from=base --chown=nodejs:nodejs /app/apps/backend/package.json ./apps/backend/package.json
+# Copy all necessary files from base stage (node_modules, packages, apps)
+COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=base --chown=nodejs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=base --chown=nodejs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=base --chown=nodejs:nodejs /app/turbo.json ./turbo.json
+COPY --from=base --chown=nodejs:nodejs /app/packages ./packages
+COPY --from=base --chown=nodejs:nodejs /app/apps/backend ./apps/backend
 
 # Switch to non-root user
 USER nodejs

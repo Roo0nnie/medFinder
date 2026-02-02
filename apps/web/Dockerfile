@@ -11,29 +11,21 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Create minimal .gitignore for linting (not in .dockerignore)
+RUN touch .gitignore
 
 # Copy workspace dependencies
 COPY packages ./packages
+COPY tooling ./tooling
+COPY apps ./apps
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy web app source
-COPY apps/web/package.json ./apps/web/
-COPY apps/web/tsconfig.json ./apps/web/
-COPY apps/web/next.config.ts ./apps/web/
-COPY apps/web/postcss.config.mjs ./apps/web/
-COPY apps/web/components.json ./apps/web/
-COPY apps/web/app ./apps/web/app
-COPY apps/web/core ./apps/web/core
-COPY apps/web/features ./apps/web/features
-COPY apps/web/services ./apps/web/services
-COPY apps/web/env.ts ./apps/web/
-COPY apps/web/public ./apps/web/public
-
-# Build Next.js application
-RUN cd apps/web && pnpm build
+# Build all packages using turbo
+RUN pnpm build
 
 # Production stage
 FROM node:22-alpine AS production
@@ -50,20 +42,14 @@ WORKDIR /app
 # Set environment to production
 ENV NODE_ENV=production
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy workspace dependencies
-COPY packages ./packages
-
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy built Next.js app
-COPY --from=base --chown=nodejs:nodejs /app/apps/web/.next ./apps/web/.next
-COPY --from=base --chown=nodejs:nodejs /app/apps/web/public ./apps/web/public
-COPY --from=base --chown=nodejs:nodejs /app/apps/web/package.json ./apps/web/package.json
-COPY --from=base --chown=nodejs:nodejs /app/apps/web/next.config.ts ./apps/web/next.config.ts
+# Copy all necessary files from base stage (node_modules, packages, apps)
+COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=base --chown=nodejs:nodejs /app/package.json ./package.json
+COPY --from=base --chown=nodejs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=base --chown=nodejs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=base --chown=nodejs:nodejs /app/turbo.json ./turbo.json
+COPY --from=base --chown=nodejs:nodejs /app/packages ./packages
+COPY --from=base --chown=nodejs:nodejs /app/apps/web ./apps/web
 
 # Switch to non-root user
 USER nodejs
