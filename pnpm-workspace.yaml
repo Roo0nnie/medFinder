@@ -40,6 +40,7 @@ linkWorkspacePackages: true
 onlyBuiltDependencies:
   - '@nestjs/core'
   - '@scarf/scarf'
+  - '@swc/core'
   - argon2
   - better-sqlite3
   - core-js-pure
