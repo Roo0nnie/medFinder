@@ -10,13 +10,16 @@ env:
   # Required: Set these in GitHub Actions > Variables
   AWS_REGION: ${{ vars.AWS_REGION }}
   PROJECT_NAME: ${{ vars.PROJECT_NAME }}
-  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB || format('{0}/web', vars.PROJECT_NAME) }}
-  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND || format('{0}/backend', vars.PROJECT_NAME) }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER || format('{0}-cluster', vars.PROJECT_NAME) }}
-  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB || format('{0}-web-service', vars.PROJECT_NAME) }}
-  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND || format('{0}-backend-service', vars.PROJECT_NAME) }}
-  ECS_TASK_DEFINITION_WEB: ${{ vars.ECS_TASK_DEFINITION_WEB || format('{0}/web', vars.PROJECT_NAME) }}
-  ECS_TASK_DEFINITION_BACKEND: ${{ vars.ECS_TASK_DEFINITION_BACKEND || format('{0}/backend', vars.PROJECT_NAME) }}
+  ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
+  ECR_REPOSITORY_BACKEND: ${{ vars.ECR_REPOSITORY_BACKEND }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE_WEB: ${{ vars.ECS_SERVICE_WEB }}
+  ECS_SERVICE_BACKEND: ${{ vars.ECS_SERVICE_BACKEND }}
+  ECS_TASK_DEFINITION_WEB: ${{ vars.ECS_TASK_DEFINITION_WEB }}
+  ECS_TASK_DEFINITION_BACKEND: ${{ vars.ECS_TASK_DEFINITION_BACKEND }}
+
+  # Image tag (use commit SHA for immutable deployments)
+  IMAGE_TAG: ${{ github.sha }}
 
   # Required: Set these in GitHub Actions > Secrets
   # AWS_ACCESS_KEY_ID: (your AWS access key)
@@ -59,9 +62,16 @@ jobs:
         id: build-web
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           LATEST_TAG: latest
         run: |
+          echo "=========================================="
+          echo "Building Web Docker Image"
+          echo "=========================================="
+          echo "Repository: $ECR_REGISTRY/$ECR_REPOSITORY_WEB"
+          echo "Tag: $IMAGE_TAG"
+          echo ""
+
           docker buildx build \
             --file apps/web/Dockerfile \
             --cache-from type=local,src=/tmp/.buildx-cache \
@@ -75,13 +85,24 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+          echo "✓ Web image pushed successfully"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_WEB:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
+
       - name: Build and push Backend image to ECR
         id: build-backend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
           LATEST_TAG: latest
         run: |
+          echo "=========================================="
+          echo "Building Backend Docker Image"
+          echo "=========================================="
+          echo "Repository: $ECR_REGISTRY/$ECR_REPOSITORY_BACKEND"
+          echo "Tag: $IMAGE_TAG"
+          echo ""
+
           docker buildx build \
             --file apps/backend/Dockerfile \
             --cache-from type=local,src=/tmp/.buildx-cache \
@@ -95,58 +116,105 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Get Web task definition
-        id: get-task-def-web
-        run: |
-          TASK_DEF=$(aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION_WEB --query 'taskDefinition' --output json)
-          echo "task_def=$TASK_DEF" >> $GITHUB_OUTPUT
+          echo "✓ Backend image pushed successfully"
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo ""
 
       - name: Update Web task definition
         id: update-task-def-web
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ steps.get-task-def-web.outputs.task_def }}
-          container-name: web
-          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_WEB }}:${{ github.sha }}
-          environment-variables: |
-            NODE_ENV=production
-
-      - name: Register Web task definition
-        id: register-task-def-web
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.update-task-def-web.outputs.task-definition }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          service: ${{ env.ECS_SERVICE_WEB }}
-          wait-for-service-stability: true
-          force-new-deployment: true
-
-      - name: Get Backend task definition
-        id: get-task-def-backend
         run: |
-          TASK_DEF=$(aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION_BACKEND --query 'taskDefinition' --output json)
-          echo "task_def=$TASK_DEF" >> $GITHUB_OUTPUT
+          echo "=========================================="
+          echo "Updating Web Task Definition"
+          echo "=========================================="
+
+          # Substitute variables in task definition template
+          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
+          export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          envsubst < aws/ecs/task-definition-web.json > /tmp/task-def-web-updated.json
+
+          # Register new task definition revision
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def-web-updated.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "✓ Web task definition updated: $TASK_DEF_ARN"
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo ""
+
+      - name: Deploy Web to ECS
+        id: deploy-web
+        run: |
+          echo "=========================================="
+          echo "Deploying Web Service"
+          echo "=========================================="
+
+          # Update service with new task definition
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_WEB \
+            --task-definition ${{ steps.update-task-def-web.outputs.task_def_arn }} \
+            --force-new-deployment
+
+          echo "✓ Web service deployment started"
+          echo "Waiting for web service to stabilize..."
+
+          # Wait for service to stabilize
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_WEB
+
+          echo "✓ Web service is stable"
+          echo ""
 
       - name: Update Backend task definition
         id: update-task-def-backend
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ steps.get-task-def-backend.outputs.task_def }}
-          container-name: backend
-          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}
-          environment-variables: |
-            NODE_ENV=production
-            PORT=3000
+        run: |
+          echo "=========================================="
+          echo "Updating Backend Task Definition"
+          echo "=========================================="
 
-      - name: Register Backend task definition
-        id: register-task-def-backend
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.update-task-def-backend.outputs.task-definition }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          service: ${{ env.ECS_SERVICE_BACKEND }}
-          wait-for-service-stability: true
-          force-new-deployment: true
+          # Substitute variables in task definition template
+          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
+          export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+          envsubst < aws/ecs/task-definition-backend.json > /tmp/task-def-backend-updated.json
+
+          # Register new task definition revision
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def-backend-updated.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "✓ Backend task definition updated: $TASK_DEF_ARN"
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo ""
+
+      - name: Deploy Backend to ECS
+        id: deploy-backend
+        run: |
+          echo "=========================================="
+          echo "Deploying Backend Service"
+          echo "=========================================="
+
+          # Update service with new task definition
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE_BACKEND \
+            --task-definition ${{ steps.update-task-def-backend.outputs.task_def_arn }} \
+            --force-new-deployment
+
+          echo "✓ Backend service deployment started"
+          echo "Waiting for backend service to stabilize..."
+
+          # Wait for service to stabilize
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE_BACKEND
+
+          echo "✓ Backend service is stable"
+          echo ""
 
       - name: Deployment summary
         run: |
@@ -155,9 +223,41 @@ jobs:
           echo "=========================================="
           echo "Project: ${{ env.PROJECT_NAME }}"
           echo "Region: ${{ env.AWS_REGION }}"
-          echo "Web Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_WEB }}:${{ github.sha }}"
-          echo "Backend Image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}"
-          echo "Cluster: ${{ env.ECS_CLUSTER }}"
-          echo "Web Service: ${{ env.ECS_SERVICE_WEB }}"
-          echo "Backend Service: ${{ env.ECS_SERVICE_BACKEND }}"
+          echo "Commit SHA: ${{ github.sha }}"
+          echo ""
+          echo "Web Image: ${{ steps.build-web.outputs.image }}"
+          echo "Web Task Definition: ${{ steps.update-task-def-web.outputs.task_def_arn }}"
+          echo "Web Service: ${{ env.ECS_CLUSTER }}/${{ env.ECS_SERVICE_WEB }}"
+          echo ""
+          echo "Backend Image: ${{ steps.build-backend.outputs.image }}"
+          echo "Backend Task Definition: ${{ steps.update-task-def-backend.outputs.task_def_arn }}"
+          echo "Backend Service: ${{ env.ECS_CLUSTER }}/${{ env.ECS_SERVICE_BACKEND }}"
           echo "=========================================="
+
+          # Set output for easy access
+          echo "web_image_url=${{ steps.build-web.outputs.image }}" >> $GITHUB_ENV
+          echo "backend_image_url=${{ steps.build-backend.outputs.image }}" >> $GITHUB_ENV
+
+      - name: Comment deployment status on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### Deployment successful! 🚀
+
+              **Commit**: \`${{ github.sha }}\`
+
+              **Web**:
+              - Image: \`${{ steps.build-web.outputs.image }}\`
+              - Task Definition: \`${{ steps.update-task-def-web.outputs.task_def_arn }}\`
+
+              **Backend**:
+              - Image: \`${{ steps.build-backend.outputs.image }}\`
+              - Task Definition: \`${{ steps.update-task-def-backend.outputs.task_def_arn }}\`
+
+              The deployment is now live in ECS!`
+            })

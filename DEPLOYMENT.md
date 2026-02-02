@@ -1,17 +1,15 @@
 # AWS ECS Deployment Guide
 
-This guide provides step-by-step instructions for deploying your Turborepo monorepo to AWS ECS.
+This guide provides step-by-step instructions for deploying your Turborepo monorepo to AWS ECS using GitHub Actions CI/CD.
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
-2. [Quick Start](#quick-start)
-3. [AWS Infrastructure Setup](#aws-infrastructure-setup)
-4. [Building and Pushing Images](#building-and-pushing-images)
-5. [Deploying to ECS](#deploying-to-ecs)
-6. [CI/CD Pipeline](#cicd-pipeline)
-7. [Monitoring and Alerts](#monitoring-and-alerts)
-8. [Troubleshooting](#troubleshooting)
+2. [GitHub Actions Setup](#github-actions-setup)
+3. [Infrastructure Setup](#infrastructure-setup)
+4. [Deployment Workflow](#deployment-workflow)
+5. [Monitoring and Alerts](#monitoring-and-alerts)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -24,17 +22,20 @@ Before deploying to AWS, ensure you have:
   ```bash
   # On Windows
   winget install awscli
-  
+
   # On macOS
   brew install awscli
-  
+
   # On Linux
   sudo apt-get install awscli
   ```
-- **Docker**: Install Docker Desktop
+- **Docker**: Install Docker Desktop (for local testing)
+- **GitHub Repository**: Your code must be in a GitHub repository
 - **Supabase Database**: Have your Supabase PostgreSQL connection string ready
 
-### Configure AWS CLI
+### Configure AWS CLI (Optional)
+
+You can configure AWS CLI locally for testing, but deployments use GitHub Actions credentials:
 
 ```bash
 aws configure
@@ -48,229 +49,178 @@ Enter your:
 
 ---
 
-## Quick Start
+## GitHub Actions Setup
 
-For a quick deployment without manual infrastructure setup:
+### Step 1: Configure GitHub Secrets
 
-1. **Set up environment variables**:
-   ```bash
-   export AWS_ACCOUNT_ID="your-aws-account-id"
-   export AWS_REGION="us-east-1"
+1. Navigate to your GitHub repository
+2. Go to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add the following secrets:
+
+| Secret Name | Description | Example |
+|-------------|---------------|----------|
+| `AWS_ACCESS_KEY_ID` | Your AWS access key ID | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS secret access key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
+
+**How to get AWS credentials:**
+1. Log into AWS Console
+2. Go to IAM → Users → Select your user
+3. Security credentials tab → Create access key
+4. Copy the Access key ID and Secret access key
+
+### Step 2: Configure GitHub Variables
+
+In the same section (Secrets and variables → Actions), click **Variables** → **New repository variable** and add:
+
+| Variable Name | Description | Example |
+|---------------|---------------|----------|
+| `AWS_REGION` | AWS region for deployment | `us-east-1` |
+| `PROJECT_NAME` | Project name prefix for AWS resources | `turbo-template` |
+| `AWS_ACCOUNT_ID` | Your AWS account ID (12 digits) | `123456789012` |
+
+**Note**: Get your AWS Account ID from the AWS Console (top right corner, click on account name).
+
+### Step 3: Verify Repository Structure
+
+Ensure your repository has:
+- `.github/workflows/infrastructure.yml` - Infrastructure setup workflow
+- `.github/workflows/deploy.yml` - Deployment workflow
+- `aws/ecs/task-definition-web.json` - Web task definition template
+- `aws/ecs/task-definition-backend.json` - Backend task definition template
+- `apps/web/Dockerfile` - Web Docker configuration
+- `apps/backend/Dockerfile` - Backend Docker configuration
+
+---
+
+## Infrastructure Setup
+
+The infrastructure setup workflow creates all AWS resources automatically. Run this once before your first deployment.
+
+### Run Infrastructure Setup Workflow
+
+1. Navigate to your GitHub repository
+2. Click on **Actions** tab
+3. Select **Infrastructure Setup** workflow from the left sidebar
+4. Click **Run workflow** button
+5. Configure options:
+   - **Use default branch**: `main`
+   - **Create default VPC and subnets**: Select `true` if you don't have existing VPC
+6. Click **Run workflow**
+
+The workflow will create:
+- VPC and networking (VPC, subnets, route tables, Internet Gateway)
+- Security groups (ALB and ECS)
+- ECR repositories (`{PROJECT_NAME}-web`, `{PROJECT_NAME}-backend`)
+- ECS cluster (`{PROJECT_NAME}-cluster`)
+- Application Load Balancer with target groups
+- IAM roles (task execution role)
+- CloudWatch Log groups
+
+**Estimated time**: 5-10 minutes
+
+### After Infrastructure Setup
+
+Once the workflow completes successfully:
+
+1. Note the ALB DNS name from the workflow summary
+2. Update your GitHub variables with these values (workflow will display them):
+   ```
+   ECR_REPOSITORY_WEB={PROJECT_NAME}-web
+   ECR_REPOSITORY_BACKEND={PROJECT_NAME}-backend
+   ECS_CLUSTER={PROJECT_NAME}-cluster
+   ECS_SERVICE_WEB={PROJECT_NAME}-web-service
+   ECS_SERVICE_BACKEND={PROJECT_NAME}-backend-service
+   ECS_TASK_DEFINITION_WEB={PROJECT_NAME}-web
+   ECS_TASK_DEFINITION_BACKEND={PROJECT_NAME}-backend
    ```
 
-2. **Build and push images**:
-   ```bash
-   # On Windows PowerShell
-   .\scripts\build-and-push.ps1 -AWS_ACCOUNT_ID $env:AWS_ACCOUNT_ID
-   
-   # On macOS/Linux
-   chmod +x scripts/build-and-push.sh
-   AWS_ACCOUNT_ID=123456789012 ./scripts/build-and-push.sh
-   ```
+3. Configure AWS Secrets Manager (see [Environment Variables Management](#environment-variables-management))
 
-3. **Follow the AWS Console setup guide**:
-   - See [aws/setup-guide.md](aws/setup-guide.md) for detailed steps
+### Using Existing Infrastructure
+
+If you already have AWS resources set up, you can skip the infrastructure setup. Just configure the GitHub Variables with your existing resource names.
 
 ---
 
-## AWS Infrastructure Setup
+## Deployment Workflow
 
-### Option 1: Manual Setup (Recommended for first-time users)
+### Automatic Deployment
 
-Follow the detailed guide in [aws/setup-guide.md](aws/setup-guide.md) to set up:
-- VPC and networking
-- ECR repositories
-- ECS cluster
-- Application Load Balancer
-- Target groups and listeners
-- IAM roles
-- ECS services
-- SSL certificates (optional)
+The deployment workflow triggers automatically on every push to the `main` branch.
 
-### Option 2: AWS CDK (Infrastructure as Code)
-
-For automated infrastructure provisioning, use AWS CDK. This requires additional setup but provides reproducible deployments.
-
----
-
-## Building and Pushing Images
-
-### Prerequisites
-
-Make sure you have:
-1. Created ECR repositories (see setup guide)
-2. Configured AWS CLI with appropriate permissions
-
-### Build and Push Script
-
-The project includes build scripts for both Windows and Unix-based systems:
-
-#### Windows (PowerShell)
-
-```powershell
-# Basic usage
-.\scripts\build-and-push.ps1 -AWS_ACCOUNT_ID "123456789012"
-
-# With custom region
-.\scripts\build-and-push.ps1 -AWS_ACCOUNT_ID "123456789012" -AWS_REGION "us-west-2"
-
-# With custom image tags
-.\scripts\build-and-push.ps1 -AWS_ACCOUNT_ID "123456789012" -WEB_IMAGE_TAG "v1.0.0" -BACKEND_IMAGE_TAG "v1.0.0"
-
-# Build and update ECS services
-.\scripts\build-and-push.ps1 -AWS_ACCOUNT_ID "123456789012" -UPDATE_ECS
+```mermaid
+graph LR
+    A[Push to main] --> B[GitHub Actions Triggered]
+    B --> C[Build Docker Images]
+    C --> D[Push to ECR]
+    D --> E[Update Task Definitions]
+    E --> F[Deploy to ECS]
+    F --> G[Wait for Stability]
+    G --> H[Deployment Complete]
 ```
 
-#### macOS/Linux (Bash)
+### Manual Deployment
 
+To deploy manually without pushing to main:
+
+1. Navigate to **Actions** tab
+2. Select **Deploy to AWS ECS** workflow
+3. Click **Run workflow**
+4. Select branch to deploy
+5. Click **Run workflow**
+
+### Deployment Process
+
+The deployment workflow performs these steps:
+
+1. **Checkout code** - Gets the latest code from your repository
+2. **Configure AWS credentials** - Uses secrets to authenticate with AWS
+3. **Login to ECR** - Authenticates Docker push
+4. **Build Docker images** - Builds web and backend images using BuildKit
+5. **Push to ECR** - Pushes images with commit SHA and `latest` tags
+6. **Update task definitions** - Creates new revisions with updated image tags
+7. **Deploy to ECS** - Updates services with new task definitions
+8. **Wait for stability** - Ensures services are healthy before completing
+
+### Image Tagging
+
+Docker images are tagged with:
+- Commit SHA (e.g., `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0`)
+- `latest` tag (always points to most recent deployment)
+
+This allows for:
+- Easy rollbacks to specific commits
+- Version tracking and audit trail
+- Immutable deployments
+
+### Rollback Strategy
+
+If a deployment causes issues:
+
+**Option 1: Rollback to previous commit**
 ```bash
-# Make script executable
-chmod +x scripts/build-and-push.sh
-
-# Basic usage
-AWS_ACCOUNT_ID=123456789012 ./scripts/build-and-push.sh
-
-# With custom region
-AWS_REGION=us-west-2 AWS_ACCOUNT_ID=123456789012 ./scripts/build-and-push.sh
-
-# With custom image tags
-WEB_IMAGE_TAG=v1.0.0 BACKEND_IMAGE_TAG=v1.0.0 AWS_ACCOUNT_ID=123456789012 ./scripts/build-and-push.sh
-
-# Build and update ECS services
-UPDATE_ECS=true AWS_ACCOUNT_ID=123456789012 ./scripts/build-and-push.sh
+# On GitHub, revert to previous commit or cherry-pick a good commit
+git revert HEAD
+git push origin main
 ```
 
-### What the Script Does
+**Option 2: Manual rollback via AWS Console**
+1. Navigate to ECS → Task definitions
+2. Find the previous working revision (lower revision number)
+3. Go to ECS Clusters → Your cluster → Service
+4. Click "Update"
+5. Select the previous task definition revision
+6. Click "Update service"
 
-1. **Logs into ECR** using AWS CLI
-2. **Builds Docker images** for web and backend apps
-3. **Tags images** with ECR repository URIs
-4. **Pushes images** to ECR
-5. **Optionally updates** ECS services (with `-UPDATE_ECS` flag)
-
-### Manual Build and Push (Alternative)
-
-If you prefer to build manually:
-
+**Option 3: Force redeployment of previous image**
 ```bash
-# Login to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
-
-# Build web image
-docker build -f apps/web/Dockerfile -t 123456789012.dkr.ecr.us-east-1.amazonaws.com/turbo-template-web:latest .
-
-# Build backend image
-docker build -f apps/backend/Dockerfile -t 123456789012.dkr.ecr.us-east-1.amazonaws.com/turbo-template-backend:latest .
-
-# Push images
-docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/turbo-template-web:latest
-docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/turbo-template-backend:latest
-```
-
----
-
-## Deploying to ECS
-
-### Update Task Definitions
-
-After pushing new images, update your ECS task definitions:
-
-1. **Navigate to ECS Console**:
-   - Go to ECS → Task definitions
-
-2. **Create new task definition revision**:
-   - Click on the task definition family
-   - Click "Create new revision"
-   - Update the image URI with the new tag
-   - Click "Create"
-
-3. **Update the service**:
-   - Go to ECS Clusters → turbo-template-cluster
-   - Click on the service (web-service or backend-service)
-   - Click "Update"
-   - Select the new task definition revision
-   - Click "Update service"
-
-### Force New Deployment
-
-To force a new deployment without changing the task definition:
-
-```bash
-# Update web service
 aws ecs update-service \
-  --cluster turbo-template-cluster \
-  --service web-service \
-  --force-new-deployment \
-  --region us-east-1
-
-# Update backend service
-aws ecs update-service \
-  --cluster turbo-template-cluster \
-  --service backend-service \
-  --force-new-deployment \
-  --region us-east-1
+  --cluster ${PROJECT_NAME}-cluster \
+  --service ${PROJECT_NAME}-web-service \
+  --task-definition ${PREVIOUS_TASK_DEF_ARN} \
+  --force-new-deployment
 ```
-
-### Check Service Status
-
-```bash
-# Describe services
-aws ecs describe-services \
-  --cluster turbo-template-cluster \
-  --services web-service backend-service \
-  --region us-east-1
-
-# List tasks
-aws ecs list-tasks \
-  --cluster turbo-template-cluster \
-  --service-name web-service \
-  --region us-east-1
-
-# Describe tasks
-aws ecs describe-tasks \
-  --cluster turbo-template-cluster \
-  --tasks <TASK-ID> \
-  --region us-east-1
-```
-
----
-
-## CI/CD Pipeline
-
-The project includes a GitHub Actions workflow for automated deployments.
-
-### Setup
-
-1. **Add AWS credentials to GitHub Secrets**:
-   - Go to your GitHub repository → Settings → Secrets and variables → Actions
-   - Add the following secrets:
-     - `AWS_ACCESS_KEY_ID`: Your AWS access key
-     - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
-
-2. **Push to main branch**:
-   - The workflow triggers automatically on push to `main`
-
-3. **Manual trigger**:
-   - Go to Actions tab in GitHub
-   - Select "Deploy to AWS ECS" workflow
-   - Click "Run workflow"
-
-### Workflow Features
-
-- **Multi-platform builds**: Uses Docker Buildx for efficient builds
-- **Layer caching**: Caches Docker layers for faster builds
-- **Parallel deployments**: Deploys web and backend simultaneously
-- **Health checks**: Waits for service stability before completing
-- **Image tagging**: Uses git SHA for version tracking
-
-### Customize Workflow
-
-Edit `.github/workflows/deploy.yml` to customize:
-- AWS region
-- ECR repository names
-- ECS cluster name
-- Service names
-- Environment variables
 
 ---
 
@@ -294,36 +244,116 @@ aws logs tail /ecs/turbo-template-web --since 1h --region us-east-1
 - Go to CloudWatch → Log groups
 - Select `/ecs/turbo-template-web` or `/ecs/turbo-template-backend`
 
-### Set Up CloudWatch Alarms
+### Check Service Status
 
-Run the alarm setup script:
-
+**Using AWS CLI**:
 ```bash
-# Make script executable
-chmod +x aws/monitoring/create-alarms.sh
+# Describe services
+aws ecs describe-services \
+  --cluster turbo-template-cluster \
+  --services web-service backend-service \
+  --region us-east-1
 
-# Run script
-AWS_ACCOUNT_ID=123456789012 ./aws/monitoring/create-alarms.sh
+# List tasks
+aws ecs list-tasks \
+  --cluster turbo-template-cluster \
+  --service-name web-service \
+  --region us-east-1
 ```
 
-This creates:
-- CPU utilization alarms (>80%)
-- Memory utilization alarms (>80%)
-- Unhealthy task count alarms
-- ALB error rate alarms (4xx and 5xx)
+**Using AWS Console**:
+- Go to ECS → Clusters → Your cluster
+- Click on "Services" or "Tasks" tab
 
-### Subscribe to Alerts
+### Monitor Application Load Balancer
 
-1. After running the script, note the SNS topic ARN
-2. Subscribe your email to receive notifications:
-   ```bash
-   aws sns subscribe \
-     --topic-arn <SNS_TOPIC_ARN> \
-     --protocol email \
-     --notification-endpoint your-email@example.com \
-     --region us-east-1
-   ```
-3. Confirm your email subscription
+**Get ALB DNS name**:
+```bash
+aws elbv2 describe-load-balancers \
+  --names turbo-template-alb \
+  --query 'LoadBalancers[0].DNSName' \
+  --output text
+```
+
+**View ALB metrics** in CloudWatch:
+- Go to CloudWatch → Metrics
+- Namespace: `AWS/ApplicationELB`
+- Metric: `RequestCount`, `TargetResponseTime`, `HTTPCode_Target_4XX_Count`, etc.
+
+### CloudWatch Alarms
+
+The infrastructure setup includes basic monitoring. To add alerts:
+
+1. Go to CloudWatch → Alarms
+2. Click "Create alarm"
+3. Select metric (e.g., CPU utilization)
+4. Configure thresholds and notification method
+5. Create alarm
+
+**Recommended alarms**:
+- CPU utilization > 80% for 5 minutes
+- Memory utilization > 80% for 5 minutes
+- Unhealthy task count > 0
+- HTTP 5XX error rate > 5%
+
+---
+
+## Environment Variables Management
+
+### Store Secrets in AWS Secrets Manager
+
+The task definitions reference secrets from AWS Secrets Manager. You must create these secrets.
+
+**Web App Secrets**:
+
+1. Navigate to Secrets Manager → Store a new secret
+2. Secret type: Other type of secret
+3. Secret name: `{PROJECT_NAME}/web/env`
+4. Key/value pairs:
+   - `DATABASE_URL`: Your Supabase connection string
+   - `NEXT_PUBLIC_BETTER_AUTH_URL`: Your auth URL (e.g., `https://your-alb-dns.amazonaws.com`)
+   - `BETTER_AUTH_SECRET`: Generate a secure random string
+   - `AUTH_SECRET`: Generate another secure random string
+   - `BETTER_AUTH_TRUSTED_ORIGINS`: Comma-separated origins (e.g., `https://yourdomain.com`)
+5. Next → Configure secret:
+   - Secret name: `{PROJECT_NAME}/web/env`
+   - Description: Environment variables for web app
+6. Next → Configure rotation:
+   - Disable automatic rotation (or enable if desired)
+7. Click "Store"
+
+**Backend App Secrets**:
+
+1. Store another secret:
+   - Secret name: `{PROJECT_NAME}/backend/env`
+   - Key/value pairs:
+     - `DATABASE_URL`: Your Supabase connection string
+     - `BETTER_AUTH_URL`: Your auth URL
+     - `GOOGLE_CLIENT_ID`: Your Google OAuth client ID
+     - `GOOGLE_CLIENT_SECRET`: Your Google OAuth secret
+2. Follow same steps as web
+
+### Generate Secure Secrets
+
+Use these commands to generate secure random strings:
+
+```bash
+# Generate AUTH_SECRET
+openssl rand -base64 32
+
+# Generate BETTER_AUTH_SECRET
+openssl rand -base64 32
+```
+
+### Verify Secrets in ECS
+
+After deployment, verify secrets are loaded:
+
+1. Go to ECS → Task definitions
+2. Click on the latest revision
+3. Expand "Container definitions"
+4. Verify secrets are referenced correctly:
+   - `arn:aws:secretsmanager:{REGION}:{ACCOUNT_ID}:secret:{PROJECT_NAME}/web/env::DATABASE_URL`
 
 ---
 
@@ -336,10 +366,11 @@ This creates:
 **Symptoms**: Tasks show as "STOPPED" with no running tasks.
 
 **Solutions**:
-- Check security groups allow traffic
+- Check security groups allow traffic (inbound rules)
 - Verify VPC has internet gateway for public subnets
 - Check task definition resource limits (CPU/memory)
 - Review CloudWatch logs for errors
+- Ensure IAM role has required permissions
 
 #### 2. Health Checks Failing
 
@@ -349,9 +380,10 @@ This creates:
 - Verify health check endpoints exist:
   - Web: `GET /`
   - Backend: `GET /health`
-- Check health check timeout and interval settings
+- Check health check timeout and interval settings in task definitions
 - Ensure application is listening on correct ports (3000/3001)
 - Review application logs for errors
+- Check if Supabase connection is working
 
 #### 3. Database Connection Issues
 
@@ -361,27 +393,43 @@ This creates:
 - Verify DATABASE_URL in Secrets Manager is correct
 - Check VPC has egress to internet (required for Supabase)
 - Verify Supabase allows connections from your VPC CIDR
-- Check for any IP allowlisting in Supabase settings
+- Check for IP allowlisting in Supabase settings
+- Test connection locally using Supabase connection string
 
 #### 4. Load Balancer Not Routing
 
-**Symptoms**: ALB returns 503 errors.
+**Symptoms**: ALB returns 503 errors or DNS doesn't resolve.
 
 **Solutions**:
-- Check target group health status
+- Check target group health status in ALB console
 - Verify security groups allow traffic from ALB to tasks
 - Ensure tasks are in RUNNING state
 - Review ALB listener rules for correct routing
+- Wait for DNS propagation (up to 5 minutes)
+- Verify ALB is in "active" state
 
 #### 5. High CPU/Memory Usage
 
-**Symptoms**: CloudWatch alarms trigger frequently.
+**Symptoms**: CloudWatch alarms trigger frequently or tasks are slow.
 
 **Solutions**:
-- Increase task CPU/memory allocation
+- Increase task CPU/memory allocation in task definitions
 - Enable auto-scaling for ECS services
 - Profile application for performance issues
 - Consider using larger Fargate task sizes
+- Optimize database queries
+
+#### 6. GitHub Actions Workflow Fails
+
+**Symptoms**: Deployment workflow fails at build or push step.
+
+**Solutions**:
+- Verify AWS credentials in GitHub Secrets are correct
+- Check AWS user has required permissions
+- Ensure GitHub Variables are properly configured
+- Review workflow logs for specific error messages
+- Check ECR repositories exist
+- Verify task definition JSON files are valid
 
 ### Useful AWS CLI Commands
 
@@ -396,88 +444,111 @@ aws ecs describe-tasks --cluster turbo-template-cluster --tasks <TASK-ID> --regi
 aws logs tail /ecs/turbo-template-web --follow --region us-east-1
 
 # Describe service events
-aws ecs describe-services --cluster turbo-template-cluster --services web-service --region us-east-1 --query 'services[0].events'
+aws ecs describe-services \
+  --cluster turbo-template-cluster \
+  --services web-service \
+  --region us-east-1 \
+  --query 'services[0].events'
 
 # List CloudWatch alarms
 aws cloudwatch describe-alarms --region us-east-1
 
-# Get ALB metrics
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/ApplicationELB \
-  --metric-name RequestCount \
-  --dimensions Name=LoadBalancer,Value=turbo-template-alb \
-  --start-time $(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ) \
-  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ) \
-  --period 300 \
-  --statistics Sum
+# Get ALB DNS name
+aws elbv2 describe-load-balancers \
+  --names turbo-template-alb \
+  --query 'LoadBalancers[0].DNSName' \
+  --output text \
+  --region us-east-1
 
-# Restart service
+# Force new deployment
 aws ecs update-service \
   --cluster turbo-template-cluster \
   --service web-service \
   --force-new-deployment \
   --region us-east-1
+
+# Get task definition revision
+aws ecs describe-task-definition \
+  --task-definition turbo-template-web \
+  --query 'taskDefinition.revision' \
+  --output text
 ```
 
 ### Docker Local Testing
 
-Before deploying to AWS, test locally with Docker Compose:
+Before deploying to AWS, test locally with Docker:
 
 ```bash
-# Build images
-docker-compose build
+# Build web image
+docker build -f apps/web/Dockerfile -t turbo-template-web:test .
 
-# Start services
-docker-compose up -d
+# Build backend image
+docker build -f apps/backend/Dockerfile -t turbo-template-backend:test .
+
+# Run web container
+docker run -p 3001:3001 -e DATABASE_URL="your-db-url" turbo-template-web:test
+
+# Run backend container
+docker run -p 3000:3000 -e DATABASE_URL="your-db-url" turbo-template-backend:test
 
 # View logs
-docker-compose logs -f
+docker logs -f <CONTAINER_ID>
 
-# Stop services
-docker-compose down
+# Access running container
+docker exec -it <CONTAINER_ID> /bin/bash
 ```
-
-### Rollback Deployment
-
-If a deployment causes issues:
-
-1. **Identify the previous image tag** in ECR
-2. **Update task definition** with previous image
-3. **Force new deployment**:
-   ```bash
-   aws ecs update-service \
-     --cluster turbo-template-cluster \
-     --service web-service \
-     --task-definition <PREVIOUS_TASK_DEF_ARN> \
-     --force-new-deployment \
-     --region us-east-1
-   ```
 
 ---
 
 ## Architecture Overview
 
 ```
-Internet
-    ↓
-Application Load Balancer (ALB)
-    ├── / → Web Service (Next.js)
-    └── /api/* → Backend Service (NestJS)
-        ↓
-    Supabase PostgreSQL (External)
+┌─────────────────────────────────────────────────────────────┐
+│                     GitHub Repository                     │
+│                                                         │
+│  Push to main → GitHub Actions → AWS ECS Deployment      │
+└───────────────────────────┬─────────────────────────────┘
+                        │
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    AWS Account                           │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐      │
+│  │   Application Load Balancer (ALB)           │      │
+│  │   turbo-template-alb                       │      │
+│  │   Public DNS: http://xxx.elb.amazonaws.com │      │
+│  └──────────────────┬──────────────────────────┘      │
+│                     │                                   │
+│        ┌────────────┴────────────┐                   │
+│        │                          │                   │
+│        ↓                          ↓                   │
+│  ┌─────────┐              ┌─────────┐              │
+│  │Web SVC  │              │Backend  │              │
+│  │Service   │              │Service  │              │
+│  │Next.js   │              │NestJS   │              │
+│  │Port 3001 │              │Port 3000 │              │
+│  └────┬────┘              └────┬────┘              │
+│       │                          │                   │
+│       └──────────┬───────────────┘                   │
+│                  ↓                                   │
+│         Supabase PostgreSQL (External)                │
+│         https://supabase.io                     │
+└───────────────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
-- **ECS Cluster**: `turbo-template-cluster` (Fargate)
-- **ALB**: `turbo-template-alb` (Application Load Balancer)
+- **GitHub Actions**: CI/CD pipeline
+- **ECS Cluster**: `{PROJECT_NAME}-cluster` (Fargate)
+- **ALB**: `{PROJECT_NAME}-alb` (Application Load Balancer)
 - **Services**:
-  - `web-service`: Next.js frontend (port 3001)
-  - `backend-service`: NestJS API (port 3000)
+  - `{PROJECT_NAME}-web-service`: Next.js frontend (port 3001)
+  - `{PROJECT_NAME}-backend-service`: NestJS API (port 3000)
 - **ECR Repositories**:
-  - `turbo-template-web`
-  - `turbo-template-backend`
+  - `{PROJECT_NAME}-web`
+  - `{PROJECT_NAME}-backend`
 - **Database**: Supabase PostgreSQL (external)
+- **Secrets Manager**: Environment variables storage
 
 ---
 
@@ -494,7 +565,8 @@ Fargate pricing is based on:
 - Web: 2 × 1 GB × 24h × 30d = 1440 GB-hours = $6.40
 - Backend: 2 × 0.5 vCPU × 24h × 30d = 720 vCPU-hours = $29.15
 - Backend: 2 × 1 GB × 24h × 30d = 1440 GB-hours = $6.40
-- **Total**: ~$71/month (excluding ALB, ECR, etc.)
+- ALB: ~$18/month
+- **Total**: ~$89/month
 
 ### Cost-Saving Tips
 
@@ -503,6 +575,7 @@ Fargate pricing is based on:
 3. **Schedule-based scaling**: Scale down during off-hours
 4. **Use Spot instances**: For non-critical workloads
 5. **Monitor and optimize**: Regularly review CloudWatch metrics
+6. **Delete unused resources**: Remove unused ECR images, task definition revisions
 
 ---
 
@@ -514,22 +587,24 @@ Fargate pricing is based on:
 4. **Use least-privilege IAM roles** for ECS tasks
 5. **Enable encryption** for ECR repositories
 6. **Regularly rotate secrets** and credentials
-7. **Use SSL/TLS** for all communications
-8. **Implement rate limiting** on the ALB
+7. **Use SSL/TLS** for all communications (add HTTPS listener to ALB)
+8. **Implement rate limiting** on ALB
 9. **Enable WAF** for DDoS protection (optional)
 10. **Regular security updates**: Keep dependencies updated
+11. **Scan Docker images**: Enable ECR image scanning on push
 
 ---
 
 ## Next Steps
 
-1. **Complete AWS infrastructure setup** (see [aws/setup-guide.md](aws/setup-guide.md))
-2. **Build and push Docker images** (see [Building and Pushing Images](#building-and-pushing-images))
-3. **Deploy to ECS** (see [Deploying to ECS](#deploying-to-ecs))
-4. **Set up monitoring** (see [Monitoring and Alerts](#monitoring-and-alerts))
-5. **Configure CI/CD** (see [CI/CD Pipeline](#cicd-pipeline))
-6. **Set up custom domain** with SSL certificate
+1. **Complete GitHub Actions setup** (see [GitHub Actions Setup](#github-actions-setup))
+2. **Run Infrastructure Setup workflow** (see [Infrastructure Setup](#infrastructure-setup))
+3. **Configure Secrets Manager** (see [Environment Variables Management](#environment-variables-management))
+4. **Deploy your application** (automatic on push to main)
+5. **Set up monitoring** (see [Monitoring and Alerts](#monitoring-and-alerts))
+6. **Configure custom domain** with SSL certificate (optional)
 7. **Enable auto-scaling** for production workloads
+8. **Set up CI/CD for multiple environments** (staging, production)
 
 ---
 
@@ -537,6 +612,7 @@ Fargate pricing is based on:
 
 - [AWS ECS Documentation](https://docs.aws.amazon.com/ecs/)
 - [AWS Fargate Documentation](https://docs.aws.amazon.com/AmazonECS/latest/userguide/Fargate.html)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Docker Documentation](https://docs.docker.com/)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Turborepo Documentation](https://turbo.build/repo/docs)
@@ -546,7 +622,9 @@ Fargate pricing is based on:
 ## Support
 
 For issues or questions:
-1. Check the troubleshooting section
-2. Review CloudWatch logs
-3. Consult AWS documentation
-4. Open an issue in the repository
+
+1. Check troubleshooting section above
+2. Review GitHub Actions logs
+3. Review CloudWatch logs
+4. Consult AWS documentation
+5. Open an issue in the repository
