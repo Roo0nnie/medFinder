@@ -1,4 +1,3 @@
-# Multi-stage build for NestJS backend application
 FROM node:22-alpine AS base
 
 # Install pnpm
@@ -13,9 +12,6 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 
-# Create minimal .gitignore for linting (not in .dockerignore)
-RUN touch .gitignore
-
 # Copy workspace dependencies
 COPY packages ./packages
 COPY tooling ./tooling
@@ -24,8 +20,8 @@ COPY apps ./apps
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build all packages using turbo
-RUN pnpm build
+# Build backend application
+RUN pnpm build --filter=@repo/backend
 
 # Production stage
 FROM node:22-alpine AS production
@@ -33,7 +29,7 @@ FROM node:22-alpine AS production
 # Install pnpm
 RUN npm install -g pnpm@10.27.0
 
-# Create non-root user
+# Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
@@ -42,14 +38,28 @@ WORKDIR /app
 # Set environment to production
 ENV NODE_ENV=production
 
-# Copy all necessary files from base stage (node_modules, packages, apps)
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+
+# Copy only necessary workspace packages (not all packages)
+COPY packages/auth ./packages/auth
+COPY packages/contracts ./packages/contracts
+COPY packages/db ./packages/db
+
+# Copy backend app
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/backend/tsconfig.json ./apps/backend/
+COPY apps/backend/tsconfig.build.json ./apps/backend/
+COPY apps/backend/nest-cli.json ./apps/backend/
+COPY apps/backend/.swcrc ./apps/backend/
+COPY apps/backend/src ./apps/backend/src
+
+# Install production dependencies
+RUN cd apps/backend && pnpm install --frozen-lockfile --prod
+
+# Copy built backend from base stage
+COPY --from=base --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
 COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=base --chown=nodejs:nodejs /app/package.json ./package.json
-COPY --from=base --chown=nodejs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=base --chown=nodejs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
-COPY --from=base --chown=nodejs:nodejs /app/turbo.json ./turbo.json
-COPY --from=base --chown=nodejs:nodejs /app/packages ./packages
-COPY --from=base --chown=nodejs:nodejs /app/apps/backend ./apps/backend
 
 # Switch to non-root user
 USER nodejs
