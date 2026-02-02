@@ -14,8 +14,6 @@ export const env = createEnv({
 	 * This way you can ensure the app isn't built with invalid env vars.
 	 */
 	server: {
-		BETTER_AUTH_SECRET: z.string().optional(),
-		AUTH_SECRET: z.string().optional(),
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
 		VERCEL_URL: z.string().optional(),
 		DATABASE_URL: z.url(),
@@ -34,8 +32,6 @@ export const env = createEnv({
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
-		BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-		AUTH_SECRET: process.env.AUTH_SECRET,
 		BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
 		VERCEL_URL: process.env.VERCEL_URL,
 		DATABASE_URL: process.env.DATABASE_URL,
