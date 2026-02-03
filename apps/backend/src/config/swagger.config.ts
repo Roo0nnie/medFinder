@@ -1,36 +1,59 @@
-import { Logger, type INestApplication, type Type } from "@nestjs/common"
+import { Logger, type INestApplication } from "@nestjs/common"
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger"
+import type { PathsObject } from "@nestjs/swagger/dist/interfaces/open-api-spec.interface"
 import { apiReference } from "@scalar/nestjs-api-reference"
 import { cleanupOpenApiDoc } from "nestjs-zod"
 
-import { getVersionModules, NEUTRAL_MODULES, VERSION_MODULES } from "@/config/versions.config"
+import { NEUTRAL_MODULES, VERSION_MODULES } from "@/config/versions.config"
 import { mergeBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("SwaggerConfig")
 
 /**
- * Create an OpenAPI document for a specific version
+ * Filter OpenAPI paths to only include routes for a specific version
+ *
+ * NestJS URI versioning creates paths like /api/v1/examples/todos
+ * This filters paths to only include those matching the version prefix
  */
-function createSwaggerDocument(
-	app: INestApplication,
-	version: string,
-	modules: Type<unknown>[]
-): OpenAPIObject {
+function filterPathsByVersion(paths: PathsObject, version: string): PathsObject {
+	const versionPrefix = `/api/${version}/`
+	const filtered: PathsObject = {}
+
+	for (const [path, pathItem] of Object.entries(paths)) {
+		if (path.startsWith(versionPrefix)) {
+			filtered[path] = pathItem
+		}
+	}
+
+	return filtered
+}
+
+/**
+ * Create an OpenAPI document for a specific version
+ *
+ * Scans ALL modules but filters paths to only include the target version.
+ * This approach works better than `include` option with nested module hierarchies.
+ */
+function createSwaggerDocument(app: INestApplication, version: string): OpenAPIObject {
 	const config = new DocumentBuilder()
 		.setTitle(`API Documentation ${version}`)
 		.setDescription(`Type-safe API with auto-generated documentation for version ${version}`)
 		.setVersion(version)
 		.build()
 
-	return SwaggerModule.createDocument(app, config, { include: modules }) as OpenAPIObject
+	const fullDoc = SwaggerModule.createDocument(app, config) as OpenAPIObject
+
+	return {
+		...fullDoc,
+		paths: filterPathsByVersion(fullDoc.paths ?? {}, version),
+	}
 }
 
 /**
  * Set up Swagger UI and Scalar docs for a specific version
  */
 async function setupVersionedDocs(app: INestApplication, version: string): Promise<void> {
-	const modules = getVersionModules(version)
-	const baseDoc = createSwaggerDocument(app, version, modules)
+	const baseDoc = createSwaggerDocument(app, version)
 	const mergedDoc = await mergeBetterAuthSchema(baseDoc, version)
 	const basePath = `api/${version}`
 
