@@ -27,11 +27,9 @@ services:
 
       # Public URLs (Client-side accessible)
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      - NEXT_PUBLIC_BETTER_AUTH_URL=${NEXT_PUBLIC_BETTER_AUTH_URL}
 
       # Authentication (Better Auth)
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
     env_file:
       - apps/web/.env
     networks:
@@ -59,7 +57,6 @@ services:
       - DATABASE_URL=${DATABASE_URL}
 
       # Authentication (Better Auth)
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 
       # OAuth Providers (Google)

@@ -26,18 +26,18 @@
 					"name": "NEXT_PUBLIC_APP_URL",
 					"value": "${NEXT_PUBLIC_APP_URL}"
 				},
-				{
-					"name": "NEXT_PUBLIC_BETTER_AUTH_URL",
-					"value": "${NEXT_PUBLIC_BETTER_AUTH_URL}"
-				},
-				{
-					"name": "BETTER_AUTH_SECRET",
-					"value": "${BETTER_AUTH_SECRET}"
-				},
-				{
-					"name": "BETTER_AUTH_TRUSTED_ORIGINS",
-					"value": "${BETTER_AUTH_TRUSTED_ORIGINS}"
-				}
+			{
+				"name": "NEXT_PUBLIC_API_BASE_URL",
+				"value": "${NEXT_PUBLIC_API_BASE_URL}"
+			},
+			{
+				"name": "NEXT_PUBLIC_API_VERSION",
+				"value": "${NEXT_PUBLIC_API_VERSION}"
+			},
+			{
+				"name": "BETTER_AUTH_SECRET",
+				"value": "${BETTER_AUTH_SECRET}"
+			}
 			],
 			"logConfiguration": {
 				"logDriver": "awslogs",

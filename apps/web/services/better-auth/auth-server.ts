@@ -3,11 +3,11 @@ import { cookies } from "next/headers"
 
 /**
  * Import inferred Session type from Better Auth configuration.
- * This ensures types always match the backend's Better Auth setup.
+ * This ensures types always match to backend's Better Auth setup.
  */
 import type { Session } from "@repo/auth"
 
-import { env } from "@/env"
+import { getAuthUrl } from "./auth-utils"
 
 /**
  * Server-side auth proxy for web app.
@@ -21,7 +21,7 @@ import { env } from "@/env"
 /**
  * Get current user session from backend.
  *
- * Proxies request to backend's /api/auth/get-session endpoint.
+ * Proxies request to backend's /api/{version}/auth/get-session endpoint.
  * Returns session data if authenticated, null otherwise.
  *
  * @returns Promise<Session | null> - The session data or null if not authenticated
@@ -33,7 +33,10 @@ export const getSession = cache(async (): Promise<Session | null> => {
 		.map(cookie => `${cookie.name}=${cookie.value}`)
 		.join("; ")
 
-	const response = await fetch(`${env.NEXT_PUBLIC_BETTER_AUTH_URL}/get-session`, {
+	const authUrl = getAuthUrl()
+	const url = `${authUrl}/get-session`
+
+	const response = await fetch(url, {
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",
@@ -58,6 +61,6 @@ export const getSession = cache(async (): Promise<Session | null> => {
 		return null
 	}
 
-	// Return session data (already includes both session and user from Better Auth)
+	// Session contains userId at top level, not nested under user
 	return data as Session | null
 })

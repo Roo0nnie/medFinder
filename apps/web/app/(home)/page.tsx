@@ -6,8 +6,7 @@ import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default async function Home() {
 	const session = await getSession()
-	const user = session?.user
-	const isLoggedIn = !!user
+	const isLoggedIn = !!session
 
 	return (
 		<div className="min-h-screen font-sans">
@@ -31,11 +30,13 @@ export default async function Home() {
 						<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
 							{isLoggedIn ? (
 								<>
-									Hello <span className="font-semibold">{user?.name ?? user?.email ?? "User"}</span>
+									Hello{" "}
+									<span className="font-semibold">User</span>
 								</>
 							) : (
 								<>
-									Welcome <span className="font-semibold">Everyone!</span>
+									Welcome{" "}
+									<span className="font-semibold">Everyone!</span>
 								</>
 							)}
 						</p>

@@ -20,10 +20,7 @@ export const env = createEnv({
 	 * Server-side environment variables
 	 * These are only available on the server and will NOT be exposed to the client
 	 */
-	server: {
-		// Authentication (Better Auth)
-		BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
-	},
+	server: {},
 
 	/**
 	 * Client-side environment variables
@@ -32,10 +29,8 @@ export const env = createEnv({
 	client: {
 		// Public URLs
 		NEXT_PUBLIC_APP_URL: z.url(),
-		NEXT_PUBLIC_API_URL: z.url(),
-
-		// Authentication (Better Auth)
-		NEXT_PUBLIC_BETTER_AUTH_URL: z.url(),
+		NEXT_PUBLIC_API_BASE_URL: z.url(),
+		NEXT_PUBLIC_API_VERSION: z.string().default("1"),
 	},
 
 	/**
@@ -48,11 +43,8 @@ export const env = createEnv({
 
 		// Client-side variables
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-		NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
-
-		// Server-side variables
-		BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
+		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+		NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION,
 	},
 
 	/**

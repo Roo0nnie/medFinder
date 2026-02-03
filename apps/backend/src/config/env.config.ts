@@ -16,12 +16,15 @@ export const env = createEnv({
 		// Server Configuration
 		NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 		PORT: z.coerce.number().int().positive().default(3000),
+		API_VERSION: z.string(),
+		CORS_ORIGINS: z.string(),
 
 		// Database
-		DATABASE_URL: z.string().url(),
+		DATABASE_URL: z.string(),
 
 		// Authentication (Better Auth)
-		BETTER_AUTH_URL: z.string().url().optional(),
+		BETTER_AUTH_SECRET: z.string(),
+		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
 
 		// OAuth Providers (Google)
 		GOOGLE_CLIENT_ID: z.string().optional(),
