@@ -10,8 +10,6 @@ interface ApiEndpointOptions {
 	response?: Type<unknown>
 	/** Success status code (default: 200) */
 	status?: number
-	/** Whether to include standard error responses (default: true) */
-	includeErrors?: boolean
 }
 
 /**
@@ -24,14 +22,6 @@ interface ApiEndpointOptions {
  *   summary: "Retrieve all todos",
  *   description: "Returns a list of all todos for the authenticated user",
  *   response: TodoListDto,
- * })
- *
- * @ApiEndpoint({
- *   summary: "Send notification",
- *   description: "Triggers email and push notifications",
- *   response: NotificationResultDto,
- *   status: 200,
- *   includeErrors: false,
  * })
  * ```
  */
