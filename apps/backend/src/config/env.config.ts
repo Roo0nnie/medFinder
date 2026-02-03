@@ -6,6 +6,9 @@ import { z } from "zod"
  *
  * Validates environment variables at module load time (fail-fast).
  * All environment variables should be accessed through this `env` object.
+ *
+ * NOTE: API_VERSION is kept for backward compatibility but is no longer used.
+ * The app now supports multiple API versions simultaneously (see versions.config.ts).
  */
 export const env = createEnv({
 	/**

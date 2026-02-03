@@ -10,6 +10,7 @@ import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
 import { HealthModule } from "@/common/health/health.module"
 import { ResponseWrapperInterceptor } from "@/common/interceptors/response-wrapper.interceptor"
 import { V1Module } from "@/modules/v1/v1.module"
+import { V2Module } from "@/modules/v2/v2.module"
 
 import { env } from "./config/env.config"
 
@@ -27,6 +28,7 @@ import { env } from "./config/env.config"
 		AuthModule.forRoot({ auth: getAuth() }),
 		// Versioned modules
 		V1Module,
+		V2Module,
 	],
 	providers: [
 		// Global providers

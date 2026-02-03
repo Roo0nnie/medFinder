@@ -6,7 +6,7 @@ import { configureApp } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/better-auth.config"
 import { env } from "@/config/env.config"
 import { setupSwagger } from "@/config/swagger.config"
-import { setupVersioning } from "@/config/versioning.config"
+import { setupVersioning } from "@/config/versions.config"
 
 const logger = new Logger("Bootstrap")
 
@@ -34,7 +34,6 @@ async function startApplication(app: INestApplication): Promise<void> {
 
 	logger.log(`Application is running on: http://localhost:${port}`)
 	logger.log(`Environment: ${env.NODE_ENV}`)
-	logger.log(`API version: ${env.API_VERSION}`)
 }
 
 /**
