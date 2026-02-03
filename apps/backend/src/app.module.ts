@@ -7,7 +7,6 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 import { getAuth } from "@repo/auth"
 
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
-import { HealthModule } from "@/common/health/health.module"
 import { ResponseWrapperInterceptor } from "@/common/interceptors/response-wrapper.interceptor"
 import { V1Module } from "@/modules/v1/v1.module"
 import { V2Module } from "@/modules/v2/v2.module"
@@ -22,10 +21,8 @@ import { env } from "./config/env.config"
 			envFilePath: ".env",
 			load: [() => env],
 		}),
-		// Common modules
-		HealthModule,
-		// Authentication
-		AuthModule.forRoot({ auth: getAuth() }),
+		// Authentication (controllers disabled - we register versioned routes in setupBetterAuth)
+		AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
 		// Versioned modules
 		V1Module,
 		V2Module,

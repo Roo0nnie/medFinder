@@ -104,9 +104,12 @@ export async function generateBetterAuthSchema(): Promise<OpenAPIObject> {
 /**
  * Merge Better Auth schema into main OpenAPI document with prefixed paths and friendly names
  */
-export async function mergeBetterAuthSchema(baseDoc: OpenAPIObject): Promise<OpenAPIObject> {
+export async function mergeBetterAuthSchema(
+	baseDoc: OpenAPIObject,
+	version: string
+): Promise<OpenAPIObject> {
 	try {
-		const authPrefix = `/api/v1/auth`
+		const authPrefix = `/api/${version}/auth`
 		const betterAuthSchema = await generateBetterAuthSchema()
 		const oldTag = "Default"
 		const newTag = "Auth"

@@ -1,6 +1,5 @@
 import { Logger, VersioningType, type INestApplication, type Type } from "@nestjs/common"
 
-import { HealthModule } from "@/common/health/health.module"
 import { V1Module } from "@/modules/v1/v1.module"
 import { V2Module } from "@/modules/v2/v2.module"
 
@@ -21,9 +20,9 @@ export const VERSION_MODULES: Record<string, Type<any>> = {
 /**
  * Neutral modules - modules that appear across ALL API versions
  * These are automatically included in every version's OpenAPI documentation
- * Examples: HealthModule, AuthModule
+ * Add modules here that should be available in ALL API versions
  */
-export const NEUTRAL_MODULES: Type<any>[] = [HealthModule]
+export const NEUTRAL_MODULES: Type<any>[] = []
 
 /**
  * Discover available API versions

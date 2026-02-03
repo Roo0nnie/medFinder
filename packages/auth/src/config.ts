@@ -1,7 +1,7 @@
+import { createEnv } from "@t3-oss/env-core"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { openAPI } from "better-auth/plugins"
-import { createEnv } from "@t3-oss/env-core"
 import { z } from "zod"
 
 import { createDBClient } from "@repo/db/client"
@@ -15,9 +15,6 @@ import { accounts, sessions, users, verifications } from "@repo/db/schema"
  */
 export const authEnv = createEnv({
 	server: {
-		// API Configuration
-		API_VERSION: z.string(),
-
 		// Authentication
 		BETTER_AUTH_SECRET: z.string(),
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
@@ -31,21 +28,25 @@ export const authEnv = createEnv({
 })
 
 /**
+ * Internal basePath used by Better Auth.
+ * All versioned API requests (/api/v1/auth/*, /api/v2/auth/*, etc.) are
+ * normalized to this path before being handled by Better Auth.
+ */
+export const AUTH_BASE_PATH = "/auth"
+
+/**
  * Creates a Better Auth instance configured with Drizzle adapter.
  *
  * The auth instance uses database connection from @repo/db and is
  * configured to work across multiple apps (backend, web, mobile via API).
  *
- * Note: For server-side (backend), we let NestJS handle the routing at
- * /api/{version}/auth/*, so baseURL is intentionally set to undefined to avoid
- * duplicate path prefixing in generated OpenAPI docs.
+ * Uses a neutral basePath ("/auth") - the backend normalizes versioned
+ * paths (/api/v1/auth/*, /api/v2/auth/*) to this basePath before handling.
  *
  * @returns Better Auth instance
  */
 export function createAuth(): ReturnType<typeof betterAuth> {
 	const db = createDBClient()
-	const apiVersion = authEnv.API_VERSION
-	const basePath = `/api/${apiVersion}/auth`
 
 	return betterAuth({
 		database: drizzleAdapter(db, {
@@ -58,7 +59,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			},
 			usePlural: true,
 		}),
-		basePath,
+		basePath: AUTH_BASE_PATH,
 		// Don't set baseURL for server-side auth instance
 		// NestJS handles routing at /api/{version}/auth/*
 		// baseURL is only needed for client-side operations
