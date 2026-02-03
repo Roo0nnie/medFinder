@@ -1,4 +1,19 @@
+# ==========================================================
+# TURBOREPO DEVELOPMENT ENVIRONMENT
+# ==========================================================
+# This Docker Compose configuration sets up the full application stack
+# for local development with both web and backend services.
+#
+# Usage:
+#   docker-compose up -d              # Start all services
+#   docker-compose down                # Stop and remove containers
+#   docker-compose logs -f            # Follow logs
+# ==========================================================
+
 services:
+  # ----------------------------------------------------------
+  # Web Application (Next.js)
+  # ----------------------------------------------------------
   web:
     build:
       context: .
@@ -7,8 +22,14 @@ services:
     ports:
       - "3001:3001"
     environment:
+      # Server Configuration
       - NODE_ENV=production
+
+      # Public URLs (Client-side accessible)
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
       - NEXT_PUBLIC_BETTER_AUTH_URL=${NEXT_PUBLIC_BETTER_AUTH_URL}
+
+      # Authentication (Better Auth)
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
       - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
@@ -20,6 +41,9 @@ services:
       - backend
     restart: unless-stopped
 
+  # ----------------------------------------------------------
+  # Backend API (NestJS)
+  # ----------------------------------------------------------
   backend:
     build:
       context: .
@@ -28,11 +52,18 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Server Configuration
       - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
       - PORT=3000
+
+      # Database
+      - DATABASE_URL=${DATABASE_URL}
+
+      # Authentication (Better Auth)
       - BETTER_AUTH_URL=${BETTER_AUTH_URL}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+
+      # OAuth Providers (Google)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
     env_file:

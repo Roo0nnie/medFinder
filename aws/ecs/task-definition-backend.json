@@ -17,32 +17,32 @@
 				}
 			],
 			"essential": true,
-		"environment": [
-			{
-				"name": "NODE_ENV",
-				"value": "production"
-			},
-			{
-				"name": "PORT",
-				"value": "3000"
-			},
-			{
-				"name": "DATABASE_URL",
-				"value": "${DATABASE_URL}"
-			},
-			{
-				"name": "BETTER_AUTH_URL",
-				"value": "${BETTER_AUTH_URL}"
-			},
-			{
-				"name": "GOOGLE_CLIENT_ID",
-				"value": "${GOOGLE_CLIENT_ID}"
-			},
-			{
-				"name": "GOOGLE_CLIENT_SECRET",
-				"value": "${GOOGLE_CLIENT_SECRET}"
-			}
-		],
+			"environment": [
+				{
+					"name": "NODE_ENV",
+					"value": "production"
+				},
+				{
+					"name": "PORT",
+					"value": "3000"
+				},
+				{
+					"name": "DATABASE_URL",
+					"value": "${DATABASE_URL}"
+				},
+				{
+					"name": "BETTER_AUTH_URL",
+					"value": "${BETTER_AUTH_URL}"
+				},
+				{
+					"name": "GOOGLE_CLIENT_ID",
+					"value": "${GOOGLE_CLIENT_ID}"
+				},
+				{
+					"name": "GOOGLE_CLIENT_SECRET",
+					"value": "${GOOGLE_CLIENT_SECRET}"
+				}
+			],
 			"logConfiguration": {
 				"logDriver": "awslogs",
 				"options": {

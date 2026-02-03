@@ -7,7 +7,10 @@ on:
   workflow_dispatch:
 
 env:
-  # Required: Set these in GitHub Actions > Variables
+  # ==========================================================
+  # AWS INFRASTRUCTURE CONFIGURATION
+  # ==========================================================
+  # Set these in GitHub Actions > Variables
   AWS_REGION: ${{ vars.AWS_REGION }}
   PROJECT_NAME: ${{ vars.PROJECT_NAME }}
   ECR_REPOSITORY_WEB: ${{ vars.ECR_REPOSITORY_WEB }}
@@ -21,9 +24,32 @@ env:
   # Image tag (use commit SHA for immutable deployments)
   IMAGE_TAG: ${{ github.sha }}
 
-  # Required: Set these in GitHub Actions > Secrets
-  # AWS_ACCESS_KEY_ID: (your AWS access key)
-  # AWS_SECRET_ACCESS_KEY: (your AWS secret key)
+  # ==========================================================
+  # ENVIRONMENT VARIABLES (PRODUCTION)
+  # ==========================================================
+  # Set these in GitHub Actions > Secrets
+
+  # Server Configuration
+  NODE_ENV: "production"
+
+  # Web App Environment Variables
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+  NEXT_PUBLIC_BETTER_AUTH_URL: ${{ secrets.NEXT_PUBLIC_BETTER_AUTH_URL }}
+
+  # Authentication (Better Auth)
+  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
+
+  # Backend Environment Variables
+  BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+
+  # Database
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # OAuth Providers (Google)
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
 jobs:
   deploy:
@@ -121,19 +147,6 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY_BACKEND:$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo ""
 
-      - name: Set environment variables from GitHub Secrets
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          NEXT_PUBLIC_BETTER_AUTH_URL: ${{ secrets.NEXT_PUBLIC_BETTER_AUTH_URL }}
-          BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        run: |
-          echo "Environment variables loaded from GitHub Secrets"
-
       - name: Update Web task definition
         id: update-task-def-web
         run: |
@@ -142,7 +155,7 @@ jobs:
           echo "=========================================="
 
           # Substitute variables in task definition template
-          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG
+          export PROJECT_NAME AWS_ACCOUNT_ID AWS_REGION IMAGE_TAG NEXT_PUBLIC_APP_URL
           export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
           envsubst < aws/ecs/task-definition-web.json > /tmp/task-def-web-updated.json
