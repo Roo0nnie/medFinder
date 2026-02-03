@@ -31,7 +31,6 @@ services:
 
       # Authentication (Better Auth)
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - AUTH_SECRET=${AUTH_SECRET}
       - BETTER_AUTH_TRUSTED_ORIGINS=${BETTER_AUTH_TRUSTED_ORIGINS}
     env_file:
       - apps/web/.env

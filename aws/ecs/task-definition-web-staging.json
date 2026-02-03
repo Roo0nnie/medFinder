@@ -35,10 +35,6 @@
 					"value": "${BETTER_AUTH_SECRET}"
 				},
 				{
-					"name": "AUTH_SECRET",
-					"value": "${AUTH_SECRET}"
-				},
-				{
 					"name": "BETTER_AUTH_TRUSTED_ORIGINS",
 					"value": "${BETTER_AUTH_TRUSTED_ORIGINS}"
 				}

@@ -38,7 +38,6 @@ env:
 
   # Authentication (Better Auth)
   BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-  AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
   BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
 
   # Backend Environment Variables
@@ -149,6 +148,11 @@ jobs:
 
       - name: Update Web task definition
         id: update-task-def-web
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_BETTER_AUTH_URL: ${{ secrets.NEXT_PUBLIC_BETTER_AUTH_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
         run: |
           echo "=========================================="
           echo "Updating Web Task Definition (Production)"
