@@ -99,6 +99,12 @@ turbo-template/
    pnpm dev
    ```
 
+7. **Improve AI Code Quality**
+
+   ```bash
+   px @intellectronica/ruler apply
+   ```
+
 ## Environment Variables
 
 ### Backend (`apps/backend/.env`)
