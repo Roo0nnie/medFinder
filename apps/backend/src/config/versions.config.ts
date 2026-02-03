@@ -7,47 +7,39 @@ const logger = new Logger("VersionsConfig")
 
 /**
  * Registered API version modules
+ *
  * To add a new version:
- * 1. Create version module (e.g., src/modules/v2/v2.module.ts)
+ * 1. Create version module (e.g., src/modules/v3/v3.module.ts)
  * 2. Import it at the top of this file
- * 3. Add it to this object with a version key
+ * 3. Add entry with version key (e.g., v3: V3Module)
  */
-export const VERSION_MODULES: Record<string, Type<any>> = {
+export const VERSION_MODULES: Record<string, Type<unknown>> = {
 	v1: V1Module,
 	v2: V2Module,
 }
 
 /**
- * Neutral modules - modules that appear across ALL API versions
- * These are automatically included in every version's OpenAPI documentation
- * Add modules here that should be available in ALL API versions
+ * Neutral modules included in ALL API versions
+ * Used for cross-version features like health checks (if needed across versions)
  */
-export const NEUTRAL_MODULES: Type<any>[] = []
+export const NEUTRAL_MODULES: Type<unknown>[] = []
 
 /**
- * Discover available API versions
+ * Get modules for a specific version (version module + neutral modules)
  */
-export function discoverVersions(): string[] {
-	return Object.keys(VERSION_MODULES).sort()
-}
-
-/**
- * Get all modules for a specific version (version + neutral modules)
- */
-export function getVersionModules(version: string): Type<any>[] {
+export function getVersionModules(version: string): Type<unknown>[] {
 	const versionModule = VERSION_MODULES[version]
 	if (!versionModule) {
-		throw new Error(`No module found for version ${version}`)
+		throw new Error(`Unknown API version: ${version}`)
 	}
 	return [versionModule, ...NEUTRAL_MODULES]
 }
 
 /**
- * Configure API versioning with URI-based versioning
- * No default version - all versions must be explicitly requested
+ * Configure URI-based API versioning (e.g., /api/v1/*, /api/v2/*)
  */
 export function setupVersioning(app: INestApplication): void {
 	app.setGlobalPrefix("api")
 	app.enableVersioning({ type: VersioningType.URI })
-	logger.log("API versioning enabled with URI-based versioning")
+	logger.log("URI-based API versioning enabled")
 }

@@ -10,57 +10,58 @@ import { generateBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("BetterAuthConfig")
 
-type NextFunction = () => void
+interface JsonResponse {
+	json: (body: OpenAPIObject) => void
+}
 
 /**
- * Create a middleware that handles versioned auth paths
- * Rewrites /api/v1/auth/ok -> /auth/ok for Better Auth processing
+ * Creates middleware that routes versioned auth paths to Better Auth
+ *
+ * Rewrites URLs like /api/v1/auth/ok -> /auth/ok before passing to Better Auth handler.
+ * This allows the same Better Auth instance to handle all API versions.
  */
 function createAuthMiddleware(versionedAuthPaths: string[]) {
 	const handler = toNodeHandler(getAuth())
 
-	return (req: IncomingMessage, res: ServerResponse, next: NextFunction) => {
+	return (req: IncomingMessage, res: ServerResponse, next: () => void) => {
 		const url = req.url ?? ""
-
-		// Find matching versioned auth path
-		const matchedPath = versionedAuthPaths.find(authPath => url.startsWith(authPath))
+		const matchedPath = versionedAuthPaths.find(path => url.startsWith(path))
 
 		if (matchedPath) {
-			// Rewrite /api/v1/auth/ok -> /auth/ok for Better Auth
 			req.url = url.replace(matchedPath, AUTH_BASE_PATH)
 			return handler(req, res)
 		}
 
-		// Not an auth route, continue to next middleware
 		next()
 	}
 }
 
 /**
- * Set up Better Auth routes and endpoints for all registered versions
+ * Registers OpenAPI documentation endpoint for auth routes
+ */
+function registerAuthOpenApiEndpoint(httpServer: any, authPath: string): void {
+	httpServer.get(`${authPath}/open-api`, async (_: unknown, res: JsonResponse) => {
+		res.json(await generateBetterAuthSchema())
+	})
+}
+
+/**
+ * Set up Better Auth routes for all registered API versions
+ *
  * Routes are registered at /api/v1/auth/*, /api/v2/auth/*, etc.
+ * All versions share the same Better Auth instance with URL rewriting.
  */
 export function setupBetterAuth(app: INestApplication): void {
 	const httpServer = app.getHttpAdapter().getInstance()
 	const versions = Object.keys(VERSION_MODULES).sort()
-
-	// Collect all versioned auth paths
 	const authPaths = versions.map(version => `/api/${version}/auth`)
 
-	// Register single middleware that handles all versioned auth routes
+	// Single middleware handles all versioned auth routes
 	httpServer.use(createAuthMiddleware(authPaths))
 
-	// Register OpenAPI schema endpoints for each version
-	for (const version of versions) {
-		const authPath = `/api/${version}/auth`
-
-		httpServer.get(
-			`${authPath}/open-api`,
-			async (_: unknown, res: { json: (body: OpenAPIObject) => void }) => {
-				res.json(await generateBetterAuthSchema())
-			}
-		)
-
-		logger.log(`Better Auth routes registered at ${authPath}/*`)
+	// Register OpenAPI endpoints for each version
+	for (const authPath of authPaths) {
+		registerAuthOpenApiEndpoint(httpServer, authPath)
+		logger.log(`Auth routes registered at ${authPath}/*`)
 	}
 }

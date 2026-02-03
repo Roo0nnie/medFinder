@@ -1,4 +1,4 @@
-import { Logger, ValidationPipe, type INestApplication } from "@nestjs/common"
+import { Logger, type INestApplication } from "@nestjs/common"
 
 import { env } from "@/config/env.config"
 
@@ -7,35 +7,18 @@ const logger = new Logger("AppConfig")
 /**
  * Configure CORS for the application
  */
-export function configureCors(app: INestApplication): void {
-	app.enableCors({
-		origin: env.CORS_ORIGINS.split(","),
-		credentials: true,
-	})
-	logger.log("CORS enabled")
-}
-
-/**
- * Configure global validation pipes for request validation
- */
-export function configureGlobalPipes(app: INestApplication): void {
-	app.useGlobalPipes(
-		new ValidationPipe({
-			whitelist: true,
-			forbidNonWhitelisted: true,
-			transform: true,
-		})
-	)
-	logger.log("Global validation pipe configured")
+function configureCors(app: INestApplication): void {
+	const origins = env.CORS_ORIGINS.split(",").map(origin => origin.trim())
+	app.enableCors({ origin: origins, credentials: true })
+	logger.log(`CORS enabled for origins: ${origins.join(", ")}`)
 }
 
 /**
  * Enable graceful shutdown handlers for SIGTERM and SIGINT signals
  */
-export function enableGracefulShutdown(app: INestApplication): void {
-	const gracefulShutdown = async (signal: string): Promise<void> => {
-		logger.log(`Received ${signal}. Starting graceful shutdown...`)
-
+function enableGracefulShutdown(app: INestApplication): void {
+	const shutdown = async (signal: string): Promise<void> => {
+		logger.log(`Received ${signal}, starting graceful shutdown...`)
 		try {
 			await app.close()
 			logger.log("Application closed successfully")
@@ -46,17 +29,16 @@ export function enableGracefulShutdown(app: INestApplication): void {
 		}
 	}
 
-	process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"))
-	process.on("SIGINT", () => void gracefulShutdown("SIGINT"))
-
-	logger.log("Graceful shutdown enabled")
+	process.on("SIGTERM", () => void shutdown("SIGTERM"))
+	process.on("SIGINT", () => void shutdown("SIGINT"))
+	logger.log("Graceful shutdown handlers registered")
 }
 
 /**
  * Configure all application-level settings
+ * Note: Global pipes/interceptors/filters are registered via APP_* providers in app.module.ts
  */
 export function configureApp(app: INestApplication): void {
 	configureCors(app)
-	configureGlobalPipes(app)
 	enableGracefulShutdown(app)
 }

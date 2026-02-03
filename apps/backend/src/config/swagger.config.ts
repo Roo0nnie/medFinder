@@ -1,4 +1,4 @@
-import { Logger, type INestApplication } from "@nestjs/common"
+import { Logger, type INestApplication, type Type } from "@nestjs/common"
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger"
 import { apiReference } from "@scalar/nestjs-api-reference"
 import { cleanupOpenApiDoc } from "nestjs-zod"
@@ -10,44 +10,34 @@ const logger = new Logger("SwaggerConfig")
 
 /**
  * Create an OpenAPI document for a specific version
- * Automatically includes to version module + all neutral modules
  */
 function createSwaggerDocument(
 	app: INestApplication,
 	version: string,
-	modules: any[]
+	modules: Type<unknown>[]
 ): OpenAPIObject {
-	return SwaggerModule.createDocument(
-		app,
-		new DocumentBuilder()
-			.setTitle(`API Documentation ${version}`)
-			.setDescription(`Type-safe API with auto-generated documentation for version ${version}`)
-			.setVersion(version)
-			.build(),
-		{
-			include: modules,
-		}
-	) as OpenAPIObject
+	const config = new DocumentBuilder()
+		.setTitle(`API Documentation ${version}`)
+		.setDescription(`Type-safe API with auto-generated documentation for version ${version}`)
+		.setVersion(version)
+		.build()
+
+	return SwaggerModule.createDocument(app, config, { include: modules }) as OpenAPIObject
 }
 
 /**
- * Set up Swagger and Scalar documentation for a specific version
+ * Set up Swagger UI and Scalar docs for a specific version
  */
 async function setupVersionedDocs(app: INestApplication, version: string): Promise<void> {
-	try {
-		const modules = getVersionModules(version)
-		const baseOpenApiDoc = createSwaggerDocument(app, version, modules)
-		const mergedOpenApiDoc = await mergeBetterAuthSchema(baseOpenApiDoc, version)
-		const swaggerPath = `api/${version}`
+	const modules = getVersionModules(version)
+	const baseDoc = createSwaggerDocument(app, version, modules)
+	const mergedDoc = await mergeBetterAuthSchema(baseDoc, version)
+	const basePath = `api/${version}`
 
-		SwaggerModule.setup(swaggerPath, app, cleanupOpenApiDoc(mergedOpenApiDoc) as OpenAPIObject)
-		app.use(`/${swaggerPath}/docs`, apiReference({ content: mergedOpenApiDoc, theme: "none" }))
+	SwaggerModule.setup(basePath, app, cleanupOpenApiDoc(mergedDoc) as OpenAPIObject)
+	app.use(`/${basePath}/docs`, apiReference({ content: mergedDoc, theme: "none" }))
 
-		logger.log(`Documentation set up for version ${version} at /${swaggerPath}`)
-	} catch (error) {
-		logger.error(`Failed to set up documentation for version ${version}`, error)
-		throw error
-	}
+	logger.log(`Documentation available at /${basePath} and /${basePath}/docs`)
 }
 
 /**
@@ -57,13 +47,15 @@ export async function setupSwagger(app: INestApplication): Promise<void> {
 	const versions = Object.keys(VERSION_MODULES).sort()
 
 	if (versions.length === 0) {
-		logger.warn("No version modules found")
+		logger.warn("No version modules found, skipping documentation setup")
 		return
 	}
 
-	const versionsList = versions.join(", ")
-	logger.log(`Setting up documentation for ${versions.length} version(s): ${versionsList}`)
-	logger.log(`Neutral modules: ${NEUTRAL_MODULES.map(m => m.constructor.name).join(", ")}`)
+	logger.log(`Setting up documentation for versions: ${versions.join(", ")}`)
+
+	if (NEUTRAL_MODULES.length > 0) {
+		logger.log(`Neutral modules: ${NEUTRAL_MODULES.map(m => m.name).join(", ")}`)
+	}
 
 	for (const version of versions) {
 		await setupVersionedDocs(app, version)
