@@ -2,8 +2,6 @@ import type { OpenAPIObject } from "@nestjs/swagger"
 
 import { getAuth } from "@repo/auth"
 
-import { env } from "@/config/env.config"
-
 /** Human-friendly operation summaries for Better Auth endpoints */
 const AUTH_OPERATION_SUMMARIES: Record<string, string> = {
 	"/sign-in/email": "Sign In (Email)",
@@ -108,7 +106,7 @@ export async function generateBetterAuthSchema(): Promise<OpenAPIObject> {
  */
 export async function mergeBetterAuthSchema(baseDoc: OpenAPIObject): Promise<OpenAPIObject> {
 	try {
-		const authPrefix = `/api/${env.API_VERSION}/auth`
+		const authPrefix = `/api/v1/auth`
 		const betterAuthSchema = await generateBetterAuthSchema()
 		const oldTag = "Default"
 		const newTag = "Auth"
