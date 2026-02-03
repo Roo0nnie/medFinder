@@ -1,12 +1,11 @@
-import { headers } from "next/headers"
 import Link from "next/link"
 
-import { auth } from "@/services/better-auth/auth"
+import { getSession } from "@/services/better-auth/auth-server"
 import { HomeCtaButton } from "@/features/home/home-cta-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default async function Home() {
-	const session = await auth.api.getSession({ headers: await headers() })
+	const session = await getSession()
 	const user = session?.user
 	const isLoggedIn = !!user
 
