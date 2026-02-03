@@ -1,61 +1,13 @@
 import { cache } from "react"
 import { cookies } from "next/headers"
 
+/**
+ * Import inferred Session type from Better Auth configuration.
+ * This ensures types always match the backend's Better Auth setup.
+ */
+import type { Session } from "@repo/auth"
+
 import { env } from "@/env"
-
-/**
- * User type from Better Auth
- */
-export interface User {
-	id: string
-	email: string
-	name: string | null
-	image: string | null
-	emailVerified?: boolean
-	createdAt?: string
-	updatedAt?: string
-}
-
-/**
- * Session data from Better Auth
- */
-export interface SessionData {
-	id: string
-	expiresAt: string
-	token: string
-	createdAt: string
-	updatedAt: string
-	ipAddress?: string
-	userAgent?: string
-	userId: string
-}
-
-/**
- * Combined session type matching Better Auth's full response
- */
-export interface Session {
-	user: User
-	session: SessionData
-}
-
-/**
- * Better Auth full response (session + user)
- * Can be null if not authenticated, or object with session and user
- */
-type BetterAuthResponse = null | {
-	session: SessionData
-	user: User
-}
-
-/**
- * Better Auth error response
- */
-interface BetterAuthError {
-	error?: {
-		message: string
-		code?: string
-	}
-}
 
 /**
  * Server-side auth proxy for web app.
@@ -94,38 +46,18 @@ export const getSession = cache(async (): Promise<Session | null> => {
 		return null
 	}
 
-	const data: BetterAuthResponse | BetterAuthError = await response.json()
-
-	// Handle error response
-	if (!data || (typeof data === "object" && "error" in data)) {
-		return null
-	}
+	const data = await response.json()
 
 	// Handle null response (not authenticated)
 	if (data === null) {
 		return null
 	}
 
-	// Response should have both session and user
-	if ("session" in data && "user" in data) {
-		return data as Session
+	// Handle error response
+	if (typeof data === "object" && "error" in data) {
+		return null
 	}
 
-	// Fallback: if response has session-like fields at top level
-	// This handles cases where backend returns session data in a different format
-	// TODO: The backend should be returning {session, user} according to Better Auth schema
-	if ("userId" in data && "expiresAt" in data) {
-		// Return partial session with minimal user info
-		return {
-			session: data as unknown as SessionData,
-			user: {
-				id: (data as { userId: string }).userId,
-				email: "", // Would need separate endpoint to get full user data
-				name: null,
-				image: null,
-			},
-		}
-	}
-
-	return null
+	// Return session data (already includes both session and user from Better Auth)
+	return data as Session | null
 })

@@ -31,10 +31,11 @@ export const env = createEnv({
 	 */
 	client: {
 		// Public URLs
-		NEXT_PUBLIC_APP_URL: z.url().optional(),
+		NEXT_PUBLIC_APP_URL: z.url(),
+		NEXT_PUBLIC_API_URL: z.url(),
 
 		// Authentication (Better Auth)
-		NEXT_PUBLIC_BETTER_AUTH_URL: z.url().optional(),
+		NEXT_PUBLIC_BETTER_AUTH_URL: z.url(),
 	},
 
 	/**
@@ -47,6 +48,7 @@ export const env = createEnv({
 
 		// Client-side variables
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+		NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
 
 		// Server-side variables

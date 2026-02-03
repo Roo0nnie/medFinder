@@ -8,7 +8,7 @@ import { accounts, sessions, users, verifications } from "@repo/db/schema"
 /**
  * Creates a Better Auth instance configured with Drizzle adapter.
  *
- * The auth instance uses the database connection from @repo/db and is
+ * The auth instance uses database connection from @repo/db and is
  * configured to work across multiple apps (backend, web, mobile via API).
  *
  * @returns Better Auth instance
@@ -68,5 +68,11 @@ export function getAuth(): ReturnType<typeof betterAuth> {
 	if (!_auth) {
 		_auth = createAuth()
 	}
-	return _auth
+	return _auth!
 }
+
+/**
+ * Inferred Session type from Better Auth.
+ * Export this so web app can use the correct types matching backend config.
+ */
+export type Session = ReturnType<typeof getAuth>["$Infer"]["Session"]
