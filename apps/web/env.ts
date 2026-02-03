@@ -16,7 +16,6 @@ export const env = createEnv({
 	server: {
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
 		VERCEL_URL: z.string().optional(),
-		DATABASE_URL: z.url(),
 	},
 
 	/**
@@ -34,7 +33,6 @@ export const env = createEnv({
 		NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
 		BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
 		VERCEL_URL: process.env.VERCEL_URL,
-		DATABASE_URL: process.env.DATABASE_URL,
 	},
 	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
 })

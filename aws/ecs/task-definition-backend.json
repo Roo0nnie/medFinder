@@ -17,34 +17,32 @@
 				}
 			],
 			"essential": true,
-			"environment": [
-				{
-					"name": "NODE_ENV",
-					"value": "production"
-				},
-				{
-					"name": "PORT",
-					"value": "3000"
-				}
-			],
-			"secrets": [
-				{
-					"name": "DATABASE_URL",
-					"valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/backend/env::DATABASE_URL"
-				},
-				{
-					"name": "BETTER_AUTH_URL",
-					"valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/backend/env::BETTER_AUTH_URL"
-				},
-				{
-					"name": "GOOGLE_CLIENT_ID",
-					"valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/backend/env::GOOGLE_CLIENT_ID"
-				},
-				{
-					"name": "GOOGLE_CLIENT_SECRET",
-					"valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:${PROJECT_NAME}/backend/env::GOOGLE_CLIENT_SECRET"
-				}
-			],
+		"environment": [
+			{
+				"name": "NODE_ENV",
+				"value": "production"
+			},
+			{
+				"name": "PORT",
+				"value": "3000"
+			},
+			{
+				"name": "DATABASE_URL",
+				"value": "${DATABASE_URL}"
+			},
+			{
+				"name": "BETTER_AUTH_URL",
+				"value": "${BETTER_AUTH_URL}"
+			},
+			{
+				"name": "GOOGLE_CLIENT_ID",
+				"value": "${GOOGLE_CLIENT_ID}"
+			},
+			{
+				"name": "GOOGLE_CLIENT_SECRET",
+				"value": "${GOOGLE_CLIENT_SECRET}"
+			}
+		],
 			"logConfiguration": {
 				"logDriver": "awslogs",
 				"options": {
