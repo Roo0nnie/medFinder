@@ -30,7 +30,6 @@ out/
 
 # Git
 .git/
-.gitignore
 .gitattributes
 
 # IDE

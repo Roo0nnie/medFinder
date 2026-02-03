@@ -6,7 +6,7 @@ import "./env"
 
 /** @type {import("next").NextConfig} */
 const config: NextConfig = {
-	// output: "standalone",
+	output: "standalone",
 	/** Enables hot reloading for local packages without a build step */
 	transpilePackages: [
 		"@repo/auth",

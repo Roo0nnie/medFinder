@@ -1,75 +1,54 @@
+# ========================================
+# Base Stage
+# ========================================
 FROM node:22-alpine AS base
-
-# Install pnpm
+RUN apk update
+RUN apk add --no-cache libc6-compat wget
 RUN npm install -g pnpm@10.27.0
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+# ========================================
+# Prepare Stage - Prune workspace
+# ========================================
+FROM base AS prepare
+RUN npm install -g turbo
+COPY . .
+# Generate pruned workspace with pruned lockfile for target workspace
+RUN turbo prune @repo/backend --docker
 
-# Copy workspace dependencies
-COPY packages ./packages
-COPY tooling ./tooling
-COPY apps ./apps
-
-# Install dependencies
+# ========================================
+# Builder Stage
+# ========================================
+FROM base AS builder
+# First install dependencies (as they change less often)
+COPY --from=prepare /app/out/json/ .
+COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
+# Build all workspace packages first, then backend (skip lint/typecheck in Docker)
+COPY --from=prepare /app/out/full/ .
+ENV TURBO_FORCE_BUILD=1
+RUN pnpm run build
 
-# Build backend application
-RUN pnpm build --filter=@repo/backend
-
-# Production stage
-FROM node:22-alpine AS production
-
-# Install pnpm
-RUN npm install -g pnpm@10.27.0
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-WORKDIR /app
-
-# Set environment to production
-ENV NODE_ENV=production
-
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
-
-# Copy only necessary workspace packages (not all packages)
-COPY packages/auth ./packages/auth
-COPY packages/contracts ./packages/contracts
-COPY packages/db ./packages/db
-
-# Copy backend app
-COPY apps/backend/package.json ./apps/backend/
-COPY apps/backend/tsconfig.json ./apps/backend/
-COPY apps/backend/tsconfig.build.json ./apps/backend/
-COPY apps/backend/nest-cli.json ./apps/backend/
-COPY apps/backend/.swcrc ./apps/backend/
-COPY apps/backend/src ./apps/backend/src
-
-# Install production dependencies
-RUN cd apps/backend && pnpm install --frozen-lockfile --prod
-
-# Copy built backend from base stage
-COPY --from=base --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
-COPY --from=base --chown=nodejs:nodejs /app/node_modules ./node_modules
-
-# Switch to non-root user
+# ========================================
+# Runner Stage - Minimal production image
+# ========================================
+FROM base AS runner
+# Don't run production as root for security reasons
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nodejs
 USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
+# Copy package files needed for runtime
+COPY --from=prepare --chown=nodejs:nodejs /app/out/json/apps/backend/package.json ./apps/backend/package.json
+# Copy production dependencies (needed for runtime)
+COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/node_modules ./apps/backend/node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy packages with their compiled dist folders
+COPY --from=builder --chown=nodejs:nodejs /app/packages ./packages
 
-# Health check
+EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
-
-# Start NestJS
-CMD ["node", "apps/backend/dist/main.js"]
+CMD node apps/backend/dist/main.js
