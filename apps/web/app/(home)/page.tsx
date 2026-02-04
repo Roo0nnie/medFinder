@@ -30,13 +30,11 @@ export default async function Home() {
 						<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
 							{isLoggedIn ? (
 								<>
-									Hello{" "}
-									<span className="font-semibold">User</span>
+									Hello <span className="font-semibold">{session.user.name}</span>
 								</>
 							) : (
 								<>
-									Welcome{" "}
-									<span className="font-semibold">Everyone!</span>
+									Welcome <span className="font-semibold">Everyone!</span>
 								</>
 							)}
 						</p>

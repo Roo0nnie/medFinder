@@ -5,9 +5,9 @@ import { cookies } from "next/headers"
  * Import inferred Session type from Better Auth configuration.
  * This ensures types always match to backend's Better Auth setup.
  */
-import type { Session } from "@repo/auth"
+import { type AuthSession } from "@repo/auth"
 
-import { getAuthUrl } from "./auth-utils"
+import { getAuthUrl } from "@/services/better-auth/auth-utils"
 
 /**
  * Server-side auth proxy for web app.
@@ -26,7 +26,7 @@ import { getAuthUrl } from "./auth-utils"
  *
  * @returns Promise<Session | null> - The session data or null if not authenticated
  */
-export const getSession = cache(async (): Promise<Session | null> => {
+export const getSession = cache(async (): Promise<AuthSession | null> => {
 	const cookieStore = await cookies()
 	const cookieHeader = cookieStore
 		.getAll()
@@ -45,22 +45,16 @@ export const getSession = cache(async (): Promise<Session | null> => {
 		cache: "no-store",
 	})
 
-	if (!response.ok) {
-		return null
-	}
+	if (!response.ok) return null
 
 	const data = await response.json()
 
 	// Handle null response (not authenticated)
-	if (data === null) {
-		return null
-	}
+	if (data === null) return null
 
 	// Handle error response
-	if (typeof data === "object" && "error" in data) {
-		return null
-	}
+	if (typeof data === "object" && "error" in data) return null
 
 	// Session contains userId at top level, not nested under user
-	return data as Session | null
+	return data as AuthSession | null
 })

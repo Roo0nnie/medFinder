@@ -1,9 +1,27 @@
 "use client"
 
-import { authClient } from "@/services/better-auth/auth-client"
+import { useSessionQuery } from "@/features/auth/api/session.hooks"
 
-export async function ClientSession() {
-	const session = await authClient.getSession()
+export function ClientSession() {
+	const { data: session, isPending, error } = useSessionQuery()
+
+	if (isPending) {
+		return (
+			<div>
+				<p className="text-sm font-medium">Client Session</p>
+				<p className="text-muted-foreground text-xs">Loading...</p>
+			</div>
+		)
+	}
+
+	if (error) {
+		return (
+			<div>
+				<p className="text-sm font-medium">Client Session</p>
+				<p className="text-destructive text-xs">Error: {error.message}</p>
+			</div>
+		)
+	}
 
 	return (
 		<div>
