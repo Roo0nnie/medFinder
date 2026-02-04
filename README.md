@@ -1,242 +1,118 @@
 # Quanby Turbo Template
 
-A TypeScript-first monorepo template using **Turborepo** and **pnpm** with a full-stack architecture spanning web, backend, and mobile platforms.
+A TypeScript-first monorepo template using **Turborepo** and **pnpm** for full-stack development.
 
-## Table of Contents
+## Tech Stack
 
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Scripts](#scripts)
-- [Packages](#packages)
-- [Development Workflow](#development-workflow)
-- [Documentation](#documentation)
+| Layer     | Technology                          |
+| --------- | ----------------------------------- |
+| Frontend  | Next.js 16, Tailwind CSS, shadcn/ui |
+| Backend   | NestJS                              |
+| Mobile    | Flutter                             |
+| Database  | Drizzle ORM + PostgreSQL            |
+| Auth      | Better Auth                         |
+| Contracts | Zod schemas + DTOs                  |
 
-## Technology Stack
+## Quick Start
 
-| Layer           | Technology               | Location              |
-| --------------- | ------------------------ | --------------------- |
-| Frontend        | Next.js 16 (App Router)  | `apps/web/`           |
-| Backend         | NestJS                   | `apps/backend/`       |
-| Mobile          | Flutter                  | `apps/mobile/`        |
-| Database        | Drizzle ORM + PostgreSQL | `packages/db/`        |
-| Authentication  | Better Auth              | `packages/auth/`      |
-| API Contracts   | Zod schemas + DTOs       | `packages/contracts/` |
-| Styling         | Tailwind CSS + shadcn/ui | `apps/web/`           |
-| Data Fetching   | TanStack Query           | `apps/web/`           |
-| Package Manager | pnpm                     | —                     |
-| Build System    | Turborepo                | —                     |
+```bash
+# Install dependencies
+pnpm install
+
+# Set up environment files (copy from .env.example)
+cp apps/backend/.env.example apps/backend/.env
+cp apps/web/.env.example apps/web/.env
+cp packages/db/.env.example packages/db/.env
+
+# Push database schema
+pnpm db:push
+
+# Build packages (required for first run)
+pnpm build
+
+# Generate AI agent rules (optional)
+pnpm dlx @intellectronica/ruler apply
+
+# Start development
+pnpm dev
+```
 
 ## Project Structure
 
 ```
-turbo-template/
 ├── apps/
-│   ├── web/                 # Next.js frontend
-│   ├── backend/             # NestJS API server
-│   └── mobile/              # Flutter mobile app
+│   ├── web/           # Next.js frontend (port 3001)
+│   ├── backend/       # NestJS API (port 3000)
+│   └── mobile/        # Flutter app
 ├── packages/
-│   ├── auth/                # Shared Better Auth configuration
-│   ├── contracts/           # Zod schemas, DTOs, API contracts
-│   └── db/                  # Drizzle ORM schema and client
-└── tooling/
-    ├── eslint/              # Shared ESLint configurations
-    ├── prettier/            # Shared Prettier configuration
-    └── typescript/          # Shared TypeScript configs
+│   ├── auth/          # Shared auth config
+│   ├── contracts/     # API contracts & DTOs
+│   └── db/            # Database schema
+└── tooling/           # Shared configs (ESLint, Prettier, TypeScript)
 ```
-
-## Getting Started
-
-### Prerequisites
-
-- **Node.js** ≥ 22.20.0
-- **pnpm** ≥ 10.15.1
-- **PostgreSQL** database
-- **Flutter SDK** (for mobile development)
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd turbo-template
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-
-   Create the following environment files:
-
-   **`apps/backend/.env`**
-   **`apps/web/.env`**
-
-4. **Set up the database**
-
-   ```bash
-   # Push schema to database
-   pnpm db:push
-
-   # Or run migrations
-   pnpm db:migrate
-   ```
-
-5. **Build all packages**
-
-   ```bash
-   pnpm build
-   ```
-
-6. **Start development**
-
-   ```bash
-   pnpm dev
-   ```
-
-7. **Improve AI Code Quality**
-
-   ```bash
-   px @intellectronica/ruler apply
-   ```
 
 ## Environment Variables
 
 ### Backend (`apps/backend/.env`)
 
-| Variable             | Description                  | Default                 |
-| -------------------- | ---------------------------- | ----------------------- |
-| `DATABASE_URL`       | PostgreSQL connection string | —                       |
-| `PORT`               | Server port                  | `3000`                  |
-| `BETTER_AUTH_SECRET` | Secret key for auth tokens   | —                       |
-| `BETTER_AUTH_URL`    | Base URL for Better Auth     | `http://localhost:3000` |
+| Variable                      | Required | Description                           |
+| ----------------------------- | -------- | ------------------------------------- |
+| `DATABASE_URL`                | ✅       | PostgreSQL connection string          |
+| `BETTER_AUTH_SECRET`          | ✅       | Auth secret (openssl rand -base64 32) |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Comma-separated trusted origins       |
+| `CORS_ORIGINS`                | ✅       | Comma-separated CORS origins          |
+| `PORT`                        | ❌       | Server port (default: 3000)           |
+| `GOOGLE_CLIENT_ID`            | ❌       | Google OAuth client ID                |
+| `GOOGLE_CLIENT_SECRET`        | ❌       | Google OAuth client secret            |
 
-### Web (`apps/web/.env.local`)
+### Web (`apps/web/.env`)
 
-| Variable                      | Description                  | Default                 |
-| ----------------------------- | ---------------------------- | ----------------------- |
-| `DATABASE_URL`                | PostgreSQL connection string | —                       |
-| `BETTER_AUTH_SECRET`          | Secret key for auth tokens   | —                       |
-| `BETTER_AUTH_URL`             | Base URL for Better Auth     | `http://localhost:3000` |
-| `NEXT_PUBLIC_BETTER_AUTH_URL` | Public auth URL for client   | —                       |
+| Variable                   | Required | Description              |
+| -------------------------- | -------- | ------------------------ |
+| `NEXT_PUBLIC_APP_URL`      | ✅       | Web app URL              |
+| `NEXT_PUBLIC_API_BASE_URL` | ✅       | Backend API base URL     |
+| `NEXT_PUBLIC_API_VERSION`  | ✅       | API version (default: 1) |
+
+### Database (`packages/db/.env`)
+
+| Variable       | Required | Description                  |
+| -------------- | -------- | ---------------------------- |
+| `DATABASE_URL` | ✅       | PostgreSQL connection string |
 
 ## Scripts
 
-All scripts are run from the repository root using `pnpm`.
+| Command           | Description                |
+| ----------------- | -------------------------- |
+| `pnpm dev`        | Start all apps in dev mode |
+| `pnpm build`      | Build all apps             |
+| `pnpm lint`       | Run ESLint                 |
+| `pnpm typecheck`  | Run TypeScript checks      |
+| `pnpm format:fix` | Format code with Prettier  |
+| `pnpm db:push`    | Push schema to database    |
+| `pnpm db:studio`  | Open Drizzle Studio        |
 
-### Development
-
-| Command            | Description                        |
-| ------------------ | ---------------------------------- |
-| `pnpm dev`         | Start all apps in development mode |
-| `pnpm dev:web`     | Start only the web app             |
-| `pnpm dev:backend` | Start only the backend             |
-| `pnpm dev:mobile`  | Start only the mobile app          |
-| `pnpm start`       | Start all apps in production mode  |
-
-### Build & Clean
-
-| Command                 | Description                        |
-| ----------------------- | ---------------------------------- |
-| `pnpm build`            | Build all apps and packages        |
-| `pnpm clean`            | Remove root `node_modules`         |
-| `pnpm clean:workspaces` | Clean all workspace `node_modules` |
-
-### Code Quality
-
-| Command           | Description                           |
-| ----------------- | ------------------------------------- |
-| `pnpm lint`       | Run ESLint across all packages        |
-| `pnpm lint:fix`   | Run ESLint with auto-fix              |
-| `pnpm format`     | Check formatting with Prettier        |
-| `pnpm format:fix` | Fix formatting with Prettier          |
-| `pnpm typecheck`  | Run TypeScript type checking          |
-| `pnpm lint:ws`    | Check workspace dependencies (sherif) |
-
-### Database
-
-| Command            | Description                     |
-| ------------------ | ------------------------------- |
-| `pnpm db:push`     | Push schema changes to database |
-| `pnpm db:generate` | Generate Drizzle migrations     |
-| `pnpm db:migrate`  | Run database migrations         |
-| `pnpm db:studio`   | Open Drizzle Studio GUI         |
-
-### Authentication
-
-| Command              | Description                |
-| -------------------- | -------------------------- |
-| `pnpm auth:generate` | Generate Better Auth types |
-
-### Testing
-
-| Command                    | Description             |
-| -------------------------- | ----------------------- |
-| `pnpm -F backend test`     | Run backend tests       |
-| `pnpm -F backend test:e2e` | Run backend E2E tests   |
-| `pnpm -F backend test:cov` | Run tests with coverage |
-
-## Packages
-
-### `@repo/auth`
-
-Shared Better Auth configuration used across all apps.
+## Shared Packages
 
 ```typescript
+// Auth configuration
 import { auth } from "@repo/auth"
-```
-
-### `@repo/contracts`
-
-Zod schemas and DTOs for type-safe API communication.
-
-```typescript
+// API contracts & DTOs
 import { CreateTodoDto, TodoSchema } from "@repo/contracts"
-```
-
-### `@repo/db`
-
-Drizzle ORM schema definitions and database client.
-
-```typescript
+// Database client & schema
 import { db } from "@repo/db"
 import { todos, users } from "@repo/db/schema"
 ```
 
-## Development Workflow
+## Deployment
 
-1. **Always use pnpm** — never use npm or yarn
-2. **Run quality checks before committing:**
-   ```bash
-   pnpm lint && pnpm typecheck
-   ```
-3. **Format code before committing:**
-   ```bash
-   pnpm format:fix
-   ```
-4. **Update environment files** when adding new variables
-5. **Keep features isolated** in their own folders
+This template includes Docker and AWS ECS configurations:
 
-## Documentation
+- **Docker**: `docker-compose.yml` for local containerized development
+- **CI/CD**: GitHub Actions workflows for staging and production
+- **AWS**: ECS task definitions in `aws/ecs/`
 
-- [Turborepo](https://turbo.build/docs)
-- [pnpm](https://pnpm.io/)
-- [Next.js (App Router)](https://nextjs.org/docs/app)
-- [NestJS](https://docs.nestjs.com/)
-- [Flutter](https://docs.flutter.dev/)
-- [Drizzle ORM](https://orm.drizzle.team/docs)
-- [Better Auth](https://better-auth.com/docs)
-- [Zod](https://zod.dev/)
-- [TanStack Query](https://tanstack.com/query/latest)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [TypeScript](https://www.typescriptlang.org/docs/)
+See `aws/setup-guide.md` for deployment instructions.
 
----
+## Links
 
-For app-specific details, see the README inside each app folder.
+- [Turborepo](https://turbo.build/docs) · [Next.js](https://nextjs.org/docs) · [NestJS](https://docs.nestjs.com/) · [Drizzle](https://orm.drizzle.team/) · [Better Auth](https://better-auth.com/docs)
