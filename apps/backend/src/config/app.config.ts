@@ -1,8 +1,21 @@
 import { Logger, type INestApplication } from "@nestjs/common"
+import * as express from "express"
 
 import { env } from "@/config/env.config"
 
 const logger = new Logger("AppConfig")
+
+/**
+ * Configure body parser middleware for non-auth routes
+ * Note: bodyParser is disabled in bootstrap.ts to allow Better Auth to handle its own body parsing.
+ * We need to manually add JSON parsing for all other routes.
+ */
+function configureBodyParser(app: INestApplication): void {
+	const httpAdapter = app.getHttpAdapter()
+	httpAdapter.use(express.json())
+	httpAdapter.use(express.urlencoded({ extended: true }))
+	logger.log("Body parser middleware configured")
+}
 
 /**
  * Configure CORS for the application
@@ -39,6 +52,7 @@ function enableGracefulShutdown(app: INestApplication): void {
  * Note: Global pipes/interceptors/filters are registered via APP_* providers in app.module.ts
  */
 export function configureApp(app: INestApplication): void {
+	configureBodyParser(app)
 	configureCors(app)
 	enableGracefulShutdown(app)
 }
