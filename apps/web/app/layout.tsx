@@ -6,7 +6,6 @@ import "@/core/styles/globals.css"
 import { BreakpointIndicator } from "@/core/components/breakpoint-indicator"
 import { Toaster } from "@/core/components/ui/sonner"
 import { ThemeProvider } from "@/core/context/theme-provider"
-import { SessionProvider } from "@/services/better-auth/session-provider"
 import { QueryProvider } from "@/services/tanstack-query/provider"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" })
@@ -35,18 +34,16 @@ export default function RootLayout({
 		<html lang="en" className={figtree.variable} suppressHydrationWarning>
 			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
 				<QueryProvider>
-					<SessionProvider>
-						<ThemeProvider
-							attribute="class"
-							defaultTheme="system"
-							enableSystem
-							disableTransitionOnChange
-						>
-							<BreakpointIndicator />
-							{children}
-							<Toaster richColors closeButton />
-						</ThemeProvider>
-					</SessionProvider>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						<BreakpointIndicator />
+						{children}
+						<Toaster richColors closeButton />
+					</ThemeProvider>
 				</QueryProvider>
 			</body>
 		</html>

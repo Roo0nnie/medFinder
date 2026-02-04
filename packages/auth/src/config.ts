@@ -60,10 +60,8 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			usePlural: true,
 		}),
 		basePath: AUTH_BASE_PATH,
-		// Don't set baseURL for server-side auth instance
-		// NestJS handles routing at /api/{version}/auth/*
-		// baseURL is only needed for client-side operations
-		baseURL: undefined,
+		// baseURL is inferred from request when not set
+		// NestJS rewrites /api/v1/auth/* → /auth/* before handling
 		secret: authEnv.BETTER_AUTH_SECRET,
 		emailAndPassword: {
 			enabled: true,

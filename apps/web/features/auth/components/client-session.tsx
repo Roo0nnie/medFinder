@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/core/components/ui/skeleton"
 import { useSessionQuery } from "@/features/auth/api/session.hooks"
 
 export function ClientSession() {
@@ -7,9 +8,9 @@ export function ClientSession() {
 
 	if (isPending) {
 		return (
-			<div>
+			<div className="space-y-2">
 				<p className="text-sm font-medium">Client Session</p>
-				<p className="text-muted-foreground text-xs">Loading...</p>
+				<Skeleton className="h-20 w-full" />
 			</div>
 		)
 	}

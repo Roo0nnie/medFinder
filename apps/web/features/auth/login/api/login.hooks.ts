@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { authClient } from "@/services/better-auth/auth-client"
+import { sessionKeys } from "@/features/auth/api/session.hooks"
 
 import type { Login } from "./login.schema"
 
@@ -20,7 +21,7 @@ export function useLoginMutation() {
 			return result
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["session"] })
+			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
 			router.push("/")
 			router.refresh()
 		},
