@@ -38,7 +38,7 @@ export function HomeCtaButton({ href, isLoggedIn }: HomeCtaButtonProps) {
 	return (
 		<Link href={href} className={buttonVariants({ size: "lg" })}>
 			<HugeiconsIcon icon={ArrowRight01FreeIcons} strokeWidth={2} className="size-4" />
-			Get Started
+			Login
 		</Link>
 	)
 }
