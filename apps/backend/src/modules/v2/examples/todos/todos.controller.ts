@@ -26,7 +26,8 @@ export class TodosController {
 	@Get()
 	@ApiEndpoint({
 		summary: "Retrieve all todos (V2)",
-		description: "Returns a list of all todos for authenticated user. V2 includes additional metadata.",
+		description:
+			"Returns a list of all todos for authenticated user. V2 includes additional metadata.",
 		response: TodoListDto,
 	})
 	async getTodos() {
@@ -50,10 +51,7 @@ export class TodosController {
 		response: TodoDto,
 		status: 201,
 	})
-	async createTodo(
-		@Body() payload: CreateTodoDto,
-		@Session() session: UserSession
-	) {
+	async createTodo(@Body() payload: CreateTodoDto, @Session() session: UserSession) {
 		return this.todosService.create(payload, session.user.id)
 	}
 
