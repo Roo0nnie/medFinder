@@ -1,21 +1,22 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - dev
-      - staging
-      - production
-    paths-ignore:
-      - "**.md"
-      - ".vscode/**"
-      - "docs/**"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths-ignore:
-      - "**.md"
-      - ".vscode/**"
-      - "docs/**"
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - dev
+  #     - staging
+  #     - production
+  #   paths-ignore:
+  #     - "**.md"
+  #     - ".vscode/**"
+  #     - "docs/**"
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  #   paths-ignore:
+  #     - "**.md"
+  #     - ".vscode/**"
+  #     - "docs/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:
@@ -24,7 +25,7 @@ concurrency:
 
 jobs:
   ci:
-    name: Build and Test
+    name: Lint and Typecheck
     timeout-minutes: 15
     runs-on: ubuntu-latest
     # Skip if this is a push right after a PR merge (PR already ran CI)
