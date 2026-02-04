@@ -20,6 +20,18 @@ RUN turbo prune @repo/web --docker
 # Builder Stage
 # ========================================
 FROM base AS builder
+
+# Build-time arguments for Next.js public environment variables
+# These get inlined into the JavaScript bundle during build
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_API_BASE_URL
+ARG NEXT_PUBLIC_API_VERSION
+
+# Set as environment variables for the build process
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION
+
 # First install the dependencies (as they change less often)
 COPY --from=prepare /app/out/json/ .
 COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml

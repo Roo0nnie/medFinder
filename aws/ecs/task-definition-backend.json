@@ -22,22 +22,30 @@
 					"name": "NODE_ENV",
 					"value": "production"
 				},
-			{
-				"name": "PORT",
-				"value": "3000"
-			},
-			{
-				"name": "API_VERSION",
-				"value": "${API_VERSION}"
-			},
-			{
-				"name": "DATABASE_URL",
-				"value": "${DATABASE_URL}"
-			},
-			{
-				"name": "GOOGLE_CLIENT_ID",
-				"value": "${GOOGLE_CLIENT_ID}"
-			},
+				{
+					"name": "PORT",
+					"value": "3000"
+				},
+				{
+					"name": "CORS_ORIGINS",
+					"value": "${CORS_ORIGINS}"
+				},
+				{
+					"name": "DATABASE_URL",
+					"value": "${DATABASE_URL}"
+				},
+				{
+					"name": "BETTER_AUTH_SECRET",
+					"value": "${BETTER_AUTH_SECRET}"
+				},
+				{
+					"name": "BETTER_AUTH_TRUSTED_ORIGINS",
+					"value": "${BETTER_AUTH_TRUSTED_ORIGINS}"
+				},
+				{
+					"name": "GOOGLE_CLIENT_ID",
+					"value": "${GOOGLE_CLIENT_ID}"
+				},
 				{
 					"name": "GOOGLE_CLIENT_SECRET",
 					"value": "${GOOGLE_CLIENT_SECRET}"

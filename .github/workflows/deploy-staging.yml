@@ -39,9 +39,10 @@ env:
 
   # Authentication (Better Auth)
   BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+  BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
 
   # Backend Environment Variables
-  API_VERSION: "1"
+  CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
 
   # Database
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -90,6 +91,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
           LATEST_TAG: latest
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL_STAGING }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_API_VERSION: ${{ env.NEXT_PUBLIC_API_VERSION }}
         run: |
           echo "=========================================="
           echo "Building Web Docker Image (Staging)"
@@ -100,6 +104,9 @@ jobs:
 
           docker buildx build \
             --file apps/web/Dockerfile \
+            --build-arg NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+            --build-arg NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
+            --build-arg NEXT_PUBLIC_API_VERSION=$NEXT_PUBLIC_API_VERSION \
             --cache-from type=local,src=/tmp/.buildx-cache \
             --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --push \
@@ -150,7 +157,8 @@ jobs:
         id: update-task-def-web
         env:
           NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL_STAGING }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_API_VERSION: ${{ env.NEXT_PUBLIC_API_VERSION }}
         run: |
           echo "=========================================="
           echo "Updating Web Task Definition (Staging)"
@@ -200,9 +208,9 @@ jobs:
       - name: Update Backend task definition
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          API_VERSION: "1"
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.NEXT_PUBLIC_BETTER_AUTH_TRUSTED_ORIGINS }}
+          BETTER_AUTH_TRUSTED_ORIGINS: ${{ secrets.BETTER_AUTH_TRUSTED_ORIGINS }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         id: update-task-def-backend
