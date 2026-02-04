@@ -30,7 +30,7 @@ export const env = createEnv({
 		// Public URLs
 		NEXT_PUBLIC_APP_URL: z.url(),
 		NEXT_PUBLIC_API_BASE_URL: z.url(),
-		NEXT_PUBLIC_API_VERSION: z.string().default("1"),
+		NEXT_PUBLIC_API_VERSION: z.string(),
 	},
 
 	/**
