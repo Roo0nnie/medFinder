@@ -11,14 +11,13 @@
 		"prefix": ""
 	},
 	"iconLibrary": "hugeicons",
+	"menuColor": "default",
+	"menuAccent": "bold",
 	"aliases": {
 		"components": "@/core/components",
 		"utils": "@/core/lib/utils",
 		"ui": "@/core/components/ui",
 		"lib": "@/core/lib",
 		"hooks": "@/core/hooks"
-	},
-	"menuColor": "default",
-	"menuAccent": "bold",
-	"registries": {}
+	}
 }
