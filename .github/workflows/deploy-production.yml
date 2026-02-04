@@ -4,7 +4,16 @@ on:
   push:
     branches:
       - production
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
   workflow_dispatch:
+
+# Cancel in-progress deployments when a new commit is pushed
+concurrency:
+  group: deploy-production-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   # ==========================================================

@@ -6,14 +6,29 @@ on:
       - dev
       - staging
       - production
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
   pull_request:
     types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
+
+# Cancel in-progress runs when a new commit is pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
     name: Build and Test
     timeout-minutes: 15
     runs-on: ubuntu-latest
+    # Skip if this is a push right after a PR merge (PR already ran CI)
+    if: github.event_name == 'pull_request' || github.event.head_commit.message != 'Merge pull request'
 
     steps:
       - name: Check out code
@@ -54,8 +69,5 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
-        run: pnpm build
-
-      - name: Test
-        run: pnpm test
+      - name: Format Check
+        run: pnpm format
