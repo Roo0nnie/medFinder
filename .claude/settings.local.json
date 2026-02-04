@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(flutter pub get:*)",
-      "Bash(flutter analyze:*)"
+      "Bash(flutter analyze:*)",
+      "Bash(tree:*)",
+      "Bash(dir /b \"D:\\\\PROJECTS\\\\turbo-template\\\\packages\\\\db\\\\src\"\")",
+      "Bash(del \"D:\\\\PROJECTS\\\\turbo-template\\\\apps\\\\mobile\\\\lib\\\\services\\\\auth_service.dart\")",
+      "WebSearch",
+      "Bash(dart run build_runner:*)",
+      "Bash(test:*)",
+      "Bash(ipconfig:*)",
+      "WebFetch(domain:www.better-auth.com)"
     ]
   }
 }
