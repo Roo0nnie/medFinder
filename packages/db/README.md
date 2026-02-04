@@ -1,67 +1,59 @@
 # @repo/db
 
-Framework-agnostic Drizzle ORM database package with schema definitions and database client. Optional NestJS integration available.
+Drizzle ORM database package with schema definitions and client.
 
-## Framework-Agnostic Usage (Any Framework)
+## Structure
 
-This package works with any Node.js framework - NestJS is completely optional.
+```
+packages/db/
+├── src/
+│   ├── client.ts         # Database client factory
+│   ├── schema.ts         # Schema exports
+│   └── utils/            # Database utilities
+├── drizzle.config.ts     # Drizzle configuration
+└── package.json
+```
 
-### Direct Client Usage
+## Usage
 
 ```typescript
-import { createDrizzleClient } from "@repo/db/client"
-import { todos } from "@repo/db/schema"
+import { db } from "@repo/db"
+import { todos, users } from "@repo/db/schema"
 
-const db = createDrizzleClient()
+// Query examples
 const allTodos = await db.select().from(todos)
+const user = await db.query.users.findFirst({ where: eq(users.id, "123") })
 ```
 
-The `createDrizzleClient()` function creates a Drizzle client configured with your schema. It requires the `DATABASE_URL` environment variable.
+## Environment Variables
 
-### Schema Only
-
-If you just need the schema definitions:
-
-```typescript
-// Use in your own Drizzle setup
-import { drizzle } from "drizzle-orm/node-postgres"
-
-import { schema, todos } from "@repo/db/schema"
-
-const db = drizzle(pool, { schema })
-```
-
-## Optional NestJS Integration
-
-If you're using NestJS and want dependency injection, import from the `/database` subpath:
-
-```typescript
-import { DatabaseModule } from "@repo/db/database"
-
-@Module({
-	imports: [DatabaseModule],
-})
-export class AppModule {}
-```
-
-Then inject in your services:
-
-```typescript
-import { Inject } from "@nestjs/common"
-
-import { DRIZZLE_DB, type DrizzleDb } from "@repo/db/database"
-
-@Injectable()
-export class MyService {
-	constructor(@Inject(DRIZZLE_DB) private readonly db: DrizzleDb | null) {}
-}
-```
-
-**Note:** NestJS is an optional peer dependency. You only need `@nestjs/common` if you use the `/database` export.
+| Variable       | Description                  |
+| -------------- | ---------------------------- |
+| `DATABASE_URL` | PostgreSQL connection string |
 
 ## Scripts
 
-- `pnpm push` - Push schema changes to database
-- `pnpm studio` - Open Drizzle Studio
-- `pnpm generate` - Generate migration files
-- `pnpm migrate` - Run migrations
+| Command            | Description             |
+| ------------------ | ----------------------- |
+| `pnpm db:push`     | Push schema to database |
+| `pnpm db:studio`   | Open Drizzle Studio     |
+| `pnpm db:generate` | Generate migrations     |
+| `pnpm db:migrate`  | Run migrations          |
+
+## Adding Tables
+
+1. Create schema in `src/schema/`:
+
+```typescript
+// src/schema/posts.ts
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core"
+
+export const posts = pgTable("posts", {
+	id: text("id").primaryKey(),
+	title: text("title").notNull(),
+	createdAt: timestamp("created_at").defaultNow(),
+})
+```
+
+2. Export from `src/schema/index.ts`
+3. Run `pnpm db:push` to sync with database

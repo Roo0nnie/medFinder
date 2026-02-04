@@ -1,96 +1,79 @@
 # @repo/contracts
 
-Contract-based API schemas and DTOs using Zod for type-safe validation and OpenAPI documentation generation.
+Shared API contracts using Zod schemas and DTOs for type-safe validation.
 
-## Overview
-
-This package provides a centralized location for API contracts using Zod schemas. These schemas serve as the single source of truth for:
-
-- **Type Safety**: TypeScript types are automatically inferred from Zod schemas
-- **Validation**: Runtime validation for API requests and responses
-- **Documentation**: Auto-generated OpenAPI/Swagger documentation via `nestjs-zod`
-
-## Architecture
+## Structure
 
 ```
 packages/contracts/
 ├── src/
-│   ├── v1/
-│   │   ├── examples/
-│   │   │   └── todos/
-│   │   │       ├── todo.schema.ts
-│   │   │       └── todo.dto.ts
-│   │   └── auth/
-│   │       ├── auth.schema.ts
-│   │       └── auth.dto.ts
-│   └── index.ts
+│   ├── index.ts          # Public exports
+│   ├── common/           # Shared schemas (pagination, errors)
+│   │   └── common.contract.ts
+│   ├── modules/v1/       # Versioned API contracts
+│   │   └── [feature]/
+│   │       └── [feature].contract.ts
+│   └── utils/            # DTO generator utilities
+│       └── dto-generator.ts
+└── package.json
 ```
 
 ## Usage
 
-### In Backend (NestJS)
-
-1. Import DTOs from the contracts package:
-
 ```typescript
-import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
+import { CreateTodoDto, CreateTodoSchema, type CreateTodo } from "@repo/contracts"
 
-@Controller("todos")
-export class TodosController {
-  @Post()
-  async create(@Body() payload: CreateTodoDto) {
-    // payload is validated and typed
-  }
+// Use schema for validation
+const result = CreateTodoSchema.safeParse(data)
+
+// Use type for TypeScript
+const todo: CreateTodo = { title: "My Todo" }
+
+// Use DTO in NestJS controllers
+@Post()
+async create(@Body() payload: CreateTodoDto) {
+  // payload is validated by Zod
 }
 ```
 
-2. The DTOs are automatically validated using `ZodValidationPipe` configured globally in `main.ts`
+## Structure
 
-3. OpenAPI documentation is automatically generated from the Zod schemas
-
-### Defining New Contracts
-
-1. Create a Zod schema in the appropriate module directory (e.g., `src/v1/examples/todos/todo.schema.ts`):
-
-```typescript
-import { z } from "zod"
-
-export const CreateUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1).max(255),
-  age: z.number().int().positive().optional(),
-})
-
-export type CreateUser = z.infer<typeof CreateUserSchema>
+```
+src/
+├── common/           # Shared schemas (pagination, errors)
+├── modules/v1/       # Versioned API contracts
+│   └── [feature]/
+│       └── [feature].contract.ts
+├── utils/            # DTO generator utilities
+└── index.ts          # Public exports
 ```
 
-2. Create a DTO in the same directory (e.g., `src/v1/examples/todos/todo.dto.ts`):
+## Adding Contracts
+
+1. Create contract file:
 
 ```typescript
+// src/modules/v1/users/users.contract.ts
 import { createZodDto } from "nestjs-zod"
-import { CreateUserSchema } from "./user.schema"
+import { z } from "zod"
 
+// Schema
+export const CreateUserSchema = z.object({
+	email: z.string().email(),
+	name: z.string().min(1).max(255),
+})
+
+// Type (inferred from schema)
+export type CreateUser = z.infer<typeof CreateUserSchema>
+
+// DTO (for NestJS validation)
 export class CreateUserDto extends createZodDto(CreateUserSchema) {}
 ```
 
-3. Export from `src/index.ts`:
-
-```typescript
-export * from "./v1/examples/users/user.schema"
-export * from "./v1/examples/users/user.dto"
-```
+2. Export from `src/index.ts`
 
 ## Benefits
 
-- **Single Source of Truth**: Zod schemas define both validation and TypeScript types
-- **Auto-Generated Documentation**: OpenAPI docs generated from Zod schemas via `nestjs-zod`
-- **Type Safety**: End-to-end type safety from contract to implementation
-- **Shared Contracts**: Contracts can be used across backend, frontend, and mobile apps
-- **Better Developer Experience**: Changes to schemas automatically update types and docs
-- **Organized by Module**: Contracts are organized by API version and module for better maintainability
-
-## Scripts
-
-- `pnpm build` - Build the package
-- `pnpm dev` - Watch mode for development
-- `pnpm typecheck` - Type check without building
+- **Single source of truth** — Schema defines validation + TypeScript types
+- **Auto-generated docs** — OpenAPI/Swagger from Zod schemas
+- **Shared across apps** — Same contracts for backend, web, mobile
