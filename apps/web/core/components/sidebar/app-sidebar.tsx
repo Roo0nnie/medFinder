@@ -1,0 +1,56 @@
+"use client"
+
+import * as React from "react"
+import Link from "next/link"
+import { GitbookFreeIcons } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+
+import { type User } from "@repo/auth"
+
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarRail,
+} from "@/core/components/ui/sidebar"
+
+import { LogoIcon } from "../logo"
+import { mainNavItems, NavMain } from "./nav-main"
+import { demoProjects, NavProjects } from "./nav-projects"
+import { NavSecondary, secondaryNavItems } from "./nav-secondary"
+import { NavUser } from "./nav-user"
+
+export function AppSidebar({ user }: { user: User }) {
+	return (
+		<Sidebar collapsible="icon" variant="inset">
+			<SidebarRail />
+			<SidebarHeader>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton render={<Link href="/" className="flex items-center gap-2.5" />}>
+							<div className="flex shrink-0 items-center justify-center">
+								<LogoIcon />
+							</div>
+							<div className="grid flex-1 text-left text-sm leading-tight">
+								<span className="truncate font-semibold">Acme Inc</span>
+								<span className="text-muted-foreground truncate text-xs">Enterprise</span>
+							</div>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarHeader>
+			<SidebarContent>
+				<NavMain items={mainNavItems} />
+				<NavProjects projects={demoProjects} />
+				<NavSecondary items={secondaryNavItems} />
+			</SidebarContent>
+			<SidebarFooter>
+				<NavUser user={user} />
+			</SidebarFooter>
+		</Sidebar>
+	)
+}
