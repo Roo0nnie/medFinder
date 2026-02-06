@@ -10,7 +10,7 @@ import { db } from "@/common/database/database.client"
 export class TodosService {
 	async findAll(): Promise<Todo[]> {
 		const result = await db.select().from(todos).orderBy(desc(todos.updatedAt))
-    return result
+		return result
 	}
 
 	async findOne(id: number): Promise<Todo> {
