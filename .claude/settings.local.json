@@ -12,7 +12,17 @@
       "Bash(ipconfig:*)",
       "WebFetch(domain:www.better-auth.com)",
       "Bash(flutter pub deps:*)",
-      "WebFetch(domain:pub.dev)"
+      "WebFetch(domain:pub.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(where /r \"D:\\\\PROJECTS\\\\turbo-template\\\\apps\\\\mobile\" \"awesome_snackbar_content.dart\")",
+      "Bash(dart pub cache:*)",
+      "Bash(findstr:*)",
+      "Bash(flutter pub cache:*)",
+      "Bash(dir /s /b \"%LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\awesome_snackbar_content*\")",
+      "Bash(cmd /c \"dir /s /b %LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\awesome_snackbar_content* 2>nul\")",
+      "Bash(cmd /c \"dir /s /b %LOCALAPPDATA%\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev\\\\ 2>nul\")",
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ]
   }
 }

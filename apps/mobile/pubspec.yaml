@@ -46,6 +46,12 @@ dependencies:
   # Onboarding
   introduction_screen: ^3.1.14
 
+  # Snackbar notifications
+  awesome_snackbar_content: ^0.1.8
+
+  # Toast notifications
+  toastification: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

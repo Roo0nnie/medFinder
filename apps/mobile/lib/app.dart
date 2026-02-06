@@ -9,6 +9,7 @@ import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:mobile/features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'package:mobile/features/settings/presentation/screens/appearance_screen.dart';
+import 'package:toastification/toastification.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   final isAuthenticated = ref.watch(isAuthenticatedProvider);
@@ -97,13 +98,21 @@ class App extends ConsumerWidget {
     final lightTheme = ref.watch(lightThemeProvider);
     final darkTheme = ref.watch(darkThemeProvider);
 
-    return MaterialApp.router(
-      title: 'Turbo Template',
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme,
-      darkTheme: darkTheme,
-      themeMode: themeMode,
-      routerConfig: router,
+    return ToastificationWrapper(
+      config: ToastificationConfig(
+        alignment: Alignment.topCenter,
+        animationDuration: const Duration(milliseconds: 300),
+        marginBuilder: (context, alignment) =>
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+      child: MaterialApp.router(
+        title: 'Turbo Template',
+        debugShowCheckedModeBanner: false,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        themeMode: themeMode,
+        routerConfig: router,
+      ),
     );
   }
 }
