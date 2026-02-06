@@ -12,11 +12,7 @@ import { Spinner } from "@/core/components/ui/spinner"
 import { useCreateTodoMutation } from "../api/todos.hooks"
 
 export function AddTodoForm() {
-	const {
-		mutateAsync: addTodo,
-		isPending,
-		error,
-	} = useCreateTodoMutation()
+	const { mutateAsync: addTodo, isPending, error } = useCreateTodoMutation()
 
 	const form = useForm({
 		defaultValues: {
