@@ -13,15 +13,6 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await ref.read(authStateProvider.notifier).signOut();
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: Padding(

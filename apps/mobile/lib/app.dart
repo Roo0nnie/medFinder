@@ -1,33 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/theme/app_theme.dart';
+import 'package:mobile/core/navigation/persistent_nav_bar.dart';
+import 'package:mobile/core/theme/theme_provider.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:mobile/features/auth/presentation/screens/register_screen.dart';
-import 'package:mobile/features/dashboard/presentation/screens/dashboard_screen.dart';
-import 'package:mobile/features/todos/presentation/screens/todos_screen.dart';
-import 'package:mobile/shared/widgets/app_scaffold.dart';
+import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
+import 'package:mobile/features/onboarding/presentation/screens/onboarding_screen.dart';
+import 'package:mobile/features/settings/presentation/screens/appearance_screen.dart';
 
 final _routerProvider = Provider<GoRouter>((ref) {
   final isAuthenticated = ref.watch(isAuthenticatedProvider);
+  final hasCompletedOnboarding = ref.watch(hasCompletedOnboardingProvider);
 
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/onboarding',
     redirect: (context, state) {
-      final onAuthRoute = state.uri.path == '/login' || state.uri.path == '/register';
+      final onOnboardingRoute = state.uri.path == '/onboarding';
+      final onAuthRoute =
+          state.uri.path == '/login' || state.uri.path == '/register';
 
-      if (!isAuthenticated && !onAuthRoute) {
-        return '/login';
+      // If onboarding hasn't been completed, redirect to onboarding
+      // (unless already there)
+      if (!hasCompletedOnboarding && !onOnboardingRoute) {
+        return '/onboarding';
       }
 
-      if (isAuthenticated && onAuthRoute) {
-        return '/dashboard';
+      // If onboarding is completed but user tries to access it, redirect away
+      if (hasCompletedOnboarding && onOnboardingRoute) {
+        return isAuthenticated ? '/home' : '/login';
+      }
+
+      // Standard auth flow redirects (only after onboarding is complete)
+      if (hasCompletedOnboarding) {
+        if (!isAuthenticated && !onAuthRoute && !onOnboardingRoute) {
+          return '/login';
+        }
+
+        if (isAuthenticated && onAuthRoute) {
+          return '/home';
+        }
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -36,22 +58,34 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      ShellRoute(
-        builder: (context, state, child) => AppScaffold(child: child),
-        routes: [
-          GoRoute(
-            path: '/dashboard',
-            builder: (context, state) => const DashboardScreen(),
-          ),
-          GoRoute(
-            path: '/todos',
-            builder: (context, state) => const TodosScreen(),
-          ),
-        ],
+      // Main app with persistent bottom navigation
+      GoRoute(
+        path: '/home',
+        builder: (context, state) => const MainNavigation(),
+      ),
+      // Settings routes
+      GoRoute(
+        path: '/settings/appearance',
+        builder: (context, state) => const AppearanceScreen(),
       ),
     ],
   );
 });
+
+/// Main navigation wrapper that contains the persistent bottom navigation bar.
+///
+/// This widget manages the bottom navigation and maintains state across tabs.
+class MainNavigation extends StatelessWidget {
+  const MainNavigation({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Use the default Style1 navigation bar
+    // You can switch to PersistentNavBarStyle3 or PersistentNavBarNeumorphic
+    // for different visual styles.
+    return const PersistentNavBar();
+  }
+}
 
 class App extends ConsumerWidget {
   const App({super.key});
@@ -59,13 +93,16 @@ class App extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final lightTheme = ref.watch(lightThemeProvider);
+    final darkTheme = ref.watch(darkThemeProvider);
 
     return MaterialApp.router(
       title: 'Turbo Template',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }
