@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
-import { eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 
 import { CreateTodoDto, UpdateTodoDto } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
@@ -9,7 +9,7 @@ import { db } from "@/common/database/database.client"
 @Injectable()
 export class TodosService {
 	async findAll() {
-		return db.select().from(todos)
+		return db.select().from(todos).orderBy(desc(todos.updatedAt))
 	}
 
 	async create(payload: CreateTodoDto, authorId: string) {

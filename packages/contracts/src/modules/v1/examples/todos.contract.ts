@@ -16,9 +16,9 @@ export const TodoSchema = z.object({
 	updatedAt: z.iso.datetime(),
 })
 
-export const CreateTodoSchema = TodoSchema.pick({
-	title: true,
-	completed: true,
+export const CreateTodoSchema = z.object({
+	title: z.string().min(1, "Title is required"),
+	completed: z.boolean().default(false),
 })
 
 export const UpdateTodoSchema = TodoSchema.pick({
@@ -31,6 +31,8 @@ export const UpdateTodoSchema = TodoSchema.pick({
 // ============================================================================
 
 export type Todo = z.infer<typeof TodoSchema>
+export type CreateTodo = z.infer<typeof CreateTodoSchema>
+export type UpdateTodo = z.infer<typeof UpdateTodoSchema>
 
 // ============================================================================
 // DTOs
