@@ -10,7 +10,9 @@
       "Bash(dart run build_runner:*)",
       "Bash(test:*)",
       "Bash(ipconfig:*)",
-      "WebFetch(domain:www.better-auth.com)"
+      "WebFetch(domain:www.better-auth.com)",
+      "Bash(flutter pub deps:*)",
+      "WebFetch(domain:pub.dev)"
     ]
   }
 }
