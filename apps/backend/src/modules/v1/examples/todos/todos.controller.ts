@@ -1,7 +1,7 @@
 import { Controller } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
-import { AllowAnonymous, Session, type UserSession } from "@thallesp/nestjs-better-auth"
+import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { contract } from "@repo/contracts"
 
@@ -11,7 +11,6 @@ import { TodosService } from "./todos.service"
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}
 
-	@AllowAnonymous()
 	@Implement(contract.todo.list)
 	async listTodos() {
 		return implement(contract.todo.list).handler(async () => {
@@ -22,7 +21,7 @@ export class TodosController {
 	@Implement(contract.todo.get)
 	async getTodo() {
 		return implement(contract.todo.get).handler(async ({ input }) => {
-			return this.todosService.findOne(input.id)
+			return this.todosService.findOne(Number(input.id))
 		})
 	}
 
@@ -39,14 +38,14 @@ export class TodosController {
 	@Implement(contract.todo.update)
 	async updateTodo() {
 		return implement(contract.todo.update).handler(async ({ input }) => {
-			return this.todosService.update(input.id, input)
+			return this.todosService.update(Number(input.id), input)
 		})
 	}
 
 	@Implement(contract.todo.delete)
 	async removeTodo() {
 		return implement(contract.todo.delete).handler(async ({ input }) => {
-			return this.todosService.delete(input.id)
+			return this.todosService.delete(Number(input.id))
 		})
 	}
 }
