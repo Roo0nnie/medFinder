@@ -3,7 +3,13 @@ import { OpenAPIGenerator } from "@orpc/openapi"
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { apiReference } from "@scalar/nestjs-api-reference"
 
-import { contract } from "@repo/contracts"
+import {
+	contract,
+	CreateTodoSchema,
+	TodoIdSchema,
+	TodoSchema,
+	UpdateTodoSchema,
+} from "@repo/contracts"
 
 import { VERSION_MODULES } from "@/config/versions.config"
 import { mergeBetterAuthSchema } from "@/utils/openapi"
@@ -38,6 +44,9 @@ async function generateOpenAPIDocument(version: string) {
 					name: "better-auth.session_token",
 				},
 			},
+		},
+		commonSchemas: {
+			Todo: { schema: TodoSchema },
 		},
 	})
 }
