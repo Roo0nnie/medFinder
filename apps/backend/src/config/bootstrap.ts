@@ -1,7 +1,7 @@
 import { Logger, type INestApplication } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 
-import { MainModule } from "@/app.module"
+import { AppModule } from "@/app.module"
 import { configureApp } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/better-auth.config"
 import { env } from "@/config/env.config"
@@ -15,7 +15,7 @@ const logger = new Logger("Bootstrap")
  */
 async function createApplication(): Promise<INestApplication> {
 	logger.log("Creating NestJS application...")
-	const app = await NestFactory.create(MainModule, { bodyParser: false })
+	const app = await NestFactory.create(AppModule, { bodyParser: false })
 
 	configureApp(app)
 	setupVersioning(app)

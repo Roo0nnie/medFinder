@@ -15,6 +15,7 @@ export const todoContract = {
 			summary: "List all todos",
 			description: "Retrieve all todo items",
 			tags: ["Todos"],
+			spec: spec => ({ ...spec, security: [] }),
 		})
 		.output(z.array(TodoSchema)),
 
@@ -62,7 +63,7 @@ export const todoContract = {
 		})
 		.input(
 			z.object({
-				id: z.coerce.number().int().positive(),
+				id: z.coerce.number().int().min(1),
 				title: z.string().min(1).max(200).optional(),
 				description: z.string().max(1000).optional(),
 				completed: z.boolean().optional(),

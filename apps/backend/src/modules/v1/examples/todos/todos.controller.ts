@@ -1,7 +1,7 @@
 import { Controller } from "@nestjs/common"
 import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
-import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
+import { AllowAnonymous, Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { contract } from "@repo/contracts"
 
@@ -11,6 +11,7 @@ import { TodosService } from "./todos.service"
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}
 
+	@AllowAnonymous()
 	@Implement(contract.todo.list)
 	async listTodos() {
 		return implement(contract.todo.list).handler(async () => {

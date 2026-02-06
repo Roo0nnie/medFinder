@@ -18,6 +18,7 @@ export const healthContract = {
 			summary: "Health check",
 			description: "Returns the health status of the API and its dependencies",
 			tags: ["Health"],
+			spec: spec => ({ ...spec, security: [] }),
 		})
 		.output(HealthCheckSchema),
 }

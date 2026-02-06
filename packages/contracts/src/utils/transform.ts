@@ -27,10 +27,10 @@ export function transformTodos<T extends { createdAt: string | Date }>(
  * Generic date field transformer for any entity
  * Useful for entities with multiple date fields
  */
-export function transformDateFields<T extends Record<string, any>, K extends keyof T>(
-	obj: T,
-	dateFields: K[]
-): T {
+export function transformDateFields<
+	T extends Record<string, string | Date | unknown>,
+	K extends keyof T,
+>(obj: T, dateFields: K[]): T {
 	const result = { ...obj }
 	for (const field of dateFields) {
 		if (typeof result[field] === "string") {

@@ -29,6 +29,19 @@ async function generateOpenAPIDocument(version: string) {
 			version,
 		},
 		servers: [{ url: `/api` }],
+		security: [{ cookieAuth: [] }],
+		components: {
+			securitySchemes: {
+				cookieAuth: {
+					type: "apiKey",
+					in: "cookie",
+					name: "better-auth.session_token",
+					description:
+						"Better Auth session cookie. Sent automatically with credentials: 'include'.",
+					summary: "Cookie Authentication RAWR",
+				},
+			},
+		},
 	})
 }
 
