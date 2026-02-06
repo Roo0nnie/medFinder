@@ -13,8 +13,14 @@ import { env } from "@/env"
  */
 const link = new OpenAPILink(contract, {
 	url: env.NEXT_PUBLIC_API_BASE_URL,
-	headers: {
-		"Content-Type": "application/json",
+	fetch: (url, init) => {
+		return fetch(url, {
+			...init,
+			credentials: "include",
+			headers: {
+				"Content-Type": "application/json",
+			},
+		})
 	},
 })
 

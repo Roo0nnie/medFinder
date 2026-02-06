@@ -4,14 +4,20 @@ import { z } from "zod"
 // SCHEMAS
 // ============================================================================
 
-export const TodoSchema = z.object({
+const baseToDoSchema = z.object({
 	id: z.number().int().positive(),
 	title: z.string().min(1, "Title is required").max(255, "Title too long"),
 	completed: z.boolean().default(false),
 	authorId: z.string(),
-	createdAt: z.date().default(new Date()),
-	updatedAt: z.date().default(new Date()),
+	createdAt: z
+		.union([z.date(), z.string()])
+		.transform(val => (typeof val === "string" ? new Date(val) : val)),
+	updatedAt: z
+		.union([z.date(), z.string()])
+		.transform(val => (typeof val === "string" ? new Date(val) : val)),
 })
+
+export const TodoSchema = baseToDoSchema
 
 export const TodoIdSchema = z.object({
 	id: z.coerce.number().int().positive(),
