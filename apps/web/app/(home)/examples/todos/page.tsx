@@ -5,8 +5,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { useForm } from "@tanstack/react-form"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { type Todo } from "@repo/contracts"
-
 import { Alert, AlertDescription } from "@/core/components/ui/alert"
 import { Button } from "@/core/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
@@ -15,19 +13,14 @@ import { Field, FieldGroup } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/core/components/ui/item"
 import { Spinner } from "@/core/components/ui/spinner"
-import { orpc } from "@/services/orpc/orpc-client"
+import { orpc, type InferArrayItem } from "@/services/orpc/orpc-client"
 
 export default function TodosPage() {
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["todos"],
 		queryFn: async () => {
 			const response = await orpc.todo.list()
-			// Convert date strings to Date objects if needed
-			return response.map(todo => ({
-				...todo,
-				createdAt: typeof todo.createdAt === "string" ? new Date(todo.createdAt) : todo.createdAt,
-				updatedAt: typeof todo.updatedAt === "string" ? new Date(todo.updatedAt) : todo.updatedAt,
-			}))
+			return response
 		},
 	})
 
@@ -64,7 +57,7 @@ export default function TodosPage() {
 	)
 }
 
-function TodoItem({ todo }: { todo: Todo }) {
+function TodoItem({ todo }: { todo: InferArrayItem<typeof orpc.todo.list> }) {
 	const queryClient = useQueryClient()
 
 	const { mutate: toggleTodo, isPending } = useMutation({
@@ -84,6 +77,7 @@ function TodoItem({ todo }: { todo: Todo }) {
 					checked={todo.completed}
 					disabled={isPending}
 					onCheckedChange={() => toggleTodo({ id: todo.id, completed: !todo.completed })}
+					className="hover:cursor-pointer"
 				/>
 			</ItemMedia>
 			<ItemContent>

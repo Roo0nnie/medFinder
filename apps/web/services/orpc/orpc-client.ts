@@ -34,3 +34,28 @@ export const orpc: JsonifiedClient<ContractRouterClient<Contract>> = createORPCC
  * Export contract type for use in components
  */
 export type { Contract }
+
+/**
+ * Type inference helpers for oRPC procedures
+ */
+
+/**
+ * Infer the output type of an oRPC procedure
+ * @example type TodoList = InferProcedureOutput<typeof orpc.todo.list>
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type InferProcedureOutput<T extends (...args: any[]) => any> = Awaited<ReturnType<T>>
+
+/**
+ * Infer the input type of an oRPC procedure
+ * @example type CreateTodoInput = InferProcedureInput<typeof orpc.todo.create>
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type InferProcedureInput<T extends (...args: any[]) => any> = Parameters<T>[0]
+
+/**
+ * Infer a single item from an array-returning oRPC procedure
+ * @example type Todo = InferArrayItem<typeof orpc.todo.list>
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type InferArrayItem<T extends (...args: any[]) => any> = Awaited<ReturnType<T>>[number]
