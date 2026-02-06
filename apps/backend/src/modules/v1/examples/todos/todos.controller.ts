@@ -1,86 +1,51 @@
-import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	Param,
-	ParseIntPipe,
-	Patch,
-	Post,
-	Put,
-} from "@nestjs/common"
-import { ApiTags } from "@nestjs/swagger"
+import { Controller } from "@nestjs/common"
+import { Implement } from "@orpc/nest"
+import { implement } from "@orpc/server"
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
-import { CreateTodoDto, TodoDto, TodoListDto, UpdateTodoDto } from "@repo/contracts"
-
-import { ApiEndpoint } from "@/common/decorators/api-endpoint.decorator"
+import { contract } from "@repo/contracts"
 
 import { TodosService } from "./todos.service"
 
-@ApiTags("Todos")
-@Controller({ path: "examples/todos", version: "1" })
+@Controller()
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}
 
-	@Get()
-	@ApiEndpoint({
-		summary: "Retrieve all todos",
-		description: "Returns a list of all todos for the authenticated user",
-		response: TodoListDto,
-	})
-	async getTodos() {
-		return this.todosService.findAll()
+	@Implement(contract.todo.list)
+	async listTodos() {
+		return implement(contract.todo.list).handler(async () => {
+			return this.todosService.findAll()
+		})
 	}
 
-	@Get(":id")
-	@ApiEndpoint({
-		summary: "Retrieve a todo by ID",
-		description: "Returns a single todo. Returns 404 if not found.",
-		response: TodoDto,
-	})
-	async getTodo(@Param("id", ParseIntPipe) id: number) {
-		return this.todosService.findOne(id)
+	@Implement(contract.todo.get)
+	async getTodo() {
+		return implement(contract.todo.get).handler(async ({ input }) => {
+			return this.todosService.findOne(Number(input.id))
+		})
 	}
 
-	@Post()
-	@ApiEndpoint({
-		summary: "Create a new todo",
-		description: "Creates a new todo item for the authenticated user",
-		response: TodoDto,
-		status: 201,
-	})
-	async createTodo(@Body() payload: CreateTodoDto, @Session() session: UserSession) {
-		return this.todosService.create(payload, session.user.id)
+	@Implement(contract.todo.create)
+	async createTodo(
+		@Session()
+		session: UserSession
+	) {
+		return implement(contract.todo.create).handler(async ({ input }) => {
+			return this.todosService.create(input, session.user.id)
+		})
 	}
 
-	@Put(":id")
-	@ApiEndpoint({
-		summary: "Replace an existing todo",
-		description: "Replaces all fields of an existing todo with provided values",
-		response: TodoDto,
-	})
-	async replaceTodo(@Param("id", ParseIntPipe) id: number, @Body() payload: CreateTodoDto) {
-		return this.todosService.replace(id, payload)
+	@Implement(contract.todo.update)
+	async updateTodo() {
+		return implement(contract.todo.update).handler(async ({ input }) => {
+			return this.todosService.update(Number(input.id), input)
+		})
 	}
 
-	@Patch(":id")
-	@ApiEndpoint({
-		summary: "Update an existing todo",
-		description: "Updates only the fields provided in the request body",
-		response: TodoDto,
-	})
-	async updateTodo(@Param("id", ParseIntPipe) id: number, @Body() payload: UpdateTodoDto) {
-		return this.todosService.update(id, payload)
-	}
-
-	@Delete(":id")
-	@ApiEndpoint({
-		summary: "Delete a todo",
-		description: "Permanently deletes a todo and returns the deleted item",
-		response: TodoDto,
-	})
-	async removeTodo(@Param("id", ParseIntPipe) id: number) {
-		return this.todosService.remove(id)
+	@Implement(contract.todo.delete)
+	async removeTodo() {
+		return implement(contract.todo.delete).handler(async ({ input }) => {
+			return this.todosService.delete(Number(input.id))
+		})
 	}
 }

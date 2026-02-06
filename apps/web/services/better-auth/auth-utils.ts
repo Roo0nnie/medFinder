@@ -1,3 +1,5 @@
+import { cache } from "react"
+
 import { env } from "@/env"
 
 /**
@@ -6,8 +8,8 @@ import { env } from "@/env"
  *
  * @returns Full auth URL (e.g., "http://localhost:3001/api/v1/auth")
  */
-export function getAuthUrl(): string {
+export const getAuthUrl = cache((): string => {
 	const baseUrl = env.NEXT_PUBLIC_API_BASE_URL
 	const apiVersion = env.NEXT_PUBLIC_API_VERSION
 	return `${baseUrl}/${apiVersion}/auth`
-}
+})

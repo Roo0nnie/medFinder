@@ -1,9 +1,6 @@
 "use client"
 
-import * as React from "react"
 import Link from "next/link"
-import { GitbookFreeIcons } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
 
 import { type User } from "@repo/auth"
 
@@ -33,7 +30,7 @@ export function AppSidebar({ user }: { user: User }) {
 					<SidebarMenuItem>
 						<SidebarMenuButton render={<Link href="/" className="flex items-center gap-2.5" />}>
 							<div className="flex shrink-0 items-center justify-center">
-								<LogoIcon />
+								<LogoIcon className="text-foreground" />
 							</div>
 							<div className="grid flex-1 text-left text-sm leading-tight">
 								<span className="truncate font-semibold">Acme Inc</span>

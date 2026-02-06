@@ -7,10 +7,9 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from "nestjs-zod"
 import { getAuth } from "@repo/auth"
 
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter"
-import { ResponseWrapperInterceptor } from "@/common/interceptors/response-wrapper.interceptor"
 import { V1Module } from "@/modules/v1/v1.module"
-import { V2Module } from "@/modules/v2/v2.module"
 
+import { ORPCCommonModule } from "./common/orpc/orpc.module"
 import { env } from "./config/env.config"
 
 @Module({
@@ -23,19 +22,16 @@ import { env } from "./config/env.config"
 		}),
 		// Authentication (controllers disabled - we register versioned routes in setupBetterAuth)
 		AuthModule.forRoot({ auth: getAuth(), disableControllers: true }),
+		// oRPC setup
+		ORPCCommonModule,
 		// Versioned modules
 		V1Module,
-		V2Module,
 	],
 	providers: [
 		// Global providers
 		{
 			provide: APP_PIPE,
 			useClass: ZodValidationPipe,
-		},
-		{
-			provide: APP_INTERCEPTOR,
-			useClass: ResponseWrapperInterceptor,
 		},
 		{
 			provide: APP_INTERCEPTOR,
@@ -47,4 +43,4 @@ import { env } from "./config/env.config"
 		},
 	],
 })
-export class MainModule {}
+export class AppModule {}

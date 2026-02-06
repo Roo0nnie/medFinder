@@ -1,7 +1,6 @@
 import { Logger, VersioningType, type INestApplication, type Type } from "@nestjs/common"
 
 import { V1Module } from "@/modules/v1/v1.module"
-import { V2Module } from "@/modules/v2/v2.module"
 
 const logger = new Logger("VersionsConfig")
 
@@ -15,7 +14,6 @@ const logger = new Logger("VersionsConfig")
  */
 export const VERSION_MODULES: Record<string, Type<unknown>> = {
 	v1: V1Module,
-	v2: V2Module,
 }
 
 /**

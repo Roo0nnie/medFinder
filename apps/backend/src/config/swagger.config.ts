@@ -1,66 +1,73 @@
 import { Logger, type INestApplication } from "@nestjs/common"
-import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from "@nestjs/swagger"
-import type { PathsObject } from "@nestjs/swagger/dist/interfaces/open-api-spec.interface"
+import { OpenAPIGenerator } from "@orpc/openapi"
+import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4"
 import { apiReference } from "@scalar/nestjs-api-reference"
-import { cleanupOpenApiDoc } from "nestjs-zod"
 
-import { NEUTRAL_MODULES, VERSION_MODULES } from "@/config/versions.config"
+import {
+	contract,
+	CreateTodoSchema,
+	TodoIdSchema,
+	TodoSchema,
+	UpdateTodoSchema,
+} from "@repo/contracts"
+
+import { VERSION_MODULES } from "@/config/versions.config"
 import { mergeBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("SwaggerConfig")
 
 /**
- * Filter OpenAPI paths to only include routes for a specific version
+ * Generate an OpenAPI document from oRPC contracts
  *
- * NestJS URI versioning creates paths like /api/v1/examples/todos
- * This filters paths to only include those matching the version prefix
+ * Uses oRPC's native OpenAPIGenerator to produce a spec directly from contracts.
+ * This ensures paths, summaries, descriptions, tags, and response schemas are all
+ * derived from the contract definitions — no NestJS route scanning needed.
  */
-function filterPathsByVersion(paths: PathsObject, version: string): PathsObject {
-	const versionPrefix = `/api/${version}/`
-	const filtered: PathsObject = {}
+async function generateOpenAPIDocument(version: string) {
+	const generator = new OpenAPIGenerator({
+		schemaConverters: [new ZodToJsonSchemaConverter()],
+	})
 
-	for (const [path, pathItem] of Object.entries(paths)) {
-		if (path.startsWith(versionPrefix)) {
-			filtered[path] = pathItem
-		}
-	}
-
-	return filtered
+	return generator.generate(contract, {
+		info: {
+			title: `API Documentation ${version}`,
+			description: `Type-safe API with auto-generated documentation for version ${version}`,
+			version,
+		},
+		servers: [{ url: `/api` }],
+		security: [{ cookieAuth: [] }],
+		components: {
+			securitySchemes: {
+				cookieAuth: {
+					type: "apiKey",
+					in: "cookie",
+					name: "better-auth.session_token",
+				},
+			},
+		},
+		commonSchemas: {
+			Todo: { schema: TodoSchema },
+		},
+	})
 }
 
 /**
- * Create an OpenAPI document for a specific version
- *
- * Scans ALL modules but filters paths to only include the target version.
- * This approach works better than `include` option with nested module hierarchies.
- */
-function createSwaggerDocument(app: INestApplication, version: string): OpenAPIObject {
-	const config = new DocumentBuilder()
-		.setTitle(`API Documentation ${version}`)
-		.setDescription(`Type-safe API with auto-generated documentation for version ${version}`)
-		.setVersion(version)
-		.build()
-
-	const fullDoc = SwaggerModule.createDocument(app, config) as OpenAPIObject
-
-	return {
-		...fullDoc,
-		paths: filterPathsByVersion(fullDoc.paths ?? {}, version),
-	}
-}
-
-/**
- * Set up Swagger UI and Scalar docs for a specific version
+ * Set up Scalar docs for a specific version
  */
 async function setupVersionedDocs(app: INestApplication, version: string): Promise<void> {
-	const baseDoc = createSwaggerDocument(app, version)
+	const baseDoc = await generateOpenAPIDocument(version)
 	const mergedDoc = await mergeBetterAuthSchema(baseDoc, version)
 	const basePath = `api/${version}`
 
-	SwaggerModule.setup(basePath, app, cleanupOpenApiDoc(mergedDoc) as OpenAPIObject)
-	app.use(`/${basePath}/docs`, apiReference({ content: mergedDoc, theme: "none" }))
+	// Serve the OpenAPI spec as JSON
+	app.getHttpAdapter().get(`/${basePath}/spec.json`, (_req: unknown, res: any) => {
+		res.json(mergedDoc)
+	})
 
-	logger.log(`Documentation available at /${basePath} and /${basePath}/docs`)
+	// Serve Scalar API reference
+	app.use(`/${basePath}/docs`, apiReference({ url: `/${basePath}/spec.json`, theme: "none" }))
+
+	logger.log(`Documentation available at /${basePath}/spec.json and /${basePath}/docs`)
 }
 
 /**
@@ -75,10 +82,6 @@ export async function setupSwagger(app: INestApplication): Promise<void> {
 	}
 
 	logger.log(`Setting up documentation for versions: ${versions.join(", ")}`)
-
-	if (NEUTRAL_MODULES.length > 0) {
-		logger.log(`Neutral modules: ${NEUTRAL_MODULES.map(m => m.name).join(", ")}`)
-	}
 
 	for (const version of versions) {
 		await setupVersionedDocs(app, version)

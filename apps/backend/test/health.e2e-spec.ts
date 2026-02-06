@@ -3,7 +3,7 @@ import { Test, type TestingModule } from "@nestjs/testing"
 import request from "supertest"
 import { type App } from "supertest/types"
 
-import { MainModule } from "@/app.module"
+import { AppModule } from "@/app.module"
 import { db } from "@/common/database/database.client"
 
 const API_PREFIX = "api"
@@ -15,7 +15,7 @@ describe("Health (e2e)", () => {
 
 	const createTestApp = async (): Promise<INestApplication<App>> => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
-			imports: [MainModule],
+			imports: [AppModule],
 		})
 			.overrideProvider(db)
 			.useValue({
