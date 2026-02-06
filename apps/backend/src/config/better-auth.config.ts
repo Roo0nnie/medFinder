@@ -1,5 +1,4 @@
 import { Logger, type INestApplication } from "@nestjs/common"
-import type { OpenAPIObject } from "@nestjs/swagger"
 import type { IncomingMessage, ServerResponse } from "http"
 import { toNodeHandler } from "better-auth/node"
 
@@ -11,7 +10,7 @@ import { generateBetterAuthSchema } from "@/utils/openapi"
 const logger = new Logger("BetterAuthConfig")
 
 interface JsonResponse {
-	json: (body: OpenAPIObject) => void
+	json: (body: Record<string, unknown>) => void
 }
 
 /**

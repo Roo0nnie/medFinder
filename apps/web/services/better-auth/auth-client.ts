@@ -10,4 +10,4 @@ import { getAuthUrl } from "./auth-utils"
  */
 export const authClient = createAuthClient({
 	baseURL: getAuthUrl(),
-})
+}) as ReturnType<typeof createAuthClient>

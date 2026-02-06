@@ -1,6 +1,19 @@
-import type { OpenAPIObject } from "@nestjs/swagger"
-
 import { getAuth } from "@repo/auth"
+
+/** OpenAPI document shape (compatible with both oRPC and NestJS swagger output) */
+interface OpenAPIDocument {
+	openapi?: string
+	info?: Record<string, unknown>
+	servers?: Array<Record<string, unknown>>
+	paths?: Record<string, Record<string, unknown> | undefined>
+	tags?: Array<{ name: string; description?: string }>
+	components?: {
+		schemas?: Record<string, unknown>
+		securitySchemes?: Record<string, unknown>
+		[key: string]: unknown
+	}
+	[key: string]: unknown
+}
 
 /** Human-friendly operation summaries for Better Auth endpoints */
 const AUTH_OPERATION_SUMMARIES: Record<string, string> = {
@@ -58,13 +71,13 @@ function mergeComponents<T extends Record<string, unknown>>(
  * Transforms path operations by adding prefix, summaries, and mapping tags
  */
 function transformPathOperations(
-	paths: OpenAPIObject["paths"],
+	paths: OpenAPIDocument["paths"],
 	prefix: string,
 	summaries: Record<string, string>,
 	oldTag: string,
 	newTag: string
-): OpenAPIObject["paths"] {
-	const transformed: OpenAPIObject["paths"] = {}
+): OpenAPIDocument["paths"] {
+	const transformed: OpenAPIDocument["paths"] = {}
 
 	for (const [path, methods] of Object.entries(paths ?? {})) {
 		const prefixedPath = `${prefix}${path}`
@@ -96,8 +109,8 @@ function transformPathOperations(
 /**
  * Generate Better Auth OpenAPI schema
  */
-export async function generateBetterAuthSchema(): Promise<OpenAPIObject> {
-	const api = getAuth().api as unknown as { generateOpenAPISchema: () => Promise<OpenAPIObject> }
+export async function generateBetterAuthSchema(): Promise<OpenAPIDocument> {
+	const api = getAuth().api as unknown as { generateOpenAPISchema: () => Promise<OpenAPIDocument> }
 	return api.generateOpenAPISchema()
 }
 
@@ -105,11 +118,11 @@ export async function generateBetterAuthSchema(): Promise<OpenAPIObject> {
  * Merge Better Auth schema into main OpenAPI document with prefixed paths and friendly names
  */
 export async function mergeBetterAuthSchema(
-	baseDoc: OpenAPIObject,
+	baseDoc: OpenAPIDocument,
 	version: string
-): Promise<OpenAPIObject> {
+): Promise<OpenAPIDocument> {
 	try {
-		const authPrefix = `/api/${version}/auth`
+		const authPrefix = `/${version}/auth`
 		const betterAuthSchema = await generateBetterAuthSchema()
 		const oldTag = "Default"
 		const newTag = "Auth"

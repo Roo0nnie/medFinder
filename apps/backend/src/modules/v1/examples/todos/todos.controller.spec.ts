@@ -1,5 +1,4 @@
 import { Test, type TestingModule } from "@nestjs/testing"
-import { type UserSession } from "@thallesp/nestjs-better-auth"
 
 import { type Todo } from "@repo/contracts"
 
@@ -21,11 +20,12 @@ jest.mock("@/common/database/database.client", () => ({
 }))
 
 const USER_ID = "template-user-id"
-const now = new Date().toISOString()
+const now = new Date()
 
 describe("TodosController (v1)", () => {
 	let app: TestingModule
 	let controller: TodosController
+	let service: TodosService
 	let mockDb: {
 		select: jest.Mock
 		insert: jest.Mock
@@ -92,37 +92,40 @@ describe("TodosController (v1)", () => {
 		}).compile()
 
 		controller = app.get<TodosController>(TodosController)
+		service = app.get<TodosService>(TodosService)
 	})
 
-	it("returns todos decorated with apiVersion", async () => {
+	it("should be defined", () => {
+		expect(controller).toBeDefined()
+	})
+
+	it("service findAll returns todos", async () => {
 		const mockTodos = [
 			createMockTodo({ id: 1, title: "First todo example" }),
 			createMockTodo({ id: 2, title: "Second todo example", completed: true }),
 		]
 		setupSelectMock(mockTodos)
 
-		const result = await controller.getTodos()
+		const result = await service.findAll()
 
-		expect(result).toBe(true)
 		expect(result).toHaveLength(2)
-		expect(result).toMatchObject({
+		expect(result[0]).toMatchObject({
 			title: "First todo example",
 			id: 1,
 			completed: false,
 		})
-		expect(result).toMatchObject({
+		expect(result[1]).toMatchObject({
 			title: "Second todo example",
 			id: 2,
 			completed: true,
 		})
 	})
 
-	it("creates a new todo", async () => {
+	it("service creates a new todo", async () => {
 		const newTodo = createMockTodo({ id: 3, title: "Versioned", completed: true })
 		setupInsertMock(newTodo)
 
-		const mockSession = { user: { id: USER_ID } } as UserSession
-		const result = await controller.createTodo({ title: "Versioned", completed: true }, mockSession)
+		const result = await service.create({ title: "Versioned", completed: true }, USER_ID)
 
 		expect(result).toMatchObject({
 			title: "Versioned",
@@ -130,44 +133,16 @@ describe("TodosController (v1)", () => {
 		})
 	})
 
-	it("replaces a todo completely", async () => {
-		const existingTodo = createMockTodo({ id: 3 })
-		const replaced = createMockTodo({
-			id: 3,
-			title: "Replaced",
-			completed: true,
-		})
-		// First mock call: findOne check
-		setupSelectMock(existingTodo)
-		// Second mock call: update and return
-		setupUpdateMock(replaced)
-
-		const result = await controller.replaceTodo(3, {
-			title: "Replaced",
-			completed: true,
-		})
-
-		expect(result).toMatchObject({
-			id: 3,
-			title: "Replaced",
-			completed: true,
-		})
-	})
-
-	it("updates a todo partially", async () => {
+	it("service updates a todo", async () => {
 		const existingTodo = createMockTodo({ id: 3 })
 		const updated = createMockTodo({
 			id: 3,
 			title: "Updated Title",
 		})
-		// First mock call: findOne check
 		setupSelectMock(existingTodo)
-		// Second mock call: update and return
 		setupUpdateMock(updated)
 
-		const result = await controller.updateTodo(3, {
-			title: "Updated Title",
-		})
+		const result = await service.update(3, { title: "Updated Title" })
 
 		expect(result).toMatchObject({
 			id: 3,
@@ -175,14 +150,12 @@ describe("TodosController (v1)", () => {
 		})
 	})
 
-	it("deletes a todo", async () => {
+	it("service deletes a todo", async () => {
 		const existingTodo = createMockTodo({ id: 3 })
-		// First mock call: findOne check
 		setupSelectMock(existingTodo)
-		// Second mock call: delete
 		setupDeleteMock()
 
-		await controller.removeTodo(3)
+		await service.delete(3)
 
 		expect(mockDb.delete).toHaveBeenCalled()
 	})

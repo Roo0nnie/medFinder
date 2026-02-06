@@ -6,11 +6,9 @@ import type { HealthCheck } from "@repo/contracts"
 import { db } from "@/common/database/database.client"
 import { env } from "@/config/env.config"
 
-type HealthPayload = HealthCheck
-
 @Injectable()
 export class HealthService {
-	async check(): Promise<HealthPayload> {
+	async check(): Promise<HealthCheck> {
 		// System information
 		const now = new Date()
 		const uptime = Number(process.uptime().toFixed(3))
@@ -35,7 +33,7 @@ export class HealthService {
 		}
 	}
 
-	private async checkDatabase(): Promise<HealthPayload["checks"]["database"]> {
+	private async checkDatabase(): Promise<HealthCheck["checks"]["database"]> {
 		try {
 			await db.execute(sql`select 1`)
 			return { status: "up" }
