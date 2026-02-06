@@ -1,25 +1,41 @@
 "use client"
 
-import { Checkbox } from "@/core/components/ui/checkbox"
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/core/components/ui/item"
-import { orpc, type InferArrayItem } from "@/services/orpc/orpc-client"
+import { Trash } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 
-import { useUpdateTodoMutation } from "../api/todos.hooks"
+import { Button } from "@/core/components/ui/button"
+import { Checkbox } from "@/core/components/ui/checkbox"
+import {
+	Item,
+	ItemActions,
+	ItemContent,
+	ItemDescription,
+	ItemMedia,
+	ItemTitle,
+} from "@/core/components/ui/item"
+import { Spinner } from "@/core/components/ui/spinner"
+import { type InferArrayItem, type orpc } from "@/services/orpc/orpc-client"
+
+import { useDeleteTodoMutation, useUpdateTodoMutation } from "../api/todos.hooks"
 
 interface TodoItemProps {
 	todo: InferArrayItem<typeof orpc.todo.list>
 }
 
 export function TodoItem({ todo }: TodoItemProps) {
-	const { mutate: toggleTodo, isPending } = useUpdateTodoMutation()
+	const { mutate: toggleTodo, isPending: isTogglePending } = useUpdateTodoMutation()
+	const { mutate: deleteTodo, isPending: isDeletePending } = useDeleteTodoMutation()
+
+	const handleUpdate = () => toggleTodo({ id: todo.id, completed: !todo.completed })
+	const handleDelete = () => deleteTodo({ id: todo.id })
 
 	return (
 		<Item title={todo.title} variant="muted" className="border-border border">
 			<ItemMedia variant="icon">
 				<Checkbox
 					checked={todo.completed}
-					disabled={isPending}
-					onCheckedChange={() => toggleTodo({ id: todo.id, completed: !todo.completed })}
+					disabled={isTogglePending}
+					onCheckedChange={handleUpdate}
 					className="hover:cursor-pointer"
 				/>
 			</ItemMedia>
@@ -29,6 +45,18 @@ export function TodoItem({ todo }: TodoItemProps) {
 				</ItemTitle>
 				<ItemDescription>{todo.completed ? "Completed" : "Not completed"}</ItemDescription>
 			</ItemContent>
+			<ItemActions>
+				<Button
+					variant="ghost"
+					size="icon"
+					className="hover:text-destructive"
+					onClick={handleDelete}
+					disabled={isDeletePending}
+				>
+					{isDeletePending && <Spinner className="size-4 animate-spin" />}
+					<HugeiconsIcon icon={Trash} className="size-4" />
+				</Button>
+			</ItemActions>
 		</Item>
 	)
 }

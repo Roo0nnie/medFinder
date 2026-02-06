@@ -67,3 +67,22 @@ export function useUpdateTodoMutation() {
 		},
 	})
 }
+
+/**
+ * Mutation hook for deleting a todo.
+ *
+ * Invalidates the todos query on success.
+ */
+export function useDeleteTodoMutation() {
+	const queryClient = useQueryClient()
+
+	return useMutation({
+		mutationFn: async ({ id }: { id: number }) => {
+			const response = await orpc.todo.delete({ id })
+			return response
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: todosKeys.all })
+		},
+	})
+}
