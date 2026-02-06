@@ -1,5 +1,6 @@
 "use client"
 
+import type { Route } from "next"
 import Link from "next/link"
 import { ArrowRight01FreeIcons, Logout01FreeIcons } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -36,7 +37,7 @@ export function HomeCtaButton({ href, isLoggedIn }: HomeCtaButtonProps) {
 	}
 
 	return (
-		<Link href={href} className={buttonVariants({ size: "lg" })}>
+		<Link href={href as Route} className={buttonVariants({ size: "lg" })}>
 			<HugeiconsIcon icon={ArrowRight01FreeIcons} strokeWidth={2} className="size-4" />
 			Login
 		</Link>
