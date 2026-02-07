@@ -1,4 +1,4 @@
-import { getSession } from "@/features/auth/api/session.server"
+import { getSession } from "@/services/better-auth/auth-server"
 
 export async function ServerSession() {
 	const session = await getSession()

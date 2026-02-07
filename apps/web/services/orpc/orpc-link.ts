@@ -3,6 +3,7 @@ import { OpenAPILink } from "@orpc/openapi-client/fetch"
 import { contract } from "@repo/contracts"
 
 import { env } from "@/env"
+import { getCookieHeader } from "@/core/lib/cookie-utils"
 
 export function createOrpcLink() {
 	return new OpenAPILink(contract, {
@@ -14,13 +15,7 @@ export function createOrpcLink() {
 			headers.set("Content-Type", "application/json")
 
 			if (isServer) {
-				const { cookies } = await import("next/headers")
-				const cookieStore = await cookies()
-				const cookieHeader = cookieStore
-					.getAll()
-					.map(cookie => `${cookie.name}=${cookie.value}`)
-					.join("; ")
-
+				const cookieHeader = await getCookieHeader()
 				if (cookieHeader) {
 					headers.set("cookie", cookieHeader)
 				}
@@ -28,7 +23,6 @@ export function createOrpcLink() {
 
 			return fetch(url, {
 				...init,
-				credentials: "include",
 				headers,
 				...(isServer ? { cache: "no-store", next: { revalidate: 0 } } : {}),
 			})

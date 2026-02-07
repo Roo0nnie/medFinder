@@ -1,6 +1,6 @@
 import { createAuthClient } from "better-auth/react"
 
-import { getAuthUrl } from "./auth-utils"
+import { getAuthUrl } from "./lib/utils"
 
 /**
  * Better Auth client for React components.
