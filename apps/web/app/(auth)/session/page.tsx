@@ -10,7 +10,7 @@ export default async function SessionPage() {
 				<CardTitle>Session</CardTitle>
 			</CardHeader>
 			<Separator />
-			<CardContent>
+			<CardContent className="grid grid-cols-2 gap-4">
 				<ServerSession />
 				<ClientSession />
 			</CardContent>

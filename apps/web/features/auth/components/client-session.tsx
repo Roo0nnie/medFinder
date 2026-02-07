@@ -15,19 +15,13 @@ export function ClientSession() {
 		)
 	}
 
-	if (error) {
-		return (
-			<div>
-				<p className="text-sm font-medium">Client Session</p>
-				<p className="text-destructive text-xs">Error: {error.message}</p>
-			</div>
-		)
-	}
-
 	return (
-		<div>
+		<div className="overflow-x-auto">
 			<p className="text-sm font-medium">Client Session</p>
-			<pre className="text-xs">{JSON.stringify(session, null, 2)}</pre>
+			<pre className="text-xs">
+				{error && <p className="text-destructive text-xs">{error.message}</p>}
+				{!error && JSON.stringify(session, null, 2)}
+			</pre>
 		</div>
 	)
 }
