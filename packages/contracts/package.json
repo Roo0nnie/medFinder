@@ -22,8 +22,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@orpc/contract": "^1.13.4",
-		"@orpc/nest": "^1.13.4",
+		"@orpc/contract": "catalog:",
+		"@orpc/nest": "catalog:",
 		"orpc": "^0.1.1",
 		"zod": "catalog:"
 	},
