@@ -1,13 +1,14 @@
 import type { Metadata } from "next"
 import { Figtree, Geist, Geist_Mono } from "next/font/google"
 
-import "@/core/styles/globals.css"
-
 import { BreakpointIndicator } from "@/core/components/breakpoint-indicator"
 import { Toaster } from "@/core/components/ui/sonner"
 import { ThemeProvider } from "@/core/context/theme-provider"
 import { AuthProvider } from "@/services/better-auth/auth-provider"
 import { QueryProvider } from "@/services/tanstack-query/provider"
+
+import "@/core/styles/globals.css"
+import "@/services/orpc/orpc-server"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" })
 

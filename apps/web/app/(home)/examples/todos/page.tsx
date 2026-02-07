@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession } from "@/features/auth/server/session"
 import { AddTodoForm } from "@/features/todos/components/add-todo-form"
 import { TodosList } from "@/features/todos/components/todos-list"
 

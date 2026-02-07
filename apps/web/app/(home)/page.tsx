@@ -1,4 +1,4 @@
-import { getSession } from "@/services/better-auth/auth-server"
+import { getSession } from "@/features/auth/server/session"
 import { HomeCtaButton } from "@/features/home/home-cta-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
