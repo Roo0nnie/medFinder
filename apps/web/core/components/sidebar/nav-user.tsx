@@ -10,7 +10,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import { type User } from "@repo/auth"
+import type { AuthSession } from "@repo/auth"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
 import {
@@ -29,8 +29,17 @@ import {
 	useSidebar,
 } from "@/core/components/ui/sidebar"
 
-export function NavUser({ user }: { user: User }) {
+export function NavUser({ session }: { session: AuthSession | null }) {
 	const { isMobile } = useSidebar()
+
+	if (!session) {
+		return (
+			<SidebarMenuButton
+				render={<a href="/login" className="w-full">Sign In</a>}
+				size="lg"
+			/>
+		)
+	}
 
 	return (
 		<SidebarMenu>
@@ -45,12 +54,12 @@ export function NavUser({ user }: { user: User }) {
 						}
 					>
 						<Avatar className="h-8 w-8 rounded-lg">
-							<AvatarImage src={user.image ?? undefined} alt={user.name} />
+							<AvatarImage src={session.user?.image ?? undefined} alt={session.user?.name ?? ""} />
 							<AvatarFallback className="rounded-lg">CN</AvatarFallback>
 						</Avatar>
 						<div className="grid flex-1 text-left text-sm leading-tight">
-							<span className="truncate font-medium">{user.name}</span>
-							<span className="truncate text-xs">{user.email}</span>
+							<span className="truncate font-medium">{session.user?.name ?? ""}</span>
+							<span className="truncate text-xs">{session.user?.email ?? ""}</span>
 						</div>
 						<HugeiconsIcon icon={UnfoldMoreIcon} className="ml-auto size-4" strokeWidth={2} />
 					</DropdownMenuTrigger>
@@ -65,12 +74,15 @@ export function NavUser({ user }: { user: User }) {
 							<DropdownMenuLabel className="p-0 font-normal">
 								<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 									<Avatar className="h-8 w-8 rounded-lg">
-										<AvatarImage src={user.image ?? undefined} alt={user.name} />
+										<AvatarImage
+											src={session.user?.image ?? undefined}
+											alt={session.user?.name ?? ""}
+										/>
 										<AvatarFallback className="rounded-lg">CN</AvatarFallback>
 									</Avatar>
 									<div className="grid flex-1 text-left text-sm leading-tight">
-										<span className="truncate font-medium">{user.name}</span>
-										<span className="truncate text-xs">{user.email}</span>
+										<span className="truncate font-medium">{session.user?.name ?? ""}</span>
+										<span className="truncate text-xs">{session.user?.email ?? ""}</span>
 									</div>
 								</div>
 							</DropdownMenuLabel>

@@ -1,10 +1,12 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
+
 import { Skeleton } from "@/core/components/ui/skeleton"
-import { useSessionQuery } from "@/features/auth/api/session.hooks"
+import { sessionOptions } from "@/features/auth/api/session.hooks"
 
 export function ClientSession() {
-	const { data: session, isPending, error } = useSessionQuery()
+	const { data: session, isPending, error } = useQuery(sessionOptions)
 
 	if (isPending) {
 		return (

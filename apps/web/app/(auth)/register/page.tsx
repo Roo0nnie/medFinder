@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-import { getSession } from "@/features/auth/api/session.server"
+import { getSession } from "@/services/better-auth/auth-server"
 import { RegisterForm } from "@/features/auth/register/components/register-form"
 
 export default async function RegisterPage() {

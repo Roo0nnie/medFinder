@@ -1,7 +1,3 @@
-"use client"
-
-import * as React from "react"
-
 import { AppSidebar } from "@/core/components/sidebar/app-sidebar"
 import {
 	Breadcrumb,
@@ -12,22 +8,18 @@ import {
 } from "@/core/components/ui/breadcrumb"
 import { Separator } from "@/core/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/core/components/ui/sidebar"
-import { useSessionQuery } from "@/features/auth/api/session.hooks"
+import { getSession } from "@/services/better-auth/auth-server"
 
-export default function RootLayout({
+export default async function RootLayout({
 	children,
 }: Readonly<{
 	children: React.ReactNode
 }>) {
-	const { data: session } = useSessionQuery()
-
-	if (!session) {
-		return <div>Loading...</div>
-	}
+	const session = await getSession()
 
 	return (
 		<SidebarProvider>
-			<AppSidebar user={session.user} />
+			<AppSidebar session={session} />
 			<SidebarInset>
 				<header className="flex h-16 shrink-0 items-center gap-2">
 					<div className="flex items-center gap-2 px-4">

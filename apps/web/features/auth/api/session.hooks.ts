@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { authClient } from "@/services/better-auth/auth-client"
 
@@ -19,20 +19,18 @@ export const sessionKeys = {
  * Session is cached for 5 minutes before becoming stale.
  * Uses Better Auth client which automatically handles cookies.
  */
-export function useSessionQuery() {
-	return useQuery({
-		queryKey: sessionKeys.all,
-		queryFn: async () => {
-			const result = await authClient.getSession()
-			if (result.error) {
-				return null
-			}
-			return result.data
-		},
-		staleTime: 5 * 60 * 1000, // 5 minutes
-		retry: false,
-	})
-}
+export const sessionOptions = queryOptions({
+	queryKey: sessionKeys.all,
+	queryFn: async () => {
+		const result = await authClient.getSession()
+		if (result.error) {
+			return null
+		}
+		return result.data
+	},
+	staleTime: 5 * 60 * 1000, // 5 minutes
+	retry: false,
+})
 
 /**
  * Mutation hook for signing out the current user.

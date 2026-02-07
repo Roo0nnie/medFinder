@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-import { getSession } from "@/features/auth/api/session.server"
+import { getSession } from "@/services/better-auth/auth-server"
 import { LoginForm } from "@/features/auth/login/components/login-form"
 
 export default async function LoginPage() {
