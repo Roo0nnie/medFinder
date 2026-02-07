@@ -3,8 +3,6 @@
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { type AuthSession } from "@repo/auth"
-
 import { authClient } from "@/services/better-auth/auth-client"
 
 /**
@@ -22,14 +20,14 @@ export const sessionKeys = {
  * Uses Better Auth client which automatically handles cookies.
  */
 export function useSessionQuery() {
-	return useQuery<AuthSession | null>({
+	return useQuery({
 		queryKey: sessionKeys.all,
 		queryFn: async () => {
 			const result = await authClient.getSession()
 			if (result.error) {
 				return null
 			}
-			return result.data as AuthSession | null
+			return result.data
 		},
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		retry: false,

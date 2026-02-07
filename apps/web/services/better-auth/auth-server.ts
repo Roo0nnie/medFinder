@@ -15,27 +15,19 @@ import { getAuthUrl } from "./lib/utils"
  * @returns Promise<AuthSession | null> - The session data or null
  */
 export const getSession = cache(async (): Promise<AuthSession | null> => {
-	try {
-		const cookieHeader = await getCookieHeader()
+	const cookieHeader = await getCookieHeader()
 
-		const response = await fetch(`${getAuthUrl()}/get-session`, {
-			headers: {
-				"Content-Type": "application/json",
-				"cookie": cookieHeader,
-			},
-			cache: "no-store",
-		})
+	const response = await fetch(`${getAuthUrl()}/get-session`, {
+		headers: {
+			"Content-Type": "application/json",
+			"cookie": cookieHeader,
+		},
+		cache: "no-store",
+	})
 
-		if (!response.ok) {
-			// eslint-disable-next-line no-console
-			console.error("Failed to get session:", response.status, response.statusText)
-			return null
-		}
-
-		return await response.json()
-	} catch (error) {
-		// eslint-disable-next-line no-console
-		console.error("Backend fetch error:", error)
+	if (!response.ok) {
 		return null
 	}
+
+	return response.json()
 })

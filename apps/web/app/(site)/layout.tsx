@@ -19,7 +19,7 @@ export default function RootLayout({
 }: Readonly<{
 	children: React.ReactNode
 }>) {
-	const { data: session, isPending, error } = useSessionQuery()
+	const { data: session } = useSessionQuery()
 
 	if (!session) {
 		return <div>Loading...</div>
