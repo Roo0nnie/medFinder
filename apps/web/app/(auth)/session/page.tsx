@@ -1,11 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Separator } from "@/core/components/ui/separator"
-import { getSession } from "@/features/auth/api/session.server"
 import { ClientSession } from "@/features/auth/components/client-session"
+import { ServerSession } from "@/features/auth/components/server-session"
 
 export default async function SessionPage() {
-	const session = await getSession()
-
 	return (
 		<Card>
 			<CardHeader>
@@ -13,10 +11,7 @@ export default async function SessionPage() {
 			</CardHeader>
 			<Separator />
 			<CardContent>
-				<div>
-					<p className="text-sm font-medium">Server Session</p>
-					<pre className="text-xs">{JSON.stringify(session, null, 2)}</pre>
-				</div>
+				<ServerSession />
 				<ClientSession />
 			</CardContent>
 		</Card>
