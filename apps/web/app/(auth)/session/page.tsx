@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/core/components/ui/card"
 import { Separator } from "@/core/components/ui/separator"
+import { getSession } from "@/features/auth/api/session.server"
 import { ClientSession } from "@/features/auth/components/client-session"
-import { getSession } from "@/features/auth/server/session"
 
 export default async function SessionPage() {
 	const session = await getSession()

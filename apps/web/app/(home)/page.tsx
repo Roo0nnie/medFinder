@@ -1,4 +1,4 @@
-import { getSession } from "@/features/auth/server/session"
+import { getSession } from "@/features/auth/api/session.server"
 import { HomeCtaButton } from "@/features/home/home-cta-button"
 import { NavigationLinks } from "@/features/home/navigation-links"
 

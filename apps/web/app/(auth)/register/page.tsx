@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 
+import { getSession } from "@/features/auth/api/session.server"
 import { RegisterForm } from "@/features/auth/register/components/register-form"
-import { getSession } from "@/features/auth/server/session"
 
 export default async function RegisterPage() {
 	const session = await getSession()

@@ -33,10 +33,7 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
 		.map(cookie => `${cookie.name}=${cookie.value}`)
 		.join("; ")
 
-	const authUrl = getAuthUrl()
-	const url = `${authUrl}/get-session`
-
-	const response = await fetch(url, {
+	const response = await fetch(`${getAuthUrl()}/get-session`, {
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",
