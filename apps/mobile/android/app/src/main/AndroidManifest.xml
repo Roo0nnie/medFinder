@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Awesome Notifications: permission to post notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Awesome Notifications: vibration support -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- Awesome Notifications: exact alarms for scheduled notifications (Android 12+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Awesome Notifications: re-schedule after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:label="mobile"
         android:name="${applicationName}"

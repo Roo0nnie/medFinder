@@ -5,6 +5,7 @@ import 'package:mobile/core/extensions/context_extensions.dart';
 import 'package:mobile/core/theme/theme_provider.dart';
 import 'package:mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:mobile/features/onboarding/presentation/providers/onboarding_provider.dart';
+import 'package:mobile/services/notifications/notification_service.dart';
 import 'package:mobile/services/snackbar/snackbar_service.dart';
 import 'package:mobile/services/toast/toast_service.dart';
 import 'package:mobile/shared/widgets/theme_mode_toggle.dart';
@@ -91,7 +92,7 @@ class SettingsScreen extends ConsumerWidget {
                     title: 'Notifications',
                     subtitle: 'Manage notification settings',
                     onTap: () {
-                      context.showSnackBar('Notifications settings coming soon');
+                      context.push('/settings/notifications');
                     },
                   ),
                   const Divider(height: 1),
@@ -226,6 +227,26 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'Actionable messages (bottom bar)',
                     onTap: () {
                       _showSnackbarDemo(context, ref);
+                    },
+                  ),
+                  const Divider(height: 1),
+                  _SettingsTile(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Push Notification Demo',
+                    subtitle: 'Local push notifications (system tray)',
+                    onTap: () async {
+                      final service = ref.read(notificationServiceProvider);
+                      final allowed = await service.isPermissionGranted();
+                      if (!allowed) {
+                        await service.requestPermission();
+                      }
+                      await service.showNotification(
+                        const NotificationConfig(
+                          title: 'Demo Notification',
+                          body: 'This is a local push notification from the developer demo.',
+                          channelKey: NotificationChannels.general,
+                        ),
+                      );
                     },
                   ),
                 ],
