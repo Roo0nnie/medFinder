@@ -1,41 +1,49 @@
 # @repo/backend
 
-NestJS API server with Better Auth, Drizzle ORM, and Zod validation.
+NestJS API server with oRPC contracts, Better Auth, and Drizzle ORM.
 
 ## Tech Stack
 
 - **Framework**: NestJS
+- **API Contracts**: oRPC (type-safe, OpenAPI-generated)
 - **Database**: Drizzle ORM + PostgreSQL
 - **Auth**: Better Auth
-- **Validation**: Zod + nestjs-zod
-- **API Docs**: Swagger (auto-generated from Zod schemas)
+- **Validation**: Zod (via `@repo/contracts`)
+- **API Docs**: Scalar (auto-generated from oRPC contracts)
 
 ## Structure
 
 ```
 apps/backend/src/
-├── common/              # Reusable NestJS modules
-│   ├── database/        # Database module, providers
-│   ├── filters/         # Global exception filters
-│   └── health/          # Health check endpoints
-├── config/              # App configuration
-│   └── env.config.ts    # Environment validation
-├── modules/             # Feature modules by API version
+├── bootstrap.ts             # App creation and startup orchestrator
+├── main.ts                  # Entry point
+├── app.module.ts            # Root module
+├── common/                  # Reusable NestJS modules
+│   ├── database/            # Database module, providers
+│   ├── decorators/          # Custom decorators
+│   ├── filters/             # Global exception filters
+│   └── orpc/                # oRPC integration module
+├── config/                  # App configuration
+│   ├── api-versions.config.ts  # Version registry and contract re-exports
+│   ├── app.config.ts           # CORS, body parser, graceful shutdown
+│   ├── auth.config.ts          # Better Auth middleware and routes
+│   ├── env.config.ts           # Environment validation
+│   └── swagger.config.ts       # OpenAPI doc generation (Scalar)
+├── modules/                 # Feature modules by API version
 │   └── v1/
-│       ├── app.module.ts
-│       └── [feature]/
-│           ├── [feature].module.ts
-│           ├── [feature].controller.ts
-│           ├── [feature].service.ts
-│           └── [feature].controller.spec.ts
-├── shared/              # Shared non-module code
-│   ├── decorators/      # Custom decorators
-│   ├── guards/          # Auth guards
-│   ├── interceptors/    # Logging, transform interceptors
-│   └── pipes/           # Validation pipes
-├── utils/               # Pure utility functions
-├── main.module.ts       # Root module
-└── main.ts              # Bootstrap entry point
+│       ├── v1.module.ts
+│       ├── health/
+│       │   ├── health.module.ts
+│       │   ├── health.controller.ts
+│       │   └── health.service.ts
+│       └── examples/
+│           └── todos/
+│               ├── todos.module.ts
+│               ├── todos.controller.ts
+│               ├── todos.service.ts
+│               └── todos.controller.spec.ts
+└── utils/                   # Pure utility functions
+    └── openapi.ts
 ```
 
 ## Development
@@ -54,20 +62,21 @@ Runs on [http://localhost:3000](http://localhost:3000)
 
 | Variable                      | Required | Description                     |
 | ----------------------------- | -------- | ------------------------------- |
-| `DATABASE_URL`                | ✅       | PostgreSQL connection string    |
-| `BETTER_AUTH_SECRET`          | ✅       | Auth secret key                 |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | ✅       | Comma-separated trusted origins |
-| `CORS_ORIGINS`                | ✅       | Comma-separated CORS origins    |
-| `PORT`                        | ❌       | Server port (default: 3000)     |
-| `GOOGLE_CLIENT_ID`            | ❌       | Google OAuth client ID          |
-| `GOOGLE_CLIENT_SECRET`        | ❌       | Google OAuth client secret      |
+| `DATABASE_URL`                | Yes      | PostgreSQL connection string    |
+| `BETTER_AUTH_SECRET`          | Yes      | Auth secret key                 |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Yes      | Comma-separated trusted origins |
+| `CORS_ORIGINS`                | Yes      | Comma-separated CORS origins    |
+| `PORT`                        | No       | Server port (default: 3000)     |
+| `GOOGLE_CLIENT_ID`            | No       | Google OAuth client ID          |
+| `GOOGLE_CLIENT_SECRET`        | No       | Google OAuth client secret      |
 
 See `.env.example` for reference.
 
 ## API Endpoints
 
-- **Health**: `GET /health` — Returns server status and database connectivity
-- **Swagger**: `GET /api/docs` — Interactive API documentation
+- **Health**: `GET /api/v1/health` — Returns server status and database connectivity
+- **Docs**: `GET /api/v1/docs` — Interactive API documentation (Scalar)
+- **OpenAPI Spec**: `GET /api/v1/spec.json` — Raw OpenAPI JSON
 
 ## Scripts
 
@@ -79,7 +88,3 @@ See `.env.example` for reference.
 | `pnpm test`     | Run unit tests          |
 | `pnpm test:e2e` | Run E2E tests           |
 | `pnpm test:cov` | Run tests with coverage |
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

@@ -250,7 +250,7 @@ After creating repositories, note down the repository URIs:
    - Port: 3000
    - VPC: `turbo-template-vpc`
 2. Health checks:
-   - Health check path: `/health`
+   - Health check path: `/api/v1/health`
    - Same thresholds and intervals as web
 3. Click "Create target group"
 

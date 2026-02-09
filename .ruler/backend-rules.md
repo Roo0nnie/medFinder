@@ -10,30 +10,36 @@ alwaysApply: false
 
 ```
 apps/backend/src/
-├── common/              # Reusable NestJS modules used across features
-│   ├── database/        # Database module, providers, connection
-│   ├── filters/         # Global exception filters
-│   └── health/          # Health check endpoints
-├── config/              # App configuration
-│   ├── env.config.ts    # Environment validation
-│   └── app.config.ts    # Feature flags, app settings
-├── modules/             # Feature modules organized by API version
+├── bootstrap.ts             # App creation and startup orchestrator
+├── main.ts                  # Entry point
+├── app.module.ts            # Root module
+├── common/                  # Reusable NestJS modules used across features
+│   ├── database/            # Database module, providers, connection
+│   ├── decorators/          # Custom decorators
+│   ├── filters/             # Global exception filters
+│   └── orpc/                # oRPC integration module
+├── config/                  # App configuration
+│   ├── api-versions.config.ts  # Version registry and contract re-exports
+│   ├── app.config.ts           # CORS, body parser, graceful shutdown
+│   ├── auth.config.ts          # Better Auth middleware and routes
+│   ├── env.config.ts           # Environment validation
+│   └── swagger.config.ts       # OpenAPI doc generation (Scalar)
+├── modules/                 # Feature modules organized by API version
 │   └── v1/
-│       ├── app.module.ts
+│       ├── v1.module.ts
 │       └── [feature]/
 │           ├── [feature].module.ts
 │           ├── [feature].controller.ts
 │           ├── [feature].service.ts
 │           ├── [feature].controller.spec.ts
 │           └── [sub-feature]/
-├── shared/              # Shared non-module code
-│   ├── decorators/      # Custom decorators
-│   ├── guards/          # Auth guards, role guards
-│   ├── interceptors/    # Logging, transform interceptors
-│   └── pipes/           # Validation pipes
-├── utils/               # Pure utility functions (no NestJS dependencies)
-├── main.module.ts       # Root module
-└── main.ts              # Bootstrap entry point
+├── shared/                  # Shared non-module code
+│   ├── decorators/          # Custom decorators
+│   ├── guards/              # Auth guards, role guards
+│   ├── interceptors/        # Logging, transform interceptors
+│   └── pipes/               # Validation pipes
+├── utils/                   # Pure utility functions (no NestJS dependencies)
+└── main.module.ts           # Root module (deprecated, use app.module.ts)
 ```
 
 ## Folder Purposes
@@ -41,7 +47,7 @@ apps/backend/src/
 | Folder     | Purpose                                      | Example Contents                          |
 | ---------- | -------------------------------------------- | ----------------------------------------- |
 | `common/`  | NestJS modules imported by multiple features | `DBModule`, `HealthModule`, `CacheModule` |
-| `config/`  | Environment and app configuration            | Env validation, feature toggles           |
+| `config/`  | Environment and app configuration            | Env validation, versioning, auth, swagger |
 | `modules/` | Business feature modules, versioned          | `v1/users/`, `v1/todos/`                  |
 | `shared/`  | Reusable NestJS building blocks              | Decorators, guards, interceptors, pipes   |
 | `utils/`   | Pure utility functions                       | String helpers, date formatting           |
@@ -105,7 +111,7 @@ export class TodosService {
 
 - All feature modules live under `modules/v1/`, `modules/v2/`, etc.
 - API prefix: `/api/v1/`, `/api/v2/`
-- Version is set globally in `main.ts` with `app.enableVersioning()`
+- Version is set in `bootstrap.ts` with `app.enableVersioning()`
 
 ## Module Structure Pattern
 

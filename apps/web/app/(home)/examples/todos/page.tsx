@@ -18,9 +18,8 @@ export default async function TodosRoutePage() {
 				This page integrates with backend API using oRPC for type-safe API calls
 			</p>
 
-			<AddTodoForm />
-
-			<div className="mt-4">
+			<div className="mt-4 flex flex-col gap-4">
+				<AddTodoForm />
 				<TodosList />
 			</div>
 		</div>

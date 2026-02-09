@@ -27,7 +27,7 @@ export function AddTodoForm() {
 	})
 
 	return (
-		<Card>
+		<Card className="border">
 			<CardHeader>
 				<CardTitle>Add Todo</CardTitle>
 			</CardHeader>
