@@ -1,8 +1,4 @@
-import { Logger, VersioningType, type INestApplication } from "@nestjs/common"
-
 import { v1Contract } from "@repo/contracts"
-
-const logger = new Logger("ApiVersions")
 
 // ── Versioned Contracts ──────────────────────────────────────────────
 // Imported by controllers: @Implement(v1.todo.list)
@@ -13,7 +9,7 @@ export { v1Contract as v1 }
 // export { v2Contract as v2 } from "@repo/contracts"
 
 // ── Version Registry ─────────────────────────────────────────────────
-// Used by swagger, auth config, and bootstrap
+// Used by swagger and auth config
 
 export const API_VERSIONS = {
 	v1: { contract: v1Contract },
@@ -34,15 +30,4 @@ export function getVersionKeys(): VersionKey[] {
  */
 export function getVersionContract(version: string) {
 	return API_VERSIONS[version as VersionKey]?.contract
-}
-
-// ── Versioning Setup ─────────────────────────────────────────────────
-
-/**
- * Configure URI-based API versioning (e.g., /api/v1/*, /api/v2/*)
- */
-export function setupVersioning(app: INestApplication): void {
-	app.setGlobalPrefix("api")
-	app.enableVersioning({ type: VersioningType.URI })
-	logger.log("URI-based API versioning enabled")
 }

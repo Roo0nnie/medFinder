@@ -4,7 +4,7 @@ import { toNodeHandler } from "better-auth/node"
 
 import { AUTH_BASE_PATH, getAuth } from "@repo/auth"
 
-import { getVersionKeys } from "@/config/api-versions"
+import { getVersionKeys } from "@/config/api-versions.config"
 import { generateBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("BetterAuthConfig")

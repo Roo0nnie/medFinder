@@ -5,7 +5,7 @@ import { apiReference } from "@scalar/nestjs-api-reference"
 
 import { TodoSchema } from "@repo/contracts"
 
-import { API_VERSIONS, getVersionKeys, type VersionKey } from "@/config/api-versions"
+import { API_VERSIONS, getVersionKeys, type VersionKey } from "@/config/api-versions.config"
 import { mergeBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("SwaggerConfig")

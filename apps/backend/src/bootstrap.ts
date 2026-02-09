@@ -1,14 +1,22 @@
-import { Logger, type INestApplication } from "@nestjs/common"
+import { Logger, VersioningType, type INestApplication } from "@nestjs/common"
 import { NestFactory } from "@nestjs/core"
 
 import { AppModule } from "@/app.module"
 import { configureApp } from "@/config/app.config"
-import { setupBetterAuth } from "@/config/better-auth.config"
+import { setupBetterAuth } from "@/config/auth.config"
 import { env } from "@/config/env.config"
 import { setupSwagger } from "@/config/swagger.config"
-import { setupVersioning } from "@/config/api-versions"
 
 const logger = new Logger("Bootstrap")
+
+/**
+ * Configure URI-based API versioning (e.g., /api/v1/*, /api/v2/*)
+ */
+function setupVersioning(app: INestApplication): void {
+	app.setGlobalPrefix("api")
+	app.enableVersioning({ type: VersioningType.URI })
+	logger.log("URI-based API versioning enabled")
+}
 
 /**
  * Create and configure the NestJS application
