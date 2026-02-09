@@ -53,8 +53,11 @@ export function TodoItem({ todo }: TodoItemProps) {
 					onClick={handleDelete}
 					disabled={isDeletePending}
 				>
-					{isDeletePending && <Spinner className="size-4 animate-spin" />}
-					<HugeiconsIcon icon={Trash} className="size-4" />
+					{isDeletePending ? (
+						<Spinner className="size-4 animate-spin" />
+					) : (
+						<HugeiconsIcon icon={Trash} className="size-4" />
+					)}
 				</Button>
 			</ItemActions>
 		</Item>
