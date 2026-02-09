@@ -28,18 +28,10 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/core/components/ui/sidebar"
+import { getInitials } from "@/core/lib/utils"
 
-export function NavUser({ session }: { session: AuthSession | null }) {
+export function NavUser({ session }: { session: AuthSession }) {
 	const { isMobile } = useSidebar()
-
-	if (!session) {
-		return (
-			<SidebarMenuButton
-				render={<a href="/login" className="w-full">Sign In</a>}
-				size="lg"
-			/>
-		)
-	}
 
 	return (
 		<SidebarMenu>
@@ -54,8 +46,10 @@ export function NavUser({ session }: { session: AuthSession | null }) {
 						}
 					>
 						<Avatar className="h-8 w-8 rounded-lg">
-							<AvatarImage src={session.user?.image ?? undefined} alt={session.user?.name ?? ""} />
-							<AvatarFallback className="rounded-lg">CN</AvatarFallback>
+							<AvatarImage src={session.user?.image ?? undefined} alt={session.user.name} />
+							<AvatarFallback className="rounded-lg">
+								{getInitials(session.user?.name ?? "") || "CN"}
+							</AvatarFallback>
 						</Avatar>
 						<div className="grid flex-1 text-left text-sm leading-tight">
 							<span className="truncate font-medium">{session.user?.name ?? ""}</span>
@@ -74,11 +68,10 @@ export function NavUser({ session }: { session: AuthSession | null }) {
 							<DropdownMenuLabel className="p-0 font-normal">
 								<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 									<Avatar className="h-8 w-8 rounded-lg">
-										<AvatarImage
-											src={session.user?.image ?? undefined}
-											alt={session.user?.name ?? ""}
-										/>
-										<AvatarFallback className="rounded-lg">CN</AvatarFallback>
+										<AvatarImage src={session.user?.image ?? undefined} alt={session.user.name} />
+										<AvatarFallback className="rounded-lg">
+											{getInitials(session.user?.name ?? "") || "CN"}
+										</AvatarFallback>
 									</Avatar>
 									<div className="grid flex-1 text-left text-sm leading-tight">
 										<span className="truncate font-medium">{session.user?.name ?? ""}</span>

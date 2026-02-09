@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 
+import type { AuthSession } from "@repo/auth"
+
 import {
 	Sidebar,
 	SidebarContent,
@@ -18,9 +20,8 @@ import { mainNavItems, NavMain } from "./nav-main"
 import { demoProjects, NavProjects } from "./nav-projects"
 import { NavSecondary, secondaryNavItems } from "./nav-secondary"
 import { NavUser } from "./nav-user"
-import type { AuthSession } from "@repo/auth"
 
-export function AppSidebar({ session }: { session: AuthSession | null }) {
+export function AppSidebar({ session }: { session: AuthSession }) {
 	return (
 		<Sidebar collapsible="icon" variant="inset">
 			<SidebarRail />

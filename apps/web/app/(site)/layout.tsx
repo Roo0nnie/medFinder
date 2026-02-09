@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation"
+
 import { AppSidebar } from "@/core/components/sidebar/app-sidebar"
 import {
 	Breadcrumb,
@@ -16,6 +18,10 @@ export default async function RootLayout({
 	children: React.ReactNode
 }>) {
 	const session = await getSession()
+
+	if (!session) {
+		redirect("/login")
+	}
 
 	return (
 		<SidebarProvider>
