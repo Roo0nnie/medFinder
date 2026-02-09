@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
+import 'package:mobile/core/constants/api_constants.dart';
 import 'package:mobile/services/storage/secure_storage_service.dart';
 
 /// Injects Bearer token and sets Origin header to a backend trusted origin
@@ -12,9 +13,12 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    // Better Auth requires a valid Origin header. Set it to the backend's
-    // own origin which is always in the trustedOrigins list.
-    options.headers['Origin'] = 'http://localhost:3000';
+    // Better Auth requires a valid Origin header. Use the API base origin
+    // so it matches trusted origins when running on device/emulator.
+    final baseUri = Uri.parse(ApiConstants.baseUrl);
+    final baseOrigin = '${baseUri.scheme}://${baseUri.host}'
+        '${baseUri.hasPort ? ':${baseUri.port}' : ''}';
+    options.headers['Origin'] = baseOrigin;
 
     final token = await _storage.getSessionToken();
     if (token != null) {
