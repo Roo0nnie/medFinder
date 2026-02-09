@@ -3,7 +3,7 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 import { AllowAnonymous } from "@thallesp/nestjs-better-auth"
 
-import { contract } from "@repo/contracts"
+import { v1 } from "@/config/api-versions"
 
 import { HealthService } from "./health.service"
 
@@ -12,9 +12,9 @@ export class HealthController {
 	constructor(private readonly service: HealthService) {}
 
 	@AllowAnonymous()
-	@Implement(contract.health.check)
+	@Implement(v1.health.check)
 	async check() {
-		return implement(contract.health.check).handler(async () => {
+		return implement(v1.health.check).handler(async () => {
 			return this.service.check()
 		})
 	}

@@ -9,12 +9,12 @@ import { HealthCheckSchema } from "./health.schema.js"
 export const healthContract = {
 	/**
 	 * Health check
-	 * GET /v1/health
+	 * GET /health
 	 */
 	check: oc
 		.route({
 			method: "GET",
-			path: "/v1/health",
+			path: "/health",
 			summary: "Health check",
 			description: "Returns the health status of the API and its dependencies",
 			tags: ["Health"],

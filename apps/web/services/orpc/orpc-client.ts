@@ -2,11 +2,11 @@ import { createORPCClient } from "@orpc/client"
 import type { ContractRouterClient } from "@orpc/contract"
 import type { JsonifiedClient } from "@orpc/openapi-client"
 
-import { type Contract } from "@repo/contracts"
+import { type V1Contract } from "@repo/contracts"
 
 import { createOrpcLink } from "./orpc-link"
 
-export type OrpcClient = JsonifiedClient<ContractRouterClient<Contract>>
+export type OrpcClient = JsonifiedClient<ContractRouterClient<V1Contract>>
 
 declare global {
 	var $orpc: OrpcClient | undefined
@@ -23,7 +23,7 @@ export const orpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>
 /**
  * Export contract type for use in components
  */
-export type { Contract }
+export type { V1Contract }
 
 /**
  * Type inference helpers for oRPC procedures

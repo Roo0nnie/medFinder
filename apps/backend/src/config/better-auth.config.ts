@@ -4,7 +4,7 @@ import { toNodeHandler } from "better-auth/node"
 
 import { AUTH_BASE_PATH, getAuth } from "@repo/auth"
 
-import { VERSION_MODULES } from "@/config/versions.config"
+import { getVersionKeys } from "@/config/api-versions"
 import { generateBetterAuthSchema } from "@/utils/openapi"
 
 const logger = new Logger("BetterAuthConfig")
@@ -52,7 +52,7 @@ function registerAuthOpenApiEndpoint(httpServer: any, authPath: string): void {
  */
 export function setupBetterAuth(app: INestApplication): void {
 	const httpServer = app.getHttpAdapter().getInstance()
-	const versions = Object.keys(VERSION_MODULES).sort()
+	const versions = getVersionKeys()
 	const authPaths = versions.map(version => `/api/${version}/auth`)
 
 	// Single middleware handles all versioned auth routes

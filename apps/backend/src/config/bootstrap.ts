@@ -6,7 +6,7 @@ import { configureApp } from "@/config/app.config"
 import { setupBetterAuth } from "@/config/better-auth.config"
 import { env } from "@/config/env.config"
 import { setupSwagger } from "@/config/swagger.config"
-import { setupVersioning } from "@/config/versions.config"
+import { setupVersioning } from "@/config/api-versions"
 
 const logger = new Logger("Bootstrap")
 

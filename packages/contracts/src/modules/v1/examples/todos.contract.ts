@@ -6,12 +6,12 @@ import { CreateTodoSchema, TodoIdSchema, TodoSchema } from "./todos.schema.js"
 export const todoContract = {
 	/**
 	 * List all todos
-	 * GET /v1/todos
+	 * GET /todos
 	 */
 	list: oc
 		.route({
 			method: "GET",
-			path: "/v1/todos",
+			path: "/todos",
 			summary: "List all todos",
 			description: "Retrieve all todo items",
 			tags: ["Todos"],
@@ -21,12 +21,12 @@ export const todoContract = {
 
 	/**
 	 * Get a single todo by ID
-	 * GET /v1/todos/{id}
+	 * GET /todos/{id}
 	 */
 	get: oc
 		.route({
 			method: "GET",
-			path: "/v1/todos/{id}",
+			path: "/todos/{id}",
 			summary: "Get todo by ID",
 			description: "Retrieve a single todo item by its ID",
 			tags: ["Todos"],
@@ -36,12 +36,12 @@ export const todoContract = {
 
 	/**
 	 * Create a new todo
-	 * POST /v1/todos
+	 * POST /todos
 	 */
 	create: oc
 		.route({
 			method: "POST",
-			path: "/v1/todos",
+			path: "/todos",
 			summary: "Create todo",
 			description: "Create a new todo item",
 			tags: ["Todos"],
@@ -51,12 +51,12 @@ export const todoContract = {
 
 	/**
 	 * Update an existing todo
-	 * PUT /v1/todos/{id}
+	 * PUT /todos/{id}
 	 */
 	update: oc
 		.route({
 			method: "PUT",
-			path: "/v1/todos/{id}",
+			path: "/todos/{id}",
 			summary: "Update todo",
 			description: "Update an existing todo item",
 			tags: ["Todos"],
@@ -73,12 +73,12 @@ export const todoContract = {
 
 	/**
 	 * Delete a todo by ID
-	 * DELETE /v1/todos/{id}
+	 * DELETE /todos/{id}
 	 */
 	delete: oc
 		.route({
 			method: "DELETE",
-			path: "/v1/todos/{id}",
+			path: "/todos/{id}",
 			summary: "Delete todo",
 			description: "Delete a todo item by its ID",
 			tags: ["Todos"],

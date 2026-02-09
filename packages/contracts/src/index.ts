@@ -7,12 +7,12 @@
 export * from "./modules/v1/examples/todos.schema.js"
 export * from "./modules/v1/health/health.schema.js"
 
-// Export contracts
+// Export individual feature contracts
 export * from "./modules/v1/examples/todos.contract.js"
 export * from "./modules/v1/health/health.contract.js"
 
-// Export main contract router
-export { contract, type Contract } from "./contracts.js"
+// Export version contracts and types
+export * from "./contracts.js"
 
 // Export utilities
 export * from "./utils/transform.js"

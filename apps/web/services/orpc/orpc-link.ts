@@ -1,12 +1,15 @@
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
 
-import { contract } from "@repo/contracts"
+import { v1Contract } from "@repo/contracts"
 
 import { env } from "@/env"
-import { getCookieHeader } from "@/core/lib/cookie-utils"
 
-export function createOrpcLink() {
-	return new OpenAPILink(contract, {
+interface OrpcLinkOptions {
+	getCookieHeader?: () => Promise<string>
+}
+
+export function createOrpcLink(options?: OrpcLinkOptions) {
+	return new OpenAPILink(v1Contract, {
 		url: env.NEXT_PUBLIC_API_BASE_URL,
 		fetch: async (url, init) => {
 			const isServer = typeof window === "undefined"
@@ -14,8 +17,8 @@ export function createOrpcLink() {
 			const headers = new Headers(initHeaders)
 			headers.set("Content-Type", "application/json")
 
-			if (isServer) {
-				const cookieHeader = await getCookieHeader()
+			if (isServer && options?.getCookieHeader) {
+				const cookieHeader = await options.getCookieHeader()
 				if (cookieHeader) {
 					headers.set("cookie", cookieHeader)
 				}
@@ -24,6 +27,7 @@ export function createOrpcLink() {
 			return fetch(url, {
 				...init,
 				headers,
+				credentials: "include",
 				...(isServer ? { cache: "no-store", next: { revalidate: 0 } } : {}),
 			})
 		},
