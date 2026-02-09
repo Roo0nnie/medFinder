@@ -1,19 +1,22 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
 import { desc, eq } from "drizzle-orm"
 
-import { CreateTodoInput, Todo, UpdateTodoInput } from "@repo/contracts"
+import { CreateTodoInput, UpdateTodoInput } from "@repo/contracts"
 import { todos } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
 
 @Injectable()
 export class TodosService {
-	async findAll(): Promise<Todo[]> {
-		const result = await db.select().from(todos).orderBy(desc(todos.updatedAt))
+	async findAll() {
+		const result = await db
+			.select()
+			.from(todos)
+			.orderBy(desc(todos.completed), desc(todos.updatedAt))
 		return result
 	}
 
-	async findOne(id: number): Promise<Todo> {
+	async findOne(id: number) {
 		const [todo] = await db.select().from(todos).where(eq(todos.id, id))
 		if (!todo) throw new NotFoundException(`Todo with ID ${id} not found`)
 		return todo
