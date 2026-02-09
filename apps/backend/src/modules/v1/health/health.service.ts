@@ -28,7 +28,6 @@ export class HealthService {
 			environment,
 			checks: {
 				database,
-				cache: { status: "not_configured" },
 			},
 		}
 	}

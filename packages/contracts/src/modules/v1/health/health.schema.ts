@@ -17,7 +17,6 @@ export const HealthCheckSchema = z.object({
 	environment: z.string(),
 	checks: z.object({
 		database: ServiceCheckSchema,
-		cache: ServiceCheckSchema,
 	}),
 })
 
