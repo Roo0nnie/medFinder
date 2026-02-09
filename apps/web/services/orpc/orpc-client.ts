@@ -21,11 +21,6 @@ const link = createOrpcLink()
 export const orpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>(link)
 
 /**
- * Export contract type for use in components
- */
-export type { V1Contract }
-
-/**
  * Type inference helpers for oRPC procedures
  */
 
