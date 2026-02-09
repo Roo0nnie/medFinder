@@ -33,17 +33,24 @@ export type { V1Contract }
  * Infer the output type of an oRPC procedure
  * @example type TodoList = InferProcedureOutput<typeof orpc.todo.list>
  */
-export type InferProcedureOutput<T extends (...args: unknown[]) => unknown> = Awaited<ReturnType<T>>
+export type InferProcedureOutput<T extends Function> = T extends (...args: never[]) => infer R
+	? Awaited<R>
+	: never
 
 /**
  * Infer the input type of an oRPC procedure
  * @example type CreateTodoInput = InferProcedureInput<typeof orpc.todo.create>
  */
-export type InferProcedureInput<T extends (...args: unknown[]) => unknown> = Parameters<T>[0]
+export type InferProcedureInput<T extends Function> = T extends (
+	input: infer I,
+	...args: never[]
+) => unknown
+	? I
+	: never
 
 /**
  * Infer a single item from an array-returning oRPC procedure
  * @example type Todo = InferArrayItem<typeof orpc.todo.list>
  */
-export type InferArrayItem<T extends (...args: unknown[]) => unknown> =
-	Awaited<ReturnType<T>> extends Array<infer Item> ? Item : never
+export type InferArrayItem<T extends Function> =
+	InferProcedureOutput<T> extends Array<infer Item> ? Item : never
