@@ -3,8 +3,6 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
-import type { CreateTodoInput, UpdateTodoInput } from "@repo/contracts"
-
 import { v1 } from "@/config/api-versions.config"
 
 import { TodosService } from "./todos.service"
