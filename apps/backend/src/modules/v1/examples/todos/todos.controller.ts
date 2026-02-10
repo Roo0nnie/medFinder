@@ -3,6 +3,8 @@ import { Implement } from "@orpc/nest"
 import { implement } from "@orpc/server"
 import { Session, type UserSession } from "@thallesp/nestjs-better-auth"
 
+import type { CreateTodoInput, UpdateTodoInput } from "@repo/contracts"
+
 import { v1 } from "@/config/api-versions.config"
 
 import { TodosService } from "./todos.service"
@@ -21,7 +23,7 @@ export class TodosController {
 	@Implement(v1.todo.get)
 	async getTodo() {
 		return implement(v1.todo.get).handler(async ({ input }) => {
-			return this.todosService.findOne(Number(input.id))
+			return this.todosService.findOne({ id: input.id })
 		})
 	}
 
@@ -31,21 +33,21 @@ export class TodosController {
 		session: UserSession
 	) {
 		return implement(v1.todo.create).handler(async ({ input }) => {
-			return this.todosService.create(input, session.user.id)
+			return this.todosService.create({ payload: input, authorId: session.user.id })
 		})
 	}
 
 	@Implement(v1.todo.update)
 	async updateTodo() {
 		return implement(v1.todo.update).handler(async ({ input }) => {
-			return this.todosService.update(Number(input.id), input)
+			return this.todosService.update({ id: input.id, payload: input })
 		})
 	}
 
 	@Implement(v1.todo.delete)
 	async removeTodo() {
 		return implement(v1.todo.delete).handler(async ({ input }) => {
-			return this.todosService.delete(Number(input.id))
+			return this.todosService.delete({ id: input.id })
 		})
 	}
 }
