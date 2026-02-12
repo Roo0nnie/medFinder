@@ -12,7 +12,4 @@ export type ArrayItem<T> = T extends readonly (infer E)[] ? E : never
 export type SerializeDates<T, K extends keyof T> = Omit<T, K> & { [P in K]: string }
 
 /** Convenience helper for array-returning procedures with serialized dates. */
-export type SerializedArrayItem<T, K extends keyof ArrayItem<T>> = SerializeDates<
-	ArrayItem<T>,
-	K
->
+export type SerializedArrayItem<T, K extends keyof ArrayItem<T>> = SerializeDates<ArrayItem<T>, K>
