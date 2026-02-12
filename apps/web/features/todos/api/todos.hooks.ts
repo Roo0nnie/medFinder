@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { orpcTQ } from "@/services/orpc/orpc-tanstack"
+import { orpc } from "@/services/orpc/client"
 
 /**
  * Query hook for fetching the todo list.
@@ -11,7 +11,7 @@ import { orpcTQ } from "@/services/orpc/orpc-tanstack"
  */
 export function useTodosQuery() {
 	return useQuery(
-		orpcTQ.example.todo.list.queryOptions({
+		orpc.example.todo.list.queryOptions({
 			staleTime: 60 * 1000, // 1 minute
 		})
 	)
@@ -26,9 +26,9 @@ export function useCreateTodoMutation() {
 	const queryClient = useQueryClient()
 
 	return useMutation(
-		orpcTQ.example.todo.create.mutationOptions({
+		orpc.example.todo.create.mutationOptions({
 			onSuccess: () => {
-				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+				queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() })
 			},
 		})
 	)
@@ -43,9 +43,9 @@ export function useUpdateTodoMutation() {
 	const queryClient = useQueryClient()
 
 	return useMutation(
-		orpcTQ.example.todo.update.mutationOptions({
+		orpc.example.todo.update.mutationOptions({
 			onSuccess: () => {
-				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+				queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() })
 			},
 		})
 	)
@@ -60,9 +60,9 @@ export function useDeleteTodoMutation() {
 	const queryClient = useQueryClient()
 
 	return useMutation(
-		orpcTQ.example.todo.delete.mutationOptions({
+		orpc.example.todo.delete.mutationOptions({
 			onSuccess: () => {
-				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+				queryClient.invalidateQueries({ queryKey: orpc.example.todo.key() })
 			},
 		})
 	)

@@ -2,6 +2,7 @@ import { createORPCClient } from "@orpc/client"
 import type { ContractRouterClient } from "@orpc/contract"
 import type { JsonifiedClient } from "@orpc/openapi-client"
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
+import { createTanstackQueryUtils } from "@orpc/tanstack-query"
 
 import { v1Contract, type V1Contract } from "@repo/contracts"
 
@@ -46,7 +47,16 @@ export function createOrpcLink(options?: OrpcLinkOptions) {
 const link = createOrpcLink()
 
 /**
- * Type-safe oRPC client for frontend API calls.
+ * Base oRPC client for direct API calls.
  * Uses OpenAPI Link to communicate with the NestJS backend via HTTP.
  */
-export const orpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>(link)
+const baseOrpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>(link)
+
+/**
+ * Type-safe oRPC client with TanStack Query utilities.
+ * Use .queryOptions() / .mutationOptions() with useQuery/useMutation, and .key() for invalidation.
+ * Base path ["orpc"] avoids key collisions with non-oRPC queries (e.g. session).
+ */
+export const orpc = createTanstackQueryUtils(baseOrpc, {
+	path: ["orpc"],
+})
