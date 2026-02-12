@@ -2,17 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { orpc } from "@/services/orpc/orpc-client"
-
-/**
- * Centralized query keys for todos-related queries.
- * Use these constants to ensure consistent cache invalidation.
- */
-export const todosKeys = {
-	all: ["todos"] as const,
-	lists: () => [...todosKeys.all, "list"] as const,
-	list: (filters?: string) => [...todosKeys.lists(), { filters }] as const,
-}
+import { orpcTQ } from "@/services/orpc/orpc-tanstack"
 
 /**
  * Query hook for fetching the todo list.
@@ -20,14 +10,11 @@ export const todosKeys = {
  * Todos are cached for 1 minute before becoming stale.
  */
 export function useTodosQuery() {
-	return useQuery({
-		queryKey: todosKeys.all,
-		queryFn: async () => {
-			const response = await orpc.example.todo.list()
-			return response
-		},
-		staleTime: 60 * 1000, // 1 minute
-	})
+	return useQuery(
+		orpcTQ.example.todo.list.queryOptions({
+			staleTime: 60 * 1000, // 1 minute
+		}),
+	)
 }
 
 /**
@@ -38,15 +25,13 @@ export function useTodosQuery() {
 export function useCreateTodoMutation() {
 	const queryClient = useQueryClient()
 
-	return useMutation({
-		mutationFn: async (data: { title: string }) => {
-			const response = await orpc.example.todo.create(data)
-			return response
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: todosKeys.all })
-		},
-	})
+	return useMutation(
+		orpcTQ.example.todo.create.mutationOptions({
+			onSuccess: () => {
+				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+			},
+		}),
+	)
 }
 
 /**
@@ -57,15 +42,13 @@ export function useCreateTodoMutation() {
 export function useUpdateTodoMutation() {
 	const queryClient = useQueryClient()
 
-	return useMutation({
-		mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-			const response = await orpc.example.todo.update({ id, completed })
-			return response
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: todosKeys.all })
-		},
-	})
+	return useMutation(
+		orpcTQ.example.todo.update.mutationOptions({
+			onSuccess: () => {
+				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+			},
+		}),
+	)
 }
 
 /**
@@ -76,13 +59,11 @@ export function useUpdateTodoMutation() {
 export function useDeleteTodoMutation() {
 	const queryClient = useQueryClient()
 
-	return useMutation({
-		mutationFn: async ({ id }: { id: number }) => {
-			const response = await orpc.example.todo.delete({ id })
-			return response
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: todosKeys.all })
-		},
-	})
+	return useMutation(
+		orpcTQ.example.todo.delete.mutationOptions({
+			onSuccess: () => {
+				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
+			},
+		}),
+	)
 }

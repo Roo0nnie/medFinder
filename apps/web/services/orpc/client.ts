@@ -1,8 +1,17 @@
+import { createORPCClient } from "@orpc/client"
+import type { ContractRouterClient } from "@orpc/contract"
+import type { JsonifiedClient } from "@orpc/openapi-client"
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
 
-import { v1Contract } from "@repo/contracts"
+import { type V1Contract, v1Contract } from "@repo/contracts"
 
 import { env } from "@/env"
+
+export type OrpcClient = JsonifiedClient<ContractRouterClient<V1Contract>>
+
+declare global {
+	var $orpc: OrpcClient | undefined
+}
 
 interface OrpcLinkOptions {
 	getCookieHeader?: () => Promise<string>
@@ -33,3 +42,11 @@ export function createOrpcLink(options?: OrpcLinkOptions) {
 		},
 	})
 }
+
+const link = createOrpcLink()
+
+/**
+ * Type-safe oRPC client for frontend API calls.
+ * Uses OpenAPI Link to communicate with the NestJS backend via HTTP.
+ */
+export const orpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>(link)

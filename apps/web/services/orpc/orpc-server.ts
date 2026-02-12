@@ -4,8 +4,7 @@ import { createORPCClient } from "@orpc/client"
 
 import { getCookieHeader } from "@/core/lib/cookie-utils"
 
-import type { OrpcClient } from "./orpc-client"
-import { createOrpcLink } from "./orpc-link"
+import { createOrpcLink, type OrpcClient } from "./client"
 
 const link = createOrpcLink({ getCookieHeader })
 

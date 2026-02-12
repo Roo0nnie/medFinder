@@ -14,14 +14,12 @@ Shared oRPC contracts and Zod schemas for type-safe API communication across app
 packages/contracts/src/
 ├── index.ts                # Public exports
 ├── contracts.ts            # Central contract registry (version re-exports)
-├── modules/
-│   └── v1/
-│       ├── v1.contract.ts         # Version router (assembles features + applies /v1 prefix)
-│       └── [feature]/
-│           ├── [feature].schema.ts    # Zod schemas and types
-│           └── [feature].contract.ts  # oRPC route definitions
-└── utils/
-    └── transform.ts        # Date transform utilities
+└── modules/
+    └── v1/
+        ├── v1.contract.ts         # Version router (assembles features + applies /v1 prefix)
+        └── [feature]/
+            ├── [feature].schema.ts    # Zod schemas and types
+            └── [feature].contract.ts  # oRPC route definitions
 ```
 
 ### Key Pattern: Schema + Contract
@@ -40,9 +38,9 @@ Each feature has two files:
 import { z } from "zod"
 
 export const UserSchema = z.object({
-  id: z.number().int().positive(),
-  email: z.string().email(),
-  name: z.string().min(1).max(255),
+	id: z.number().int().positive(),
+	email: z.string().email(),
+	name: z.string().min(1).max(255),
 })
 
 export const CreateUserSchema = UserSchema.pick({ email: true, name: true })
@@ -57,17 +55,16 @@ export type CreateUser = z.infer<typeof CreateUserSchema>
 // modules/v1/users/users.contract.ts
 import { oc } from "@orpc/contract"
 import { z } from "zod"
-import { UserSchema, CreateUserSchema } from "./users.schema.js"
+
+import { CreateUserSchema, UserSchema } from "./users.schema.js"
 
 export const userContract = {
-  list: oc
-    .route({ method: "GET", path: "/users", tags: ["Users"] })
-    .output(z.array(UserSchema)),
+	list: oc.route({ method: "GET", path: "/users", tags: ["Users"] }).output(z.array(UserSchema)),
 
-  create: oc
-    .route({ method: "POST", path: "/users", tags: ["Users"] })
-    .input(CreateUserSchema)
-    .output(UserSchema),
+	create: oc
+		.route({ method: "POST", path: "/users", tags: ["Users"] })
+		.input(CreateUserSchema)
+		.output(UserSchema),
 }
 ```
 
@@ -76,13 +73,14 @@ export const userContract = {
 ```typescript
 // modules/v1/v1.contract.ts
 import { oc } from "@orpc/contract"
+
 import { userContract } from "./users/users.contract.js"
 
 export const v1Contract = oc.prefix("/v1").router(
-  oc.router({
-    user: userContract,
-    // ...other feature contracts
-  })
+	oc.router({
+		user: userContract,
+		// ...other feature contracts
+	})
 )
 
 export type V1Contract = typeof v1Contract
@@ -98,24 +96,26 @@ export { v1Contract, type V1Contract } from "./modules/v1/v1.contract.js"
 
 ```typescript
 import { Implement } from "@orpc/nest"
+
 import { v1 } from "@/config/api-versions.config"
 
 @Controller()
 export class UsersController {
-  @Implement(v1.user.list)
-  async list() {
-    return implement(v1.user.list).handler(async () => {
-      return this.service.findAll()
-    })
-  }
+	@Implement(v1.user.list)
+	async list() {
+		return implement(v1.user.list).handler(async () => {
+			return this.service.findAll()
+		})
+	}
 }
 ```
 
 ### Frontend Usage (Next.js)
 
 ```typescript
-import { v1Contract } from "@repo/contracts"
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
+
+import { v1Contract } from "@repo/contracts"
 
 // The contract provides full type safety for API calls
 const link = new OpenAPILink(v1Contract, { url: "http://localhost:3000/api" })

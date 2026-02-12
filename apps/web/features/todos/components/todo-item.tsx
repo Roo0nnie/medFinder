@@ -14,12 +14,12 @@ import {
 	ItemTitle,
 } from "@/core/components/ui/item"
 import { Spinner } from "@/core/components/ui/spinner"
-import { type InferArrayItem, type orpc } from "@/services/orpc/orpc-client"
+import { type TodoListItem } from "@/services/orpc/contract-types"
 
 import { useDeleteTodoMutation, useUpdateTodoMutation } from "../api/todos.hooks"
 
 interface TodoItemProps {
-	todo: InferArrayItem<typeof orpc.example.todo.list>
+	todo: TodoListItem
 }
 
 export function TodoItem({ todo }: TodoItemProps) {
