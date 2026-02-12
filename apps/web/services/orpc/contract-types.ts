@@ -8,8 +8,11 @@ export type V1Outputs = InferContractRouterOutputs<typeof v1Contract>
 /** Extract element type from an array-returning procedure output (e.g. list). */
 export type ArrayItem<T> = T extends readonly (infer E)[] ? E : never
 
-/** List item as received from the API (dates serialized as strings). */
-export type TodoListItem = Omit<
-	ArrayItem<V1Outputs["example"]["todo"]["list"]>,
-	"createdAt" | "updatedAt"
-> & { createdAt: string; updatedAt: string }
+/** Transform Date fields to string fields for serialized API responses. */
+export type SerializeDates<T, K extends keyof T> = Omit<T, K> & { [P in K]: string }
+
+/** Convenience helper for array-returning procedures with serialized dates. */
+export type SerializedArrayItem<T, K extends keyof ArrayItem<T>> = SerializeDates<
+	ArrayItem<T>,
+	K
+>
