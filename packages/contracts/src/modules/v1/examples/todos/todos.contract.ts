@@ -1,7 +1,13 @@
 import { oc } from "@orpc/contract"
 import { z } from "zod"
 
-import { CreateTodoSchema, TodoIdSchema, TodoSchema, UpdateTodoSchema } from "./todos.schema.js"
+import {
+	CreateTodoSchema,
+	TodoIdSchema,
+	TodoSchema,
+	UpdateTodoRequestSchema,
+	UpdateTodoSchema,
+} from "./todos.schema"
 
 export const todoContract = {
 	/**
@@ -61,7 +67,7 @@ export const todoContract = {
 			description: "Update an existing todo item",
 			tags: ["Todos"],
 		})
-		.input(UpdateTodoSchema)
+		.input(UpdateTodoRequestSchema)
 		.output(TodoSchema),
 
 	/**

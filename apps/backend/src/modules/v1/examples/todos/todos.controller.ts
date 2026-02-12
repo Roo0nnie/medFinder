@@ -11,40 +11,40 @@ import { TodosService } from "./todos.service"
 export class TodosController {
 	constructor(private readonly todosService: TodosService) {}
 
-	@Implement(v1.todo.list)
+	@Implement(v1.example.todo.list)
 	async listTodos() {
-		return implement(v1.todo.list).handler(async () => {
+		return implement(v1.example.todo.list).handler(async () => {
 			return this.todosService.findAll()
 		})
 	}
 
-	@Implement(v1.todo.get)
+	@Implement(v1.example.todo.get)
 	async getTodo() {
-		return implement(v1.todo.get).handler(async ({ input }) => {
+		return implement(v1.example.todo.get).handler(async ({ input }) => {
 			return this.todosService.findOne({ id: input.id })
 		})
 	}
 
-	@Implement(v1.todo.create)
+	@Implement(v1.example.todo.create)
 	async createTodo(
 		@Session()
 		session: UserSession
 	) {
-		return implement(v1.todo.create).handler(async ({ input }) => {
+		return implement(v1.example.todo.create).handler(async ({ input }) => {
 			return this.todosService.create({ payload: input, authorId: session.user.id })
 		})
 	}
 
-	@Implement(v1.todo.update)
+	@Implement(v1.example.todo.update)
 	async updateTodo() {
-		return implement(v1.todo.update).handler(async ({ input }) => {
-			return this.todosService.update({ id: input.id, payload: input })
+		return implement(v1.example.todo.update).handler(async ({ input }) => {
+			return this.todosService.update({ payload: input })
 		})
 	}
 
-	@Implement(v1.todo.delete)
+	@Implement(v1.example.todo.delete)
 	async removeTodo() {
-		return implement(v1.todo.delete).handler(async ({ input }) => {
+		return implement(v1.example.todo.delete).handler(async ({ input }) => {
 			return this.todosService.delete({ id: input.id })
 		})
 	}

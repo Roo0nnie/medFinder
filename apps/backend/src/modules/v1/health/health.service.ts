@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { sql } from "drizzle-orm"
 
-import type { HealthCheck } from "@repo/contracts"
+import type { HealthCheck } from "@/config/contract-types"
 
 import { db } from "@/common/database/database.client"
 import { env } from "@/config/env.config"

@@ -3,14 +3,6 @@
  * Shared oRPC contracts for type-safe API communication
  */
 
-// Export schemas
-export * from "./modules/v1/examples/todos.schema.js"
-export * from "./modules/v1/health/health.schema.js"
-
-// Export individual feature contracts
-export * from "./modules/v1/examples/todos.contract.js"
-export * from "./modules/v1/health/health.contract.js"
-
 // Export version contracts and types
 export * from "./contracts.js"
 

@@ -23,7 +23,7 @@ export function useTodosQuery() {
 	return useQuery({
 		queryKey: todosKeys.all,
 		queryFn: async () => {
-			const response = await orpc.todo.list()
+			const response = await orpc.example.todo.list()
 			return response
 		},
 		staleTime: 60 * 1000, // 1 minute
@@ -40,7 +40,7 @@ export function useCreateTodoMutation() {
 
 	return useMutation({
 		mutationFn: async (data: { title: string }) => {
-			const response = await orpc.todo.create(data)
+			const response = await orpc.example.todo.create(data)
 			return response
 		},
 		onSuccess: () => {
@@ -59,7 +59,7 @@ export function useUpdateTodoMutation() {
 
 	return useMutation({
 		mutationFn: async ({ id, completed }: { id: number; completed: boolean }) => {
-			const response = await orpc.todo.update({ id, completed })
+			const response = await orpc.example.todo.update({ id, completed })
 			return response
 		},
 		onSuccess: () => {
@@ -78,7 +78,7 @@ export function useDeleteTodoMutation() {
 
 	return useMutation({
 		mutationFn: async ({ id }: { id: number }) => {
-			const response = await orpc.todo.delete({ id })
+			const response = await orpc.example.todo.delete({ id })
 			return response
 		},
 		onSuccess: () => {

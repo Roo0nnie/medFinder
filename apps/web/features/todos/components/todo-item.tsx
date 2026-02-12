@@ -19,7 +19,7 @@ import { type InferArrayItem, type orpc } from "@/services/orpc/orpc-client"
 import { useDeleteTodoMutation, useUpdateTodoMutation } from "../api/todos.hooks"
 
 interface TodoItemProps {
-	todo: InferArrayItem<typeof orpc.todo.list>
+	todo: InferArrayItem<typeof orpc.example.todo.list>
 }
 
 export function TodoItem({ todo }: TodoItemProps) {

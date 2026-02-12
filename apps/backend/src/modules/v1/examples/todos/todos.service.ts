@@ -1,7 +1,11 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
 import { desc, eq } from "drizzle-orm"
 
-import { CreateTodoInput, TodoIdInput, UpdateTodoInput } from "@repo/contracts"
+import type {
+	CreateTodoInput,
+	TodoIdInput,
+	UpdateTodoRequest,
+} from "@/config/contract-types"
 import { todos } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
@@ -17,8 +21,9 @@ export class TodosService {
 	}
 
 	async findOne({ id }: { id: TodoIdInput["id"] }) {
-		const [todo] = await db.select().from(todos).where(eq(todos.id, id))
-		if (!todo) throw new NotFoundException(`Todo with ID ${id} not found`)
+		const idNum = id as number
+		const [todo] = await db.select().from(todos).where(eq(todos.id, idNum))
+		if (!todo) throw new NotFoundException(`Todo with ID ${idNum} not found`)
 		return todo
 	}
 
@@ -35,8 +40,8 @@ export class TodosService {
 		return todo
 	}
 
-	async update({ id, payload }: { id: TodoIdInput["id"]; payload: UpdateTodoInput }) {
-		await this.findOne({ id })
+	async update({ payload }: { payload: UpdateTodoRequest }) {
+		const id = payload.id as number
 		const [todo] = await db
 			.update(todos)
 			.set({
@@ -51,7 +56,8 @@ export class TodosService {
 	}
 
 	async delete({ id }: { id: TodoIdInput["id"] }) {
-		await db.delete(todos).where(eq(todos.id, id))
+		const idNum = id as number
+		await db.delete(todos).where(eq(todos.id, idNum))
 		return { success: true, id }
 	}
 }

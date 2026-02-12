@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from "@nestjs/testing"
 
-import { type Todo } from "@repo/contracts"
+import type { Todo } from "@/config/contract-types"
 
 import { TodosController } from "./todos.controller"
 import { TodosService } from "./todos.service"
@@ -125,7 +125,10 @@ describe("TodosController (v1)", () => {
 		const newTodo = createMockTodo({ id: 3, title: "Versioned", completed: true })
 		setupInsertMock(newTodo)
 
-		const result = await service.create({ title: "Versioned", completed: true }, USER_ID)
+		const result = await service.create({
+			payload: { title: "Versioned", completed: true },
+			authorId: USER_ID,
+		})
 
 		expect(result).toMatchObject({
 			title: "Versioned",
@@ -142,7 +145,9 @@ describe("TodosController (v1)", () => {
 		setupSelectMock(existingTodo)
 		setupUpdateMock(updated)
 
-		const result = await service.update(3, { title: "Updated Title" })
+		const result = await service.update({
+			payload: { id: 3, title: "Updated Title" },
+		})
 
 		expect(result).toMatchObject({
 			id: 3,
@@ -155,7 +160,7 @@ describe("TodosController (v1)", () => {
 		setupSelectMock(existingTodo)
 		setupDeleteMock()
 
-		await service.delete(3)
+		await service.delete({ id: 3 })
 
 		expect(mockDb.delete).toHaveBeenCalled()
 	})
