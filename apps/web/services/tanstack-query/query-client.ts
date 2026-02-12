@@ -1,7 +1,8 @@
 import { cache } from "react"
+import { StandardRPCJsonSerializer } from "@orpc/client/standard"
 import { defaultShouldDehydrateQuery, isServer, QueryClient } from "@tanstack/react-query"
 
-import { serializer } from "./serializer"
+const serializer = new StandardRPCJsonSerializer({ customJsonSerializers: [] })
 
 /**
  * Creates a QueryClient with oRPC-compatible key hashing and dehydration/hydration.
