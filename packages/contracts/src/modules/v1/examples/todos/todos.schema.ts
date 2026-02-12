@@ -34,7 +34,7 @@ export const UpdateTodoSchema = TodoSchema.pick({
 }).partial()
 
 /** Full update route input: id from path + optional title/completed */
-export const UpdateTodoRequestSchema = TodoIdSchema.merge(UpdateTodoSchema)
+export const UpdateTodoRequestSchema = TodoIdSchema.extend(UpdateTodoSchema.shape)
 
 // ============================================================================
 // TYPEs

@@ -1,9 +1,11 @@
 import { Test, type TestingModule } from "@nestjs/testing"
 
-import type { Todo } from "@/config/contract-types"
+import type { V1Outputs } from "@/config/contract-types"
 
 import { TodosController } from "./todos.controller"
 import { TodosService } from "./todos.service"
+
+type Todo = V1Outputs["example"]["todo"]["get"]
 
 jest.mock("@thallesp/nestjs-better-auth", () => ({
 	AllowAnonymous: () => () => undefined,

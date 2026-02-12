@@ -6,8 +6,7 @@ import {
 	TodoIdSchema,
 	TodoSchema,
 	UpdateTodoRequestSchema,
-	UpdateTodoSchema,
-} from "./todos.schema"
+} from "./todos.schema.js"
 
 export const todoContract = {
 	/**

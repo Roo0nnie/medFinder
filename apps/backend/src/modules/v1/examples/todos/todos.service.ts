@@ -1,14 +1,14 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
 import { desc, eq } from "drizzle-orm"
 
-import type {
-	CreateTodoInput,
-	TodoIdInput,
-	UpdateTodoRequest,
-} from "@/config/contract-types"
+import type { V1Inputs } from "@/config/contract-types"
 import { todos } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
+
+type CreateTodoInput = V1Inputs["example"]["todo"]["create"]
+type TodoIdInput = V1Inputs["example"]["todo"]["get"]
+type UpdateTodoRequest = V1Inputs["example"]["todo"]["update"]
 
 @Injectable()
 export class TodosService {
@@ -58,6 +58,6 @@ export class TodosService {
 	async delete({ id }: { id: TodoIdInput["id"] }) {
 		const idNum = id as number
 		await db.delete(todos).where(eq(todos.id, idNum))
-		return { success: true, id }
+		return { success: true, id: idNum }
 	}
 }
