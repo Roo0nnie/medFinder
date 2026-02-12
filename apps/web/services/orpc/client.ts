@@ -3,7 +3,7 @@ import type { ContractRouterClient } from "@orpc/contract"
 import type { JsonifiedClient } from "@orpc/openapi-client"
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
 
-import { type V1Contract, v1Contract } from "@repo/contracts"
+import { v1Contract, type V1Contract } from "@repo/contracts"
 
 import { env } from "@/env"
 

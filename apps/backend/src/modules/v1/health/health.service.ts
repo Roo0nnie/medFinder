@@ -1,9 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { sql } from "drizzle-orm"
 
-import type { V1Outputs } from "@/config/contract-types"
-
 import { db } from "@/common/database/database.client"
+import type { V1Outputs } from "@/config/contract-types"
 import { env } from "@/config/env.config"
 
 type HealthCheck = V1Outputs["health"]["check"]

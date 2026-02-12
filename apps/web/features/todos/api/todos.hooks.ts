@@ -13,7 +13,7 @@ export function useTodosQuery() {
 	return useQuery(
 		orpcTQ.example.todo.list.queryOptions({
 			staleTime: 60 * 1000, // 1 minute
-		}),
+		})
 	)
 }
 
@@ -30,7 +30,7 @@ export function useCreateTodoMutation() {
 			onSuccess: () => {
 				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
 			},
-		}),
+		})
 	)
 }
 
@@ -47,7 +47,7 @@ export function useUpdateTodoMutation() {
 			onSuccess: () => {
 				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
 			},
-		}),
+		})
 	)
 }
 
@@ -64,6 +64,6 @@ export function useDeleteTodoMutation() {
 			onSuccess: () => {
 				queryClient.invalidateQueries({ queryKey: orpcTQ.example.todo.key() })
 			},
-		}),
+		})
 	)
 }

@@ -1,10 +1,10 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common"
 import { desc, eq } from "drizzle-orm"
 
-import type { V1Inputs } from "@/config/contract-types"
 import { todos } from "@repo/db/schema"
 
 import { db } from "@/common/database/database.client"
+import { type V1Inputs } from "@/config/contract-types"
 
 type CreateTodoInput = V1Inputs["example"]["todo"]["create"]
 type TodoIdInput = V1Inputs["example"]["todo"]["get"]
