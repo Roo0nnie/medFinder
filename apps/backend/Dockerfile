@@ -1,54 +1,38 @@
 # ========================================
 # Base Stage
 # ========================================
-FROM node:22-alpine AS base
-RUN apk update
-RUN apk add --no-cache libc6-compat wget
-RUN npm install -g pnpm@10.27.0
+FROM python:3.12-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # ========================================
-# Prepare Stage - Prune workspace
-# ========================================
-FROM base AS prepare
-RUN npm install -g turbo
-COPY . .
-# Generate pruned workspace with pruned lockfile for target workspace
-RUN turbo prune @repo/backend --docker
-
-# ========================================
-# Builder Stage
+# Builder Stage - install dependencies
 # ========================================
 FROM base AS builder
-# First install dependencies (as they change less often)
-COPY --from=prepare /app/out/json/ .
-COPY --from=prepare /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN pnpm install --frozen-lockfile
-# Build all workspace packages first, then backend (skip lint/typecheck in Docker)
-COPY --from=prepare /app/out/full/ .
-ENV TURBO_FORCE_BUILD=1
-RUN pnpm run build
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ========================================
-# Runner Stage - Minimal production image
+# Runner Stage - production image
 # ========================================
 FROM base AS runner
-# Don't run production as root for security reasons
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nodejs
-USER nodejs
+RUN addgroup --system --gid 1001 appgroup \
+    && adduser --system --uid 1001 --ingroup appgroup appuser
+USER appuser
 
-# Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/dist ./apps/backend/dist
-# Copy package files needed for runtime
-COPY --from=prepare --chown=nodejs:nodejs /app/out/json/apps/backend/package.json ./apps/backend/package.json
-# Copy production dependencies (needed for runtime)
-COPY --from=builder --chown=nodejs:nodejs /app/apps/backend/node_modules ./apps/backend/node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-# Copy packages with their compiled dist folders
-COPY --from=builder --chown=nodejs:nodejs /app/packages ./packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --chown=appuser:appgroup . .
+
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
-CMD node apps/backend/dist/main.js
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health/ || exit 1
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD []

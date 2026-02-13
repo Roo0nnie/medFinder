@@ -1,3 +1,3 @@
 export async function register() {
-	await import("@/services/orpc/orpc-server")
+	// Reserved for future instrumentation (e.g. OpenTelemetry)
 }

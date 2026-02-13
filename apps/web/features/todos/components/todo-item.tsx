@@ -14,18 +14,12 @@ import {
 	ItemTitle,
 } from "@/core/components/ui/item"
 import { Spinner } from "@/core/components/ui/spinner"
-import { type SerializedArrayItem, type V1Outputs } from "@/services/orpc/contract-types"
 
 import { useDeleteTodoMutation, useUpdateTodoMutation } from "../api/todos.hooks"
-
-/** List item as received from the API (dates serialized as strings). */
-type TodoListItem = SerializedArrayItem<
-	V1Outputs["example"]["todo"]["list"],
-	"createdAt" | "updatedAt"
->
+import type { Todo } from "../api/todos.types"
 
 interface TodoItemProps {
-	todo: TodoListItem
+	todo: Todo
 }
 
 export function TodoItem({ todo }: TodoItemProps) {

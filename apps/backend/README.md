@@ -1,49 +1,37 @@
 # @repo/backend
 
-NestJS API server with oRPC contracts, Better Auth, and Drizzle ORM.
+Django API server with versioned REST API (Option A structure).
 
 ## Tech Stack
 
-- **Framework**: NestJS
-- **API Contracts**: oRPC (type-safe, OpenAPI-generated)
-- **Database**: Drizzle ORM + PostgreSQL
-- **Auth**: Better Auth
-- **Validation**: Zod (via `@repo/contracts`)
-- **API Docs**: Scalar (auto-generated from oRPC contracts)
+- **Framework**: Django 5 + Django REST Framework
+- **Database**: PostgreSQL (Django ORM)
+- **CORS**: django-cors-headers
+- **Production server**: Gunicorn
 
-## Structure
+## Structure (Option A)
 
 ```
-apps/backend/src/
-├── bootstrap.ts             # App creation and startup orchestrator
-├── main.ts                  # Entry point
-├── app.module.ts            # Root module
-├── common/                  # Reusable NestJS modules
-│   ├── database/            # Database module, providers
-│   ├── decorators/          # Custom decorators
-│   ├── filters/             # Global exception filters
-│   └── orpc/                # oRPC integration module
-├── config/                  # App configuration
-│   ├── api-versions.config.ts  # Version registry and contract re-exports
-│   ├── app.config.ts           # CORS, body parser, graceful shutdown
-│   ├── auth.config.ts          # Better Auth middleware and routes
-│   ├── env.config.ts           # Environment validation
-│   └── swagger.config.ts       # OpenAPI doc generation (Scalar)
-├── modules/                 # Feature modules by API version
+apps/backend/
+├── config/                 # Django project config
+│   ├── settings/
+│   │   ├── base.py
+│   │   ├── development.py
+│   │   └── production.py
+│   ├── urls.py             # Root → api/
+│   ├── wsgi.py
+│   └── asgi.py
+├── api/
+│   ├── urls.py             # /api/ → v1/
 │   └── v1/
-│       ├── v1.module.ts
-│       ├── health/
-│       │   ├── health.module.ts
-│       │   ├── health.controller.ts
-│       │   └── health.service.ts
+│       ├── urls.py         # /api/v1/ → health, example/
+│       ├── health/         # GET /api/v1/health/
 │       └── examples/
-│           └── todos/
-│               ├── todos.module.ts
-│               ├── todos.controller.ts
-│               ├── todos.service.ts
-│               └── todos.controller.spec.ts
-└── utils/                   # Pure utility functions
-    └── openapi.ts
+│           └── todos/      # CRUD /api/v1/example/todos/
+├── core/                   # Shared (exceptions, etc.)
+├── manage.py
+├── requirements.txt
+└── .env.example
 ```
 
 ## Development
@@ -52,39 +40,50 @@ apps/backend/src/
 # From monorepo root
 pnpm dev:backend
 
-# Or directly
-pnpm --filter @repo/backend dev
+# Or from apps/backend (with venv activated)
+python manage.py runserver 0.0.0.0:3000
 ```
 
 Runs on [http://localhost:3000](http://localhost:3000)
 
+## First-time setup
+
+```bash
+cd apps/backend
+python -m venv .venv
+.venv\Scripts\activate   # Windows
+# source .venv/bin/activate  # macOS/Linux
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env with your DATABASE_URL and CORS_ORIGINS
+python manage.py migrate
+python manage.py runserver 0.0.0.0:3000
+```
+
 ## Environment Variables
 
-| Variable                      | Required | Description                     |
-| ----------------------------- | -------- | ------------------------------- |
-| `DATABASE_URL`                | Yes      | PostgreSQL connection string    |
-| `BETTER_AUTH_SECRET`          | Yes      | Auth secret key                 |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | Yes      | Comma-separated trusted origins |
-| `CORS_ORIGINS`                | Yes      | Comma-separated CORS origins    |
-| `PORT`                        | No       | Server port (default: 3000)     |
-| `GOOGLE_CLIENT_ID`            | No       | Google OAuth client ID          |
-| `GOOGLE_CLIENT_SECRET`        | No       | Google OAuth client secret      |
+| Variable        | Required | Description                          |
+| --------------- | -------- | ------------------------------------ |
+| `DATABASE_URL`  | Yes      | PostgreSQL connection string         |
+| `SECRET_KEY`    | Yes      | Django secret (change in production) |
+| `DEBUG`         | No       | true/false (default: true)           |
+| `ALLOWED_HOSTS` | No       | Comma-separated (required in prod)   |
+| `CORS_ORIGINS`  | Yes      | Comma-separated CORS origins         |
 
 See `.env.example` for reference.
 
 ## API Endpoints
 
-- **Health**: `GET /api/v1/health` — Returns server status and database connectivity
-- **Docs**: `GET /api/v1/docs` — Interactive API documentation (Scalar)
-- **OpenAPI Spec**: `GET /api/v1/spec.json` — Raw OpenAPI JSON
+- **Health**: `GET /api/v1/health/` — Returns server status and database connectivity
+- **Todos**: `GET/POST /api/v1/example/todos/` — List and create
+- **Todo detail**: `GET/PUT/DELETE /api/v1/example/todos/<id>/` — Get, update, delete
+
+Create todo requires authentication (Django session or custom auth). List/Get/Update/Delete are currently allowed for all; tighten permissions as needed.
 
 ## Scripts
 
-| Command         | Description             |
-| --------------- | ----------------------- |
-| `pnpm dev`      | Start in watch mode     |
-| `pnpm build`    | Build for production    |
-| `pnpm start`    | Start production build  |
-| `pnpm test`     | Run unit tests          |
-| `pnpm test:e2e` | Run E2E tests           |
-| `pnpm test:cov` | Run tests with coverage |
+| Command      | Description            |
+| ------------ | ---------------------- |
+| `pnpm dev`   | Run development server |
+| `pnpm start` | Run with Gunicorn      |
+| `pnpm build` | No-op (for Turbo)      |

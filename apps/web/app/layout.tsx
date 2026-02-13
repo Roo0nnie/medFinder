@@ -8,7 +8,6 @@ import { AuthProvider } from "@/services/better-auth/context/auth-provider"
 import { QueryProvider } from "@/services/tanstack-query/provider"
 
 import "@/core/styles/globals.css"
-import "@/services/orpc/orpc-server"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-sans" })
 
