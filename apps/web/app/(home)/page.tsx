@@ -24,7 +24,7 @@ export default async function Home() {
 					TURBO TEMPLATE.
 				</h1>
 				<p className="max-w-2xl text-lg leading-8 text-zinc-600 md:text-2xl dark:text-zinc-400">
-					A full-stack monorepo template with Next.js, NestJS, and Flutter. Built for rapid
+					A full-stack monorepo template with Next.js and Django. Built for rapid
 					development with shared packages, type-safe APIs, and modern tooling.
 				</p>
 			</div>

@@ -16,7 +16,6 @@ This is a **Turborepo monorepo** template with three applications and shared pac
 | --------------- | ---------------------------------------- | --------------------- |
 | Frontend        | Next.js 16 (App Router)                  | `apps/web/`           |
 | Backend         | NestJS                                   | `apps/backend/`       |
-| Mobile          | Flutter                                  | `apps/mobile/`        |
 | Database        | Drizzle ORM + PostgreSQL                 | `packages/db/`        |
 | Auth            | Better Auth                              | `packages/auth/`      |
 | Contracts       | Zod schemas + DTOs                       | `packages/contracts/` |
@@ -31,7 +30,6 @@ turbo-template/
 ├── apps/
 │   ├── web/              # Next.js frontend
 │   ├── backend/          # NestJS API server
-│   └── mobile/           # Flutter mobile app
 ├── packages/
 │   ├── auth/             # Shared auth configuration
 │   ├── db/               # Drizzle schema and client

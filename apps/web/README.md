@@ -9,6 +9,7 @@ Next.js 16 frontend application with App Router, Tailwind CSS, and shadcn/ui.
 - **Data Fetching**: TanStack Query
 - **Auth**: Better Auth (client)
 - **Validation**: Zod + @t3-oss/env-nextjs
+- **Backend / API**: Django (@repo/backend)
 
 ## Structure
 

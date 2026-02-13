@@ -6,7 +6,7 @@
 	"license": "UNLICENSED",
 	"scripts": {
 		"build": "echo \"@repo/backend (Django) has no build step\"",
-		"dev": "python manage.py runserver 0.0.0.0:3000",
+		"dev": "node run-dev.mjs",
 		"start": "gunicorn config.wsgi:application --bind 0.0.0.0:3000",
 		"format": "echo \"No TypeScript sources to format in Django backend\"",
 		"lint": "echo \"Skipping JS lint for Django backend\"",

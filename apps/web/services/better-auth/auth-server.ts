@@ -17,17 +17,22 @@ import { getAuthUrl } from "./lib/utils"
 export const getSession = cache(async (): Promise<AuthSession | null> => {
 	const cookieHeader = await getCookieHeader()
 
-	const response = await fetch(`${getAuthUrl()}/get-session`, {
-		headers: {
-			"Content-Type": "application/json",
-			"cookie": cookieHeader,
-		},
-		cache: "no-store",
-	})
+	try {
+		const response = await fetch(`${getAuthUrl()}/get-session`, {
+			headers: {
+				"Content-Type": "application/json",
+				"cookie": cookieHeader,
+			},
+			cache: "no-store",
+		})
 
-	if (!response.ok) {
+		if (!response.ok) {
+			return null
+		}
+
+		return response.json()
+	} catch {
+		// Auth server unreachable (e.g. backend not running, ECONNREFUSED)
 		return null
 	}
-
-	return response.json()
 })

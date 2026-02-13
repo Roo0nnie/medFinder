@@ -48,7 +48,7 @@ const link = createOrpcLink()
 
 /**
  * Base oRPC client for direct API calls.
- * Uses OpenAPI Link to communicate with the NestJS backend via HTTP.
+ * Uses OpenAPI Link to communicate with the Django backend via HTTP.
  */
 const baseOrpc: OrpcClient = globalThis.$orpc ?? createORPCClient<OrpcClient>(link)
 
