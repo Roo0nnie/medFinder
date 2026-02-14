@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Tailwind CSS Size Utility Guidelines
 
-**Scope:** This rule applies only to `apps/web/` (Next.js frontend). Backend and mobile apps do not use Tailwind CSS.
+**Scope:** This rule applies only to `apps/web/` (Next.js frontend). Backend do not use Tailwind CSS.
 
 ## Rule: Use `size-*` for Square Dimensions
 

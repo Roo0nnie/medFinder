@@ -15,7 +15,7 @@ This is a **Turborepo monorepo** template with three applications and shared pac
 | Layer           | Technology                               | Location              |
 | --------------- | ---------------------------------------- | --------------------- |
 | Frontend        | Next.js 16 (App Router)                  | `apps/web/`           |
-| Backend         | NestJS                                   | `apps/backend/`       |
+| Backend         | Django                                   | `apps/backend/`       |
 | Database        | Drizzle ORM + PostgreSQL                 | `packages/db/`        |
 | Auth            | Better Auth                              | `packages/auth/`      |
 | Contracts       | Zod schemas + DTOs                       | `packages/contracts/` |
@@ -69,7 +69,6 @@ import { todos } from "@repo/db/schema"
 pnpm dev              # Start all apps in development (watch mode)
 pnpm dev:web          # Start only web app
 pnpm dev:backend      # Start only backend app
-pnpm dev:mobile       # Start only mobile app
 pnpm start            # Start all apps in production mode
 ```
 
@@ -119,7 +118,6 @@ pnpm auth:generate    # Generate Better Auth types
 | Context    | Convention | Examples                                 |
 | ---------- | ---------- | ---------------------------------------- |
 | TypeScript | kebab-case | `user-profile.tsx`, `auth-utils.ts`      |
-| Flutter    | snake_case | `user_profile.dart`, `auth_service.dart` |
 | Folders    | kebab-case | `user-management/`, `document-signing/`  |
 | Components | kebab-case | `todo-card.tsx`, `user-avatar.tsx`       |
 | Hooks      | kebab-case | `use-auth.ts`, `use-todos-query.ts`      |
@@ -131,6 +129,5 @@ pnpm auth:generate    # Generate Better Auth types
 See the following files for app-specific conventions:
 
 - **`web-rules.md`** - Next.js frontend (`apps/web/`)
-- **`backend-rules.md`** - NestJS API server (`apps/backend/`)
-- **`mobile-rules.md`** - Flutter mobile app (`apps/mobile/`)
+- **`backend-rules.md`** - Django API server (`apps/backend/`)
 - **`packages-rules.md`** - Shared packages and tooling

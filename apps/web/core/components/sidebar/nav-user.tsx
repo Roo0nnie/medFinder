@@ -28,7 +28,7 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/core/components/ui/sidebar"
-import { getInitials } from "@/core/lib/utils"
+import { getDisplayName, getInitials } from "@/core/lib/utils"
 
 export function NavUser({ session }: { session: AuthSession }) {
 	const { isMobile } = useSidebar()
@@ -46,13 +46,13 @@ export function NavUser({ session }: { session: AuthSession }) {
 						}
 					>
 						<Avatar className="h-8 w-8 rounded-lg">
-							<AvatarImage src={session.user?.image ?? undefined} alt={session.user.name} />
+							<AvatarImage src={session.user?.image ?? undefined} alt={getDisplayName(session.user)} />
 							<AvatarFallback className="rounded-lg">
-								{getInitials(session.user?.name ?? "") || "CN"}
+								{getInitials(getDisplayName(session.user)) || "CN"}
 							</AvatarFallback>
 						</Avatar>
 						<div className="grid flex-1 text-left text-sm leading-tight">
-							<span className="truncate font-medium">{session.user?.name ?? ""}</span>
+							<span className="truncate font-medium">{getDisplayName(session.user)}</span>
 							<span className="truncate text-xs">{session.user?.email ?? ""}</span>
 						</div>
 						<HugeiconsIcon icon={UnfoldMoreIcon} className="ml-auto size-4" strokeWidth={2} />
@@ -68,13 +68,13 @@ export function NavUser({ session }: { session: AuthSession }) {
 							<DropdownMenuLabel className="p-0 font-normal">
 								<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 									<Avatar className="h-8 w-8 rounded-lg">
-										<AvatarImage src={session.user?.image ?? undefined} alt={session.user.name} />
+										<AvatarImage src={session.user?.image ?? undefined} alt={getDisplayName(session.user)} />
 										<AvatarFallback className="rounded-lg">
-											{getInitials(session.user?.name ?? "") || "CN"}
+											{getInitials(getDisplayName(session.user)) || "CN"}
 										</AvatarFallback>
 									</Avatar>
 									<div className="grid flex-1 text-left text-sm leading-tight">
-										<span className="truncate font-medium">{session.user?.name ?? ""}</span>
+										<span className="truncate font-medium">{getDisplayName(session.user)}</span>
 										<span className="truncate text-xs">{session.user?.email ?? ""}</span>
 									</div>
 								</div>

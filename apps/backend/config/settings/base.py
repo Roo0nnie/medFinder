@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "api.v1.health",
     "api.v1.examples.todos",
+    "api.v1.users",
 ]
 
 MIDDLEWARE = [

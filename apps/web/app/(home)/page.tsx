@@ -1,5 +1,6 @@
-import { getSession } from "@/services/better-auth/auth-server"
+import { getDisplayName } from "@/core/lib/utils"
 import { HomeCtaButton } from "@/features/home/home-cta-button"
+import { getSession } from "@/services/better-auth/auth-server"
 import { NavigationLinks } from "@/features/home/navigation-links"
 
 export default async function Home() {
@@ -12,7 +13,7 @@ export default async function Home() {
 				<p className="text-lg text-zinc-700 md:text-xl dark:text-zinc-300">
 					{isLoggedIn ? (
 						<>
-							Hello <span className="font-semibold">{session.user.name}</span>
+							Hello <span className="font-semibold">{getDisplayName(session.user)}</span>
 						</>
 					) : (
 						<>

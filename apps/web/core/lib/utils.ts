@@ -30,6 +30,22 @@ export const getApiUrl = cache(() => {
 })
 
 /**
+ * Get display name from user (name, or first + middle + last, or email).
+ */
+export function getDisplayName(user: {
+	name?: string | null
+	firstName?: string | null
+	middleName?: string | null
+	lastName?: string | null
+	email?: string | null
+}): string {
+	if (user?.name?.trim()) return user.name
+	const parts = [user?.firstName, user?.middleName, user?.lastName].filter(Boolean) as string[]
+	if (parts.length > 0) return parts.join(" ").trim()
+	return user?.email?.trim() ?? ""
+}
+
+/**
  * Get the initials of a name
  * @param name - The name to get the initials of
  * @returns The initials of the name

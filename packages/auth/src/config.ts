@@ -18,6 +18,8 @@ export const authEnv = createEnv({
 		// Authentication
 		BETTER_AUTH_SECRET: z.string(),
 		BETTER_AUTH_TRUSTED_ORIGINS: z.string(),
+		// Base path for auth routes (e.g. /api/auth when served from Next.js)
+		BETTER_AUTH_BASE_PATH: z.string().optional().default("/auth"),
 
 		// OAuth Providers (Google)
 		GOOGLE_CLIENT_ID: z.string().optional(),
@@ -59,8 +61,17 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 			},
 			usePlural: true,
 		}),
-		basePath: AUTH_BASE_PATH,
+		basePath: authEnv.BETTER_AUTH_BASE_PATH,
 		secret: authEnv.BETTER_AUTH_SECRET,
+		user: {
+			// API body uses camelCase; fieldName maps to schema keys (first_name, last_name)
+			additionalFields: {
+				firstName: { type: "string", fieldName: "first_name" },
+				lastName: { type: "string", fieldName: "last_name", required: true },
+				middleName: { type: "string", fieldName: "middle_name" },
+				role: { type: "string", fieldName: "role", required: true, defaultValue: "customer" },
+			},
+		},
 		emailAndPassword: {
 			enabled: true,
 			requireEmailVerification: false,

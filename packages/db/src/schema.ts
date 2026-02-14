@@ -7,12 +7,19 @@ import { createTable } from "./utils/table.js"
 // BETTER AUTH TABLES
 // ============================================================================
 
+export const userRoles = ["admin", "owner", "staff", "customer"] as const
+export type UserRole = (typeof userRoles)[number]
+
 export const users = createTable("users", t => ({
 	id: t.text("id").primaryKey(),
-	name: t.text("name").notNull(),
 	email: t.text("email").notNull().unique(),
 	emailVerified: t.boolean("email_verified").default(false).notNull(),
 	image: t.text("image"),
+	name: t.text("name"), // Better Auth default; app uses first_name + last_name
+	first_name: t.text("first_name"),
+	last_name: t.text("last_name").notNull(),
+	middle_name: t.text("middle_name"),
+	role: t.text("role").notNull().default("customer"),
 	createdAt: t.timestamp("created_at").notNull().defaultNow(),
 	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 }))

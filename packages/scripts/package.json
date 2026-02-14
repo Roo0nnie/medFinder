@@ -1,0 +1,19 @@
+{
+	"name": "@repo/scripts",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"seed": "tsx seed.ts"
+	},
+	"dependencies": {
+		"@repo/auth": "workspace:*",
+		"@repo/db": "workspace:*",
+		"drizzle-orm": "catalog:",
+		"pg": "catalog:"
+	},
+	"devDependencies": {
+		"dotenv": "catalog:",
+		"tsx": "catalog:"
+	}
+}
