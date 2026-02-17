@@ -28,9 +28,10 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 
 	const form = useForm({
 		defaultValues: {
+			firstName: "",
+			lastName: "",
 			email: "",
 			password: "",
-			name: "",
 		},
 		validators: {
 			onSubmit: RegisterSchema,
@@ -64,12 +65,12 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							)}
 
 							<form.Field
-								name="name"
+								name="firstName"
 								children={field => {
 									const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid
 									return (
 										<Field data-invalid={isInvalid}>
-											<FieldLabel htmlFor={field.name}>Name</FieldLabel>
+											<FieldLabel htmlFor={field.name}>First Name</FieldLabel>
 											<Input
 												id={field.name}
 												name={field.name}
@@ -78,8 +79,33 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 												onBlur={field.handleBlur}
 												onChange={e => field.handleChange(e.target.value)}
 												aria-invalid={isInvalid}
-												placeholder="John Doe"
-												autoComplete="name"
+												placeholder="John"
+												autoComplete="given-name"
+												disabled={isPending}
+											/>
+											{isInvalid && <FieldError errors={field.state.meta.errors} />}
+										</Field>
+									)
+								}}
+							/>
+
+							<form.Field
+								name="lastName"
+								children={field => {
+									const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid
+									return (
+										<Field data-invalid={isInvalid}>
+											<FieldLabel htmlFor={field.name}>Last Name</FieldLabel>
+											<Input
+												id={field.name}
+												name={field.name}
+												type="text"
+												value={field.state.value || ""}
+												onBlur={field.handleBlur}
+												onChange={e => field.handleChange(e.target.value)}
+												aria-invalid={isInvalid}
+												placeholder="Doe"
+												autoComplete="family-name"
 												disabled={isPending}
 											/>
 											{isInvalid && <FieldError errors={field.state.meta.errors} />}

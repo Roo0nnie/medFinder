@@ -1,8 +1,10 @@
 """
 User CRUD business logic. Operates on the shared users table.
-"""
-import uuid
 
+IMPORTANT: User creation must happen via Better Auth (e.g., auth.api.signUpEmail).
+Direct table writes to create users will not populate the accounts table with passwords,
+making those users unable to log in. This service only handles read/update/delete operations.
+"""
 from .models import User
 
 
@@ -12,24 +14,6 @@ def get_all_users():
 
 def get_user_by_id(pk):
     return User.objects.get(pk=pk)  # raises User.DoesNotExist -> 404 in view
-
-
-def create_user(*, email, password=None, first_name=None, last_name="", middle_name=None, role="customer"):
-    """Create user row. Password is not stored here (lives in accounts table via better-auth). Use sign-up or seed for password."""
-    from django.utils import timezone
-    user_id = str(uuid.uuid4())
-    now = timezone.now()
-    return User.objects.create(
-        id=user_id,
-        email=email,
-        email_verified=False,
-        first_name=first_name or "",
-        last_name=last_name,
-        middle_name=middle_name or "",
-        role=role,
-        created_at=now,
-        updated_at=now,
-    )
 
 
 def update_user(pk, *, first_name=None, last_name=None, middle_name=None, role=None, email=None):

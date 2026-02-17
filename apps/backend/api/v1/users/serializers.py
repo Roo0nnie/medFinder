@@ -32,15 +32,6 @@ class UserListSerializer(serializers.ModelSerializer):
         ]
 
 
-class UserCreateInputSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(min_length=8, write_only=True, required=False)
-    firstName = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    lastName = serializers.CharField(max_length=255)
-    middleName = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    role = serializers.ChoiceField(choices=ROLE_CHOICES, default="customer")
-
-
 class UserUpdateInputSerializer(serializers.Serializer):
     firstName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     lastName = serializers.CharField(max_length=255, required=False)

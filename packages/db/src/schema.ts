@@ -82,6 +82,35 @@ export const verifications = createTable(
 )
 
 // ============================================================================
+// STAFF
+// ============================================================================
+
+export const staff = createTable(
+	"staff",
+	t => ({
+		id: t.text("id").primaryKey(),
+		userId: t
+			.text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		department: t.text("department").notNull(),
+		position: t.text("position").notNull(),
+		specialization: t.text("specialization"),
+		bio: t.text("bio"),
+		phone: t.text("phone"),
+		isActive: t.boolean("is_active").notNull().default(true),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [
+		// Index for FTS search (on department, position, specialization, bio)
+		index("staff_user_id_idx").on(t.userId),
+		// Index for active staff lookups
+		index("staff_is_active_idx").on(t.isActive),
+	]
+)
+
+// ============================================================================
 // TODOs
 // ============================================================================
 
@@ -100,10 +129,11 @@ export const todos = createTable("todos", t => ({
 // ============================================================================
 // RELATIONS
 // ============================================================================
-export const relations = defineRelations({ users, sessions, accounts, todos }, r => ({
+export const relations = defineRelations({ users, sessions, accounts, todos, staff }, r => ({
 	users: {
 		sessions: r.many.sessions(),
 		accounts: r.many.accounts(),
+		staffProfiles: r.many.staff(),
 	},
 	sessions: {
 		user: r.one.users({
@@ -123,6 +153,12 @@ export const relations = defineRelations({ users, sessions, accounts, todos }, r
 			to: r.users.id,
 		}),
 	},
+	staff: {
+		user: r.one.users({
+			from: r.staff.userId,
+			to: r.users.id,
+		}),
+	},
 }))
 
 // ============================================================================
@@ -135,6 +171,7 @@ export const schema = Object.assign(
 		accounts,
 		verifications,
 		todos,
+		staff,
 	},
 	relations
 )
