@@ -47,7 +47,7 @@ pnpm dev:web
 pnpm --filter @repo/web dev
 ```
 
-Runs on [http://localhost:3001](http://localhost:3001)
+Runs on [http://localhost:8001](http://localhost:8001)
 
 ## Environment Variables
 

@@ -1,10 +1,13 @@
 """
 Staff API views. List, search, retrieve, create, update, delete.
+Uses DRF permission classes (IsAuthenticated, IsOwner) instead of inline role checks.
 """
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from api.v1.users.permissions import IsOwner
 
 from .models import Staff
 from . import services
@@ -57,18 +60,11 @@ class StaffListSearchView(APIView):
 
 
 class StaffCreateView(APIView):
-    """POST create a new staff profile."""
+    """POST create a new staff profile. Admin/owner only (via IsOwner)."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request):
-        # Check if requester has permission to create staff (admin/owner)
-        if request.user.role not in ("admin", "owner"):
-            return Response(
-                {"detail": "You do not have permission to create staff profiles"},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         in_serializer = StaffCreateInputSerializer(data=request.data)
         in_serializer.is_valid(raise_exception=True)
         data = in_serializer.validated_data
@@ -88,9 +84,14 @@ class StaffCreateView(APIView):
 
 
 class StaffDetailView(APIView):
-    """GET details, PUT update, DELETE by id (authenticated, with role-based permissions)."""
+    """GET details, PUT update, DELETE by id. List/get: authenticated; create/update/delete: IsOwner."""
 
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method in ("PUT", "PATCH", "DELETE"):
+            return [IsAuthenticated(), IsOwner()]
+        return [IsAuthenticated()]
 
     def get(self, request, pk):
         try:
@@ -111,13 +112,6 @@ class StaffDetailView(APIView):
             return Response(
                 {"detail": "Staff member not found"},
                 status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Check if requester has permission to update (admin/owner)
-        if request.user.role not in ("admin", "owner"):
-            return Response(
-                {"detail": "You do not have permission to update staff profiles"},
-                status=status.HTTP_403_FORBIDDEN,
             )
 
         in_serializer = StaffUpdateInputSerializer(data=request.data, partial=True)
@@ -144,13 +138,6 @@ class StaffDetailView(APIView):
             return Response(
                 {"detail": "Staff member not found"},
                 status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Check if requester has permission to delete (admin/owner)
-        if request.user.role not in ("admin", "owner"):
-            return Response(
-                {"detail": "You do not have permission to delete staff profiles"},
-                status=status.HTTP_403_FORBIDDEN,
             )
 
         result = services.delete_staff(pk)

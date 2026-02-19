@@ -6,13 +6,6 @@
 // V1 contracts (routers)
 export { v1Contract, type V1Contract } from "./modules/v1/v1.contract.js"
 
-// Todo input types for backend handlers
-export type {
-	CreateTodoInput,
-	TodoIdInput,
-	UpdateTodoRequest,
-} from "./modules/v1/examples/todos/todos.schema.js"
-
 // User schemas and types
 export * from "./modules/v1/users/users.schema.js"
 

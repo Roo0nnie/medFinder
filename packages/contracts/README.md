@@ -118,7 +118,7 @@ import { OpenAPILink } from "@orpc/openapi-client/fetch"
 import { v1Contract } from "@repo/contracts"
 
 // The contract provides full type safety for API calls
-const link = new OpenAPILink(v1Contract, { url: "http://localhost:3000/api" })
+const link = new OpenAPILink(v1Contract, { url: "http://localhost:8000/api" })
 ```
 
 ## Adding a New Feature Contract

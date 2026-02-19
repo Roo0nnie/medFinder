@@ -23,10 +23,6 @@ export function NavigationLinks() {
 					Dashboard
 				</Link>
 				<Separator orientation="vertical" />
-				<Link href="/examples/todos" className={buttonVariants({ variant: "ghost", size: "lg" })}>
-					Todos
-				</Link>
-				<Separator orientation="vertical" />
 				<Link href="/session" className={buttonVariants({ variant: "ghost", size: "lg" })}>
 					Session
 				</Link>

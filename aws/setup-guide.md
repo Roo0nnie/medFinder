@@ -121,7 +121,7 @@ All AWS resources use the `${PROJECT_NAME}` prefix for naming. This guide uses `
    - Description: Security group for web ECS tasks
    - VPC: `${PROJECT_NAME}-vpc`
 2. Inbound rules:
-   - Type: Custom TCP, Port: 3001, Source: `${PROJECT_NAME}-alb-sg`
+   - Type: Custom TCP, Port: 8001, Source: `${PROJECT_NAME}-alb-sg`
 3. Outbound rules: All traffic (default)
 
 **ECS Backend Security Group:**
@@ -232,7 +232,7 @@ After creating repositories, note down the repository URIs:
    - Target type: IP addresses (for Fargate)
    - Target group name: `tg-web`
    - Protocol: HTTP
-   - Port: 3001
+   - Port: 8001
    - VPC: `turbo-template-vpc`
 3. Health checks:
    - Health check path: `/`
@@ -355,7 +355,7 @@ After creating repositories, note down the repository URIs:
    - Load balancer type: Application Load Balancer
    - Load balancer name: `turbo-template-alb`
    - Container to load balance: `web`
-   - Container port: 3001
+   - Container port: 8001
    - Target group: `tg-web`
 6. Click "Create service"
 

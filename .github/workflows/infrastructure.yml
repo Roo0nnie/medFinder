@@ -181,7 +181,7 @@ jobs:
           aws ec2 authorize-security-group-ingress \
             --group-id $ECS_SG_ID \
             --protocol tcp \
-            --port 3000-3001 \
+            --port 3000-8001 \
             --source-group $ALB_SG_ID > /dev/null
 
           echo "✓ ECS security group created: $ECS_SG_ID"
@@ -374,7 +374,7 @@ jobs:
           # Create target groups
           WEB_TG_ARN=$(aws elbv2 create-target-group \
             --name ${PROJECT_NAME}${ENV_SUFFIX}-web-tg \
-            --port 3001 \
+            --port 8001 \
             --protocol HTTP \
             --vpc-id $VPC_ID \
             --target-type ip \
@@ -503,7 +503,7 @@ jobs:
             --launch-type FARGATE \
             --platform-version LATEST \
             --network-configuration "awsvpcConfiguration={subnets=${SUBNET_ARRAY[0]},securityGroups=$ECS_SG_ID,assignPublicIp=ENABLED}" \
-            --load-balancers "targetGroupArn=$WEB_TG_ARN,containerName=web,containerPort=3001" \
+            --load-balancers "targetGroupArn=$WEB_TG_ARN,containerName=web,containerPort=8001" \
             --deployment-controller type=ECS \
             --health-check-grace-period-seconds 60 \
             --tags Key=Name,Value=${PROJECT_NAME}${ENV_SUFFIX}-web-service > /dev/null

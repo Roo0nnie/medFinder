@@ -6,11 +6,11 @@
 	"scripts": {
 		"build": "next build",
 		"clean": "git clean -xdf .cache .next .turbo node_modules",
-		"dev": "next dev --turbopack -p 3001",
+		"dev": "next dev --turbopack -p 8001",
 		"format": "prettier --check . --ignore-path ../../.gitignore",
 		"format:fix": "prettier --write . --ignore-path ../../.gitignore",
 		"lint": "eslint --flag unstable_native_nodejs_ts_config",
-		"start": "next start -p 3001",
+		"start": "next start -p 8001",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
