@@ -9,8 +9,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
 						{/* eslint-disable-next-line @next/next/no-img-element */}
 						<img
 							className="dark:invert"
-							src="/next.svg"
-							alt="Turbo Template logo"
+							src="/assets/MedFinder_logo.svg"
+							alt="MedFinder"
 							width={80}
 							height={20}
 						/>

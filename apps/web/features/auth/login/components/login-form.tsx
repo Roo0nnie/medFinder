@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
 
 import { Button, buttonVariants } from "@/core/components/ui/button"
+import { MedFinderLogo } from "@/core/components/logo"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,
@@ -52,6 +53,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 					>
 						<FieldGroup>
 							<div className="flex flex-col items-center gap-2 text-center">
+							
 								<h1 className="text-2xl font-bold">Welcome back</h1>
 								<p className="text-muted-foreground text-balance">Login to your account</p>
 							</div>
@@ -149,12 +151,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 							</FieldDescription>
 						</FieldGroup>
 					</form>
-					<div className="bg-muted relative hidden md:block">
+					<div className="bg-muted relative hidden md:flex md:items-center md:justify-center md:p-12">
 						<Image
-							src="/placeholder.svg"
-							alt="Image"
-							fill
-							className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+							src="/assets/MedFinder_logo.svg"
+							alt="MedFinder"
+							width={280}
+							height={120}
+							className="h-auto w-full max-w-[280px] object-contain dark:opacity-90"
 						/>
 					</div>
 				</CardContent>

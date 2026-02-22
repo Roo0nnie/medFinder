@@ -872,7 +872,7 @@ globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.dart"]
 alwaysApply: true
 ---
 
-# Quanby Turbo Template - AI Agent Rules
+# MedFinder MedFinder - AI Agent Rules
 
 ## Project Overview
 

@@ -1,5 +1,5 @@
 {
-	"extends": "@repo/tsconfig/pkg",
+	"extends": "../../tooling/typescript/pkg.json",
 	"compilerOptions": {
 		"baseUrl": "./",
 		"rootDir": "./src",

@@ -35,7 +35,7 @@ export const sessionOptions = queryOptions({
 /**
  * Mutation hook for signing out the current user.
  *
- * Invalidates the session query and redirects to home page on success.
+ * Invalidates the session query and redirects to login page on success.
  */
 export function useSignOutMutation() {
 	const router = useRouter()
@@ -51,7 +51,7 @@ export function useSignOutMutation() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
-			router.push("/")
+			router.push("/login")
 			router.refresh()
 		},
 	})

@@ -28,10 +28,12 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/core/components/ui/sidebar"
+import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 import { getDisplayName, getInitials } from "@/core/lib/utils"
 
 export function NavUser({ session }: { session: AuthSession }) {
 	const { isMobile } = useSidebar()
+	const signOutMutation = useSignOutMutation()
 
 	return (
 		<SidebarMenu>
@@ -103,9 +105,12 @@ export function NavUser({ session }: { session: AuthSession }) {
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => signOutMutation.mutate()}
+							disabled={signOutMutation.isPending}
+						>
 							<HugeiconsIcon icon={LogoutIcon} strokeWidth={2} />
-							Log out
+							{signOutMutation.isPending ? "Logging out..." : "Log out"}
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>

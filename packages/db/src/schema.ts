@@ -300,7 +300,6 @@ export const relations = defineRelations(
 		users,
 		sessions,
 		accounts,
-		todos,
 		staff,
 		pharmacies,
 		pharmacyStaff,
@@ -328,12 +327,6 @@ export const relations = defineRelations(
 		accounts: {
 			user: r.one.users({
 				from: r.accounts.userId,
-				to: r.users.id,
-			}),
-		},
-		todos: {
-			author: r.one.users({
-				from: r.todos.authorId,
 				to: r.users.id,
 			}),
 		},
@@ -411,7 +404,6 @@ export const schema = Object.assign(
 		sessions,
 		accounts,
 		verifications,
-		todos,
 		staff,
 		pharmacies,
 		pharmacyStaff,

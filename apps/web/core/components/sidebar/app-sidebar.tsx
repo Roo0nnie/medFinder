@@ -15,7 +15,7 @@ import {
 	SidebarRail,
 } from "@/core/components/ui/sidebar"
 
-import { LogoIcon } from "../logo"
+import { MedFinderLogo } from "../logo"
 import { mainNavItems, NavMain } from "./nav-main"
 import { demoProjects, NavProjects } from "./nav-projects"
 import { NavSecondary, secondaryNavItems } from "./nav-secondary"
@@ -30,10 +30,10 @@ export function AppSidebar({ session }: { session: AuthSession }) {
 					<SidebarMenuItem>
 						<SidebarMenuButton render={<Link href="/" className="flex items-center gap-2.5" />}>
 							<div className="flex shrink-0 items-center justify-center">
-								<LogoIcon className="text-foreground" />
+								<MedFinderLogo className="h-8 w-auto" />
 							</div>
 							<div className="grid flex-1 text-left text-sm leading-tight">
-								<span className="truncate font-semibold">Acme Inc</span>
+								<span className="truncate font-semibold">MedFinder</span>
 								<span className="text-muted-foreground truncate text-xs">Enterprise</span>
 							</div>
 						</SidebarMenuButton>

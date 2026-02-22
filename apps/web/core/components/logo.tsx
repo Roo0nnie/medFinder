@@ -34,6 +34,24 @@ export const LogoIcon = React.memo(
 )
 LogoIcon.displayName = "LogoIcon"
 
+const MEDFINDER_LOGO_SRC = "/assets/MedFinder_logo.svg"
+
+export interface MedFinderLogoProps extends React.ComponentPropsWithoutRef<"img"> {
+	className?: string
+}
+
+export const MedFinderLogo = React.memo(
+	({ className, alt = "MedFinder", ...props }: MedFinderLogoProps) => (
+		<img
+			src={MEDFINDER_LOGO_SRC}
+			alt={alt}
+			className={className}
+			{...props}
+		/>
+	)
+)
+MedFinderLogo.displayName = "MedFinderLogo"
+
 export interface LogoProps {
 	text?: string
 	href?: Route<string>
@@ -46,7 +64,7 @@ export interface LogoProps {
 }
 
 export function Logo({
-	text = "Turbo Template",
+	text = "MedFinder",
 	href,
 	size = "lg",
 	variant = "link",
@@ -57,7 +75,12 @@ export function Logo({
 }: LogoProps) {
 	const content = (
 		<>
-			{showIcon && <LogoIcon icon={icon} strokeWidth={strokeWidth} data-icon="inline-start" />}
+			{showIcon &&
+				(icon ? (
+					<LogoIcon icon={icon} strokeWidth={strokeWidth} data-icon="inline-start" />
+				) : (
+					<MedFinderLogo data-icon="inline-start" className="h-6 w-auto" />
+				))}
 			{text}
 		</>
 	)
