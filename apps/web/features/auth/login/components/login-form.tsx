@@ -4,8 +4,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
 
-import { Button, buttonVariants } from "@/core/components/ui/button"
 import { MedFinderLogo } from "@/core/components/logo"
+import { Button, buttonVariants } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,
@@ -53,8 +53,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 					>
 						<FieldGroup>
 							<div className="flex flex-col items-center gap-2 text-center">
-							
-								<h1 className="text-2xl font-bold">Welcome back</h1>
+								<h1 className="text-2xl font-bold">Welcome backs</h1>
 								<p className="text-muted-foreground text-balance">Login to your account</p>
 							</div>
 

@@ -5,7 +5,6 @@
 		/** Override for Node.js packages that need JS emission */
 		"emitDeclarationOnly": false,
 		"module": "ES2022",
-		"moduleResolution": "bundler",
-		"rewriteRelativeImportExtensions": true
+		"moduleResolution": "bundler"
 	}
 }

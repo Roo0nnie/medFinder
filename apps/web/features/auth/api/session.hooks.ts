@@ -1,5 +1,6 @@
 "use client"
 
+import type { Route } from "next"
 import { useRouter } from "next/navigation"
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
@@ -35,9 +36,10 @@ export const sessionOptions = queryOptions({
 /**
  * Mutation hook for signing out the current user.
  *
- * Invalidates the session query and redirects to login page on success.
+ * Invalidates the session query and redirects on success.
+ * @param redirectTo - Path to redirect after sign out (default: "/login")
  */
-export function useSignOutMutation() {
+export function useSignOutMutation(redirectTo = "/login") {
 	const router = useRouter()
 	const queryClient = useQueryClient()
 
@@ -51,7 +53,7 @@ export function useSignOutMutation() {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
-			router.push("/login")
+			router.push(redirectTo as Route)
 			router.refresh()
 		},
 	})

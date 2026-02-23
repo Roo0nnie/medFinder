@@ -293,6 +293,58 @@ export const productReservations = createTable(
 )
 
 // ============================================================================
+// PHARMACY & PRODUCT REVIEWS
+// ============================================================================
+
+export const pharmacyReviews = createTable(
+	"pharmacy_reviews",
+	t => ({
+		id: t.text("id").primaryKey(),
+		pharmacyId: t
+			.text("pharmacy_id")
+			.notNull()
+			.references(() => pharmacies.id, { onDelete: "cascade" }),
+		userId: t
+			.text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		rating: t.integer("rating").notNull(), // 1-5
+		comment: t.text("comment"),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [
+		index("pharmacy_reviews_pharmacy_id_idx").on(t.pharmacyId),
+		index("pharmacy_reviews_user_id_idx").on(t.userId),
+		index("pharmacy_reviews_pharmacy_user_idx").on(t.pharmacyId, t.userId),
+	]
+)
+
+export const productReviews = createTable(
+	"product_reviews",
+	t => ({
+		id: t.text("id").primaryKey(),
+		productId: t
+			.text("product_id")
+			.notNull()
+			.references(() => medicalProducts.id, { onDelete: "cascade" }),
+		userId: t
+			.text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		rating: t.integer("rating").notNull(), // 1-5
+		comment: t.text("comment"),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [
+		index("product_reviews_product_id_idx").on(t.productId),
+		index("product_reviews_user_id_idx").on(t.userId),
+		index("product_reviews_product_user_idx").on(t.productId, t.userId),
+	]
+)
+
+// ============================================================================
 // RELATIONS
 // ============================================================================
 export const relations = defineRelations(
@@ -308,6 +360,8 @@ export const relations = defineRelations(
 		pharmacyInventory,
 		productSearches,
 		productReservations,
+		pharmacyReviews,
+		productReviews,
 	},
 	r => ({
 		users: {
@@ -317,6 +371,8 @@ export const relations = defineRelations(
 			pharmaciesOwned: r.many.pharmacies(),
 			productSearches: r.many.productSearches(),
 			productReservations: r.many.productReservations(),
+			pharmacyReviews: r.many.pharmacyReviews(),
+			productReviews: r.many.productReviews(),
 		},
 		sessions: {
 			user: r.one.users({
@@ -344,6 +400,7 @@ export const relations = defineRelations(
 			}),
 			staff: r.many.pharmacyStaff(),
 			inventory: r.many.pharmacyInventory(),
+			reviews: r.many.pharmacyReviews(),
 		},
 		pharmacyStaff: {
 			pharmacy: r.one.pharmacies({
@@ -364,6 +421,7 @@ export const relations = defineRelations(
 				to: r.productCategories.id,
 			}),
 			inventory: r.many.pharmacyInventory(),
+			reviews: r.many.productReviews(),
 		},
 		pharmacyInventory: {
 			pharmacy: r.one.pharmacies({
@@ -392,6 +450,26 @@ export const relations = defineRelations(
 				to: r.pharmacyInventory.id,
 			}),
 		},
+		pharmacyReviews: {
+			pharmacy: r.one.pharmacies({
+				from: r.pharmacyReviews.pharmacyId,
+				to: r.pharmacies.id,
+			}),
+			user: r.one.users({
+				from: r.pharmacyReviews.userId,
+				to: r.users.id,
+			}),
+		},
+		productReviews: {
+			product: r.one.medicalProducts({
+				from: r.productReviews.productId,
+				to: r.medicalProducts.id,
+			}),
+			user: r.one.users({
+				from: r.productReviews.userId,
+				to: r.users.id,
+			}),
+		},
 	})
 )
 
@@ -412,6 +490,8 @@ export const schema = Object.assign(
 		pharmacyInventory,
 		productSearches,
 		productReservations,
+		pharmacyReviews,
+		productReviews,
 	},
 	relations
 )

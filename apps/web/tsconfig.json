@@ -2,7 +2,7 @@
 	"extends": "@repo/tsconfig/next.json",
 	"compilerOptions": {
 		"baseUrl": ".",
-		"lib": ["ES2024", "dom", "dom.iterable"],
+		"lib": ["es2023", "dom", "dom.iterable"],
 		"jsx": "preserve",
 		"paths": {
 			"@/*": ["./*"]
