@@ -27,7 +27,9 @@ export default async function Home() {
 		<>
 			{/* Home / Hero */}
 			<section id="home" className={sectionClass}>
-				<div className={`${containerClass} grid items-center gap-10 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]`}>
+				<div
+					className={`${containerClass} grid items-center gap-10 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]`}
+				>
 					<div className="space-y-6">
 						<h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
 							Find the right pharmacy
@@ -76,14 +78,18 @@ export default async function Home() {
 			{/* Find Product */}
 			<section id="find-product" className={sectionContentClass}>
 				<div className={containerClass}>
-					<LandingProductSection isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"} />
+					<LandingProductSection
+						isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"}
+					/>
 				</div>
 			</section>
 
 			{/* Pharmacy */}
 			<section id="pharmacy" className={sectionContentClass}>
 				<div className={containerClass}>
-					<LandingPharmacySection isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"} />
+					<LandingPharmacySection
+						isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"}
+					/>
 				</div>
 			</section>
 
@@ -92,13 +98,13 @@ export default async function Home() {
 				<div className={`${containerClass} max-w-3xl space-y-4`}>
 					<h2 className="text-3xl font-semibold tracking-tight">About MedFinder</h2>
 					<p className="text-muted-foreground text-base">
-						MedFinder is built to make it easier for patients, caregivers, and clinics to connect with
-						reliable pharmacies. Instead of calling multiple locations, you get a clearer view of where
-						medications are most likely to be available.
+						MedFinder is built to make it easier for patients, caregivers, and clinics to connect
+						with reliable pharmacies. Instead of calling multiple locations, you get a clearer view
+						of where medications are most likely to be available.
 					</p>
 					<p className="text-muted-foreground text-base">
-						The platform is designed to fit into existing clinical workflows, helping care teams reduce
-						administrative burden while keeping focus on patients.
+						The platform is designed to fit into existing clinical workflows, helping care teams
+						reduce administrative burden while keeping focus on patients.
 					</p>
 				</div>
 			</section>
@@ -108,14 +114,14 @@ export default async function Home() {
 				<div className={`${containerClass} max-w-3xl space-y-4`}>
 					<h2 className="text-3xl font-semibold tracking-tight">Contact</h2>
 					<p className="text-muted-foreground text-base">
-						Have questions about MedFinder, or interested in collaborating as a pharmacy or healthcare
-						partner?
+						Have questions about MedFinder, or interested in collaborating as a pharmacy or
+						healthcare partner?
 					</p>
 					<p className="text-muted-foreground text-base">
 						Reach the team at{" "}
 						<a
 							href="mailto:support@medfinder.example"
-							className="font-medium text-primary underline-offset-4 hover:underline"
+							className="text-primary font-medium underline-offset-4 hover:underline"
 						>
 							support@medfinder.example
 						</a>{" "}
@@ -125,7 +131,7 @@ export default async function Home() {
 			</section>
 
 			{/* Footer */}
-			<footer className="text-muted-foreground w-full border-t bg-muted/30 px-4 py-6 text-sm sm:px-8">
+			<footer className="text-muted-foreground bg-muted/30 w-full border-t px-4 py-6 text-sm sm:px-8">
 				<div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
 					<span>© {new Date().getFullYear()} MedFinder. All rights reserved.</span>
 					<LandingFooterNav />

@@ -7,11 +7,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
-import { landingPharmacies } from "@/features/landing/data/pharmacies"
-import { landingProducts } from "@/features/landing/data/products"
 import type { LandingProduct } from "@/features/landing/data/types"
-
-import { LandingRegisterModal } from "./landing-register-modal"
 
 const SORT_OPTIONS = [
 	{ value: "name-asc", label: "Name A–Z" },
@@ -20,36 +16,6 @@ const SORT_OPTIONS = [
 	{ value: "price-desc", label: "Price high–low" },
 ] as const
 
-function filterProducts(
-	products: LandingProduct[],
-	pharmacies: typeof landingPharmacies,
-	query: string,
-	category: string,
-	city: string,
-	storeId: string
-): LandingProduct[] {
-	let result = products
-	const q = query.trim().toLowerCase()
-	if (q) {
-		result = result.filter(
-			p =>
-				p.name.toLowerCase().includes(q) ||
-				p.brand.toLowerCase().includes(q) ||
-				p.category.toLowerCase().includes(q)
-		)
-	}
-	if (category) result = result.filter(p => p.category === category)
-	if (city) {
-		const storeIdsInCity = new Set(
-			pharmacies.filter(s => s.city === city || s.municipality.includes(city)).map(s => s.id)
-		)
-		result = result.filter(p => storeIdsInCity.has(p.storeId))
-	}
-	if (storeId) result = result.filter(p => p.storeId === storeId)
-	return result
-}
-
-/** Price used for sorting: for products with variants, use the minimum variant price so order matches what users see. */
 function getSortPrice(p: LandingProduct): number {
 	if (p.variants && p.variants.length > 0) {
 		return Math.min(...p.variants.map(v => v.price))
@@ -67,6 +33,23 @@ function sortProducts(
 	else if (sort === "price-asc") copy.sort((a, b) => getSortPrice(a) - getSortPrice(b))
 	else if (sort === "price-desc") copy.sort((a, b) => getSortPrice(b) - getSortPrice(a))
 	return copy
+}
+
+function filterProducts(products: LandingProduct[], query: string, category: string) {
+	let result = products
+	const q = query.trim().toLowerCase()
+	if (q) {
+		result = result.filter(
+			p =>
+				p.name.toLowerCase().includes(q) ||
+				p.brand.toLowerCase().includes(q) ||
+				p.category.toLowerCase().includes(q)
+		)
+	}
+	if (category) {
+		result = result.filter(p => p.category === category)
+	}
+	return result
 }
 
 function ProductCard({
@@ -130,7 +113,9 @@ function ProductCard({
 					<p className="text-muted-foreground mt-2 text-sm">Dosage: {product.dosage}</p>
 				)}
 				{product.description && (
-					<p className="text-muted-foreground mt-1.5 line-clamp-2 text-sm">{product.description}</p>
+					<p className="text-muted-foreground mt-1.5 line-clamp-2 text-sm">
+						{product.description}
+					</p>
 				)}
 				{hasVariants && (
 					<div className="mt-3" onClick={onSelectClick}>
@@ -157,7 +142,9 @@ function ProductCard({
 					{display.quantity !== 1 ? "s" : ""} left
 				</p>
 				<div className="border-border mt-4 flex items-center justify-between gap-2 border-t pt-3">
-					<span className="text-foreground text-lg font-semibold">₱{display.price.toFixed(2)}</span>
+					<span className="text-foreground text-lg font-semibold">
+						₱{display.price.toFixed(2)}
+					</span>
 					<span className="text-muted-foreground truncate text-sm">{storeName}</span>
 				</div>
 			</CardContent>
@@ -165,50 +152,30 @@ function ProductCard({
 	)
 }
 
-export function LandingProductSection({ isCustomer = false }: { isCustomer?: boolean }) {
+export function PharmacyProductsClient({
+	products,
+	pharmacyName,
+}: {
+	products: LandingProduct[]
+	pharmacyName: string
+}) {
 	const router = useRouter()
 	const [query, setQuery] = useState("")
 	const [category, setCategory] = useState("")
-	const [city, setCity] = useState("")
-	const [storeId, setStoreId] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
-	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 
-	const pharmacyById = useMemo(() => new Map(landingPharmacies.map(s => [s.id, s])), [])
 	const categories = useMemo(
-		() => Array.from(new Set(landingProducts.map(p => p.category))).sort(),
-		[]
-	)
-	const cities = useMemo(
-		() =>
-			Array.from(
-				new Set(landingPharmacies.flatMap(s => [s.city, s.municipality].filter(Boolean)))
-			).sort(),
-		[]
+		() => Array.from(new Set(products.map(p => p.category))).sort(),
+		[products]
 	)
 
 	const filtered = useMemo(
-		() =>
-			sortProducts(
-				filterProducts(landingProducts, landingPharmacies, query, category, city, storeId),
-				sort
-			),
-		[query, category, city, storeId, sort]
+		() => sortProducts(filterProducts(products, query, category), sort),
+		[products, query, category, sort]
 	)
 
-	const hasFilters = category || city || storeId
-
 	return (
-		<div className="w-full space-y-6">
-			<section className="space-y-2">
-				<h2 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
-					Find medicines & medical supplies
-				</h2>
-				<p className="text-muted-foreground text-base sm:text-lg">
-					Search by name, brand, or category. View availability and locate nearby pharmacies.
-				</p>
-			</section>
-
+		<div className="space-y-4">
 			<div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 				<Input
 					type="search"
@@ -216,7 +183,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					value={query}
 					onChange={e => setQuery(e.target.value)}
 					className="w-full sm:max-w-md"
-					aria-label="Search products"
+					aria-label="Search products in this pharmacy"
 				/>
 				<select
 					value={sort}
@@ -232,11 +199,11 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 			</div>
 
 			<div className="flex flex-wrap items-center gap-3 sm:gap-4">
-				<span className="text-muted-foreground w-full text-sm sm:w-auto">Filters:</span>
+				<span className="text-muted-foreground w-full text-sm sm:w-auto">Filter by:</span>
 				<select
 					value={category}
 					onChange={e => setCategory(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
+					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[160px] sm:flex-none md:min-w-[180px]"
 				>
 					<option value="">All categories</option>
 					{categories.map(c => (
@@ -245,61 +212,27 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 						</option>
 					))}
 				</select>
-				<select
-					value={city}
-					onChange={e => setCity(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[160px] sm:flex-none md:min-w-[180px]"
-				>
-					<option value="">All locations</option>
-					{cities.map(c => (
-						<option key={c} value={c}>
-							{c}
-						</option>
-					))}
-				</select>
-				<select
-					value={storeId}
-					onChange={e => setStoreId(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[180px] sm:flex-none md:min-w-[200px]"
-				>
-					<option value="">All stores</option>
-					{landingPharmacies.map(s => (
-						<option key={s.id} value={s.id}>
-							{s.name}
-						</option>
-					))}
-				</select>
-				{hasFilters && (
+			</div>
+
+			<p className="text-muted-foreground text-sm">
+				{filtered.length} result{filtered.length !== 1 ? "s" : ""} in {pharmacyName}
+			</p>
+
+			{filtered.length === 0 ? (
+				<div className="border-border bg-card rounded-xl border px-6 py-12 text-center">
+					<p className="text-foreground mb-1 font-medium">No products found</p>
+					<p className="text-muted-foreground mb-4 text-sm">
+						Try adjusting your search or selecting a different category.
+					</p>
 					<button
 						type="button"
 						onClick={() => {
+							setQuery("")
 							setCategory("")
-							setCity("")
-							setStoreId("")
 						}}
 						className="text-primary text-sm font-medium hover:underline"
 					>
 						Clear filters
-					</button>
-				)}
-			</div>
-
-			<p className="text-muted-foreground text-sm">
-				{filtered.length} result{filtered.length !== 1 ? "s" : ""}
-			</p>
-
-			{filtered.length === 0 ? (
-				<div className="border-border bg-card rounded-xl border px-6 py-16 text-center">
-					<p className="text-foreground mb-1 font-medium">No products found</p>
-					<p className="text-muted-foreground mb-4 text-sm">
-						Try adjusting your search or filters to see more results.
-					</p>
-					<button
-						type="button"
-						onClick={() => setQuery("")}
-						className="text-primary text-sm font-medium hover:underline"
-					>
-						Clear search
 					</button>
 				</div>
 			) : (
@@ -311,33 +244,25 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							tabIndex={0}
 							className="focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2"
 							onClick={() => {
-								if (isCustomer) {
-									router.push(`/product/${product.id}` as Route)
-								} else {
-									setRegisterModalOpen(true)
-								}
+								router.push(`/product/${product.id}` as Route)
 							}}
 							onKeyDown={e => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault()
-									if (isCustomer) {
-										router.push(`/product/${product.id}` as Route)
-									} else {
-										setRegisterModalOpen(true)
-									}
+									router.push(`/product/${product.id}` as Route)
 								}
 							}}
 						>
 							<ProductCard
 								product={product}
-								storeName={pharmacyById.get(product.storeId)?.name ?? "Unknown"}
+								storeName={pharmacyName}
 								onSelectClick={e => e.stopPropagation()}
 							/>
 						</div>
 					))}
 				</div>
 			)}
-			<LandingRegisterModal open={registerModalOpen} onOpenChange={setRegisterModalOpen} />
 		</div>
 	)
 }
+

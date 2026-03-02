@@ -5,11 +5,8 @@ import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
-import {
-	getProductReviews,
-	submitProductReview,
-	type ProductReviewRow,
-} from "./actions"
+
+import { getProductReviews, submitProductReview, type ProductReviewRow } from "./actions"
 
 export function ProductDetailClient({
 	productId,
@@ -71,10 +68,10 @@ export function ProductDetailClient({
 						<select
 							id="product-review-rating"
 							value={rating}
-							onChange={(e) => setRating(Number(e.target.value))}
+							onChange={e => setRating(Number(e.target.value))}
 							className="border-input mt-1 block w-full max-w-[8rem] rounded-lg border bg-transparent px-3 py-2 text-sm"
 						>
-							{[1, 2, 3, 4, 5].map((n) => (
+							{[1, 2, 3, 4, 5].map(n => (
 								<option key={n} value={n}>
 									{n}
 								</option>
@@ -88,7 +85,7 @@ export function ProductDetailClient({
 						<Input
 							id="product-review-comment"
 							value={comment}
-							onChange={(e) => setComment(e.target.value)}
+							onChange={e => setComment(e.target.value)}
 							placeholder="Share your experience..."
 							className="mt-1"
 						/>
@@ -105,7 +102,7 @@ export function ProductDetailClient({
 					<p className="text-muted-foreground mt-4 text-sm">No reviews yet. Be the first!</p>
 				) : (
 					<ul className="mt-4 space-y-3 border-t pt-4">
-						{reviews.map((r) => (
+						{reviews.map(r => (
 							<li key={r.id} className="text-sm">
 								<span className="font-medium">{r.rating} / 5</span>
 								{r.comment && <p className="text-muted-foreground mt-0.5">{r.comment}</p>}

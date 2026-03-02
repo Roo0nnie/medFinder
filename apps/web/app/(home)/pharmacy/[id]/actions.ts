@@ -17,28 +17,33 @@ export type PharmacyReviewRow = {
 export async function getPharmacyReviews(
 	pharmacyId: string
 ): Promise<{ reviews: PharmacyReviewRow[]; averageRating: number | null }> {
-	const db = createDBClient()
-	const rows = await db
-		.select()
-		.from(pharmacyReviews)
-		.where(eq(pharmacyReviews.pharmacyId, pharmacyId))
-		.orderBy(desc(pharmacyReviews.createdAt))
+	try {
+		const db = createDBClient()
+		const rows = await db
+			.select()
+			.from(pharmacyReviews)
+			.where(eq(pharmacyReviews.pharmacyId, pharmacyId))
+			.orderBy(desc(pharmacyReviews.createdAt))
 
-	const reviews: PharmacyReviewRow[] = rows.map((r) => ({
-		id: r.id,
-		pharmacyId: r.pharmacyId,
-		userId: r.userId,
-		rating: r.rating,
-		comment: r.comment,
-		createdAt: r.createdAt,
-	}))
+		const reviews: PharmacyReviewRow[] = rows.map((r) => ({
+			id: r.id,
+			pharmacyId: r.pharmacyId,
+			userId: r.userId,
+			rating: r.rating,
+			comment: r.comment,
+			createdAt: r.createdAt,
+		}))
 
-	const averageRating =
-		reviews.length > 0
-			? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-			: null
+		const averageRating =
+			reviews.length > 0
+				? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+				: null
 
-	return { reviews, averageRating }
+		return { reviews, averageRating }
+	} catch (error) {
+		console.error("getPharmacyReviews:", error)
+		return { reviews: [], averageRating: null }
+	}
 }
 
 export async function submitPharmacyReview(

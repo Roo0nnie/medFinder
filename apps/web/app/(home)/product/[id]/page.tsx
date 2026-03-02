@@ -1,11 +1,13 @@
 import type { Route } from "next"
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
+import { MapPinned } from "lucide-react"
 
 import { Card, CardContent } from "@/core/components/ui/card"
 import { getSession } from "@/services/better-auth/auth-server"
 import { landingPharmacies } from "@/features/landing/data/pharmacies"
 import { landingProducts } from "@/features/landing/data/products"
+
 import { ProductDetailClient } from "./product-detail-client"
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,12 +17,12 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 	}
 
 	const { id } = await params
-	const product = landingProducts.find((p) => p.id === id)
+	const product = landingProducts.find(p => p.id === id)
 	if (!product) notFound()
 
 	const pharmacyIds = product.availableAtStoreIds ?? [product.storeId]
 	const pharmacies = pharmacyIds
-		.map((sid) => landingPharmacies.find((p) => p.id === sid))
+		.map(sid => landingPharmacies.find(p => p.id === sid))
 		.filter(Boolean) as typeof landingPharmacies
 
 	return (
@@ -35,7 +37,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 			<div className="space-y-8">
 				<div className="flex flex-col gap-6 sm:flex-row">
 					{product.imageUrl && (
-						<div className="relative flex h-48 w-48 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/30 sm:h-64 sm:w-64">
+						<div className="bg-muted/30 relative flex h-48 w-48 shrink-0 items-center justify-center overflow-hidden rounded-lg border sm:h-64 sm:w-64">
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
 								src={product.imageUrl}
@@ -45,37 +47,37 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 						</div>
 					)}
 					<div className="min-w-0 flex-1">
-						<h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-						<p className="text-muted-foreground mt-1 text-lg">{product.brand}</p>
-						{product.rating != null && (
-							<p className="text-muted-foreground mt-2 text-sm">
-								Rating: {product.rating.toFixed(1)} / 5
-							</p>
-						)}
-						{product.manufacturer && (
-							<p className="text-muted-foreground mt-1 text-sm">
-								Manufacturer: {product.manufacturer}
-							</p>
-						)}
-						<p className="text-muted-foreground mt-2 text-2xl font-semibold">
-							₱{product.price.toFixed(2)}
-						</p>
-						{product.category && (
-							<p className="text-muted-foreground mt-1 text-sm">Category: {product.category}</p>
-						)}
-						{product.dosage && (
-							<p className="text-muted-foreground mt-1 text-sm">Dosage: {product.dosage}</p>
-						)}
+						<div className="flex h-full flex-col justify-between">
+							<div>
+								<h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
+								<p className="text-muted-foreground mt-1 text-lg">{product.brand}</p>
+
+								{product.category && (
+									<p className="text-muted-foreground mt-1 text-sm">Category: {product.category}</p>
+								)}
+								{product.dosage && (
+									<p className="text-muted-foreground mt-1 text-sm">Dosage: {product.dosage}</p>
+								)}
+							</div>
+							<div>
+								{product.manufacturer && (
+									<p className="text-muted-foreground mt-1 text-sm">
+										Manufacturer: {product.manufacturer}
+									</p>
+								)}
+								<p className="text-muted-foreground mt-2 text-2xl font-semibold">
+									₱{product.price.toFixed(2)}
+								</p>
+							</div>
+						</div>
 					</div>
 				</div>
 
 				{product.description && (
-					<Card>
-						<CardContent className="p-6">
-							<h2 className="text-lg font-semibold">Description</h2>
-							<p className="text-muted-foreground mt-2 whitespace-pre-wrap">{product.description}</p>
-						</CardContent>
-					</Card>
+					<CardContent className="p-6">
+						<h2 className="text-lg font-semibold">Description</h2>
+						<p className="text-muted-foreground mt-2 whitespace-pre-wrap">{product.description}</p>
+					</CardContent>
 				)}
 
 				<Card>
@@ -85,16 +87,20 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 							<p className="text-muted-foreground mt-2 text-sm">No pharmacies listed.</p>
 						) : (
 							<ul className="mt-3 space-y-2">
-								{pharmacies.map((ph) => (
-									<li key={ph.id}>
+								{pharmacies.map(ph => (
+									<li key={ph.id} className="flex items-center">
 										<Link
 											href={`/pharmacy/${ph.id}` as Route}
-											className="text-primary hover:underline"
+											className="text-primary flex items-center gap-1 hover:underline"
 										>
+											<span className="mr-1">
+												<MapPinned className="inline-block h-4 w-4 align-text-bottom" />
+											</span>
 											{ph.name}
 										</Link>
 										<span className="text-muted-foreground ml-2 text-sm">
-											{ph.address}, {ph.city}
+											{ph.address}
+											{ph.city && `, ${ph.city}`}
 										</span>
 									</li>
 								))}
@@ -102,8 +108,6 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 						)}
 					</CardContent>
 				</Card>
-
-				<ProductDetailClient productId={product.id} initialRating={product.rating} />
 			</div>
 		</div>
 	)

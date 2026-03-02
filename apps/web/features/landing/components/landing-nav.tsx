@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-
 import {
 	BadgeCheck,
 	HelpCircleIcon,
@@ -24,8 +23,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/core/components/ui/dropdown-menu"
-import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 import { getDisplayName, getInitials } from "@/core/lib/utils"
+import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 
 const SECTIONS = [
 	{ href: "#home", label: "Home" },
@@ -50,34 +49,28 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 		<>
 			<a
 				href="#home"
-				onClick={(e) => {
+				onClick={e => {
 					e.preventDefault()
 					scrollToSection("#home")
 				}}
 				className="flex items-center gap-3"
 			>
 				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img
-					className="dark:invert"
-					src="/assets/MedFinder_logo.svg"
-					alt="MedFinder"
-					width={80}
-					height={20}
-				/>
-				<span className="hidden text-sm font-medium text-muted-foreground sm:inline">
-					Find the right pharmacy faster.
+				<img src="/assets/MedFinder_logo.svg" alt="MedFinder" width={80} height={20} />
+				<span className="text-muted-foreground hidden text-sm font-medium sm:inline">
+					MedFinder
 				</span>
 			</a>
-			<div className="hidden items-center gap-4 text-sm text-muted-foreground md:flex">
+			<div className="text-muted-foreground hidden items-center gap-4 text-sm md:flex">
 				{SECTIONS.map(({ href, label }) => (
 					<a
 						key={href}
 						href={href}
-						onClick={(e) => {
+						onClick={e => {
 							e.preventDefault()
 							scrollToSection(href)
 						}}
-						className="transition-colors hover:text-foreground"
+						className="hover:text-foreground transition-colors"
 					>
 						{label}
 					</a>
@@ -90,7 +83,10 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 								className="inline-flex h-9 items-center gap-2 rounded-lg px-2"
 							>
 								<Avatar className="h-7 w-7 rounded-md">
-									<AvatarImage src={session.user?.image ?? undefined} alt={getDisplayName(session.user)} />
+									<AvatarImage
+										src={session.user?.image ?? undefined}
+										alt={getDisplayName(session.user)}
+									/>
 									<AvatarFallback className="rounded-md text-xs">
 										{getInitials(getDisplayName(session.user)) || "CN"}
 									</AvatarFallback>
@@ -104,14 +100,19 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 								<DropdownMenuLabel className="p-0 font-normal">
 									<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 										<Avatar className="h-8 w-8 rounded-lg">
-											<AvatarImage src={session.user?.image ?? undefined} alt={getDisplayName(session.user)} />
+											<AvatarImage
+												src={session.user?.image ?? undefined}
+												alt={getDisplayName(session.user)}
+											/>
 											<AvatarFallback className="rounded-lg">
 												{getInitials(getDisplayName(session.user)) || "CN"}
 											</AvatarFallback>
 										</Avatar>
 										<div className="grid flex-1 text-left text-sm leading-tight">
 											<span className="truncate font-medium">{getDisplayName(session.user)}</span>
-											<span className="truncate text-xs text-muted-foreground">{session.user?.email ?? ""}</span>
+											<span className="text-muted-foreground truncate text-xs">
+												{session.user?.email ?? ""}
+											</span>
 										</div>
 									</div>
 								</DropdownMenuLabel>
@@ -150,7 +151,7 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 				) : (
 					<Link
 						href="/login"
-						className="inline-flex h-7 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+						className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-7 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors"
 					>
 						Login
 					</Link>
