@@ -20,9 +20,22 @@ export function useLoginMutation() {
 			}
 			return result
 		},
-		onSuccess: () => {
+		onSuccess: async () => {
 			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
-			router.push("/")
+
+			const session = await authClient.getSession()
+			const role = session?.data?.user?.email
+
+			if (role === "admin") {
+				router.push("/dashboard/admin")
+			} else if (role === "owner") {
+				router.push("/dashboard/owner")
+			} else if (role === "staff") {
+				router.push("/dashboard/staff")
+			} else {
+				router.push("/")
+			}
+
 			router.refresh()
 		},
 	})

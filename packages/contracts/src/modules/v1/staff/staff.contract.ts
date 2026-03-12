@@ -11,7 +11,7 @@ export const staffContract = {
 	list: oc
 		.route({
 			method: "GET",
-			path: "/staff",
+			path: "/staff/",
 			summary: "List staff",
 			description: "Retrieve staff members with optional search and pagination",
 			tags: ["Staff"],
@@ -33,7 +33,7 @@ export const staffContract = {
 	create: oc
 		.route({
 			method: "POST",
-			path: "/staff/create",
+			path: "/staff/create/",
 			summary: "Create staff",
 			description: "Create a new staff profile (admin/owner only)",
 			tags: ["Staff"],
@@ -48,7 +48,7 @@ export const staffContract = {
 	get: oc
 		.route({
 			method: "GET",
-			path: "/staff/{id}",
+			path: "/staff/{id}/",
 			summary: "Get staff by ID",
 			description: "Retrieve a single staff profile by its ID",
 			tags: ["Staff"],
@@ -63,7 +63,7 @@ export const staffContract = {
 	update: oc
 		.route({
 			method: "PUT",
-			path: "/staff/{id}",
+			path: "/staff/{id}/",
 			summary: "Update staff",
 			description: "Update an existing staff profile (admin/owner only)",
 			tags: ["Staff"],
@@ -80,7 +80,7 @@ export const staffContract = {
 	delete: oc
 		.route({
 			method: "DELETE",
-			path: "/staff/{id}",
+			path: "/staff/{id}/",
 			summary: "Delete staff",
 			description: "Delete a staff profile (admin/owner only)",
 			tags: ["Staff"],

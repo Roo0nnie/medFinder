@@ -1,0 +1,4 @@
+"""
+Products Django app package.
+"""
+

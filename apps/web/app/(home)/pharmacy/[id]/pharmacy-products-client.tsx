@@ -89,14 +89,14 @@ function ProductCard({
 	const stockLabel = display.quantity === 0 ? "Out of stock" : isLow ? "Low stock" : "In stock"
 
 	return (
-		<Card className="flex min-h-0 min-w-0 flex-col transition-shadow hover:shadow-md">
+		<Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
-						<h3 className="text-foreground text-base leading-tight font-semibold">
+						<h3 className="text-foreground text-lg leading-tight font-bold tracking-tight">
 							{product.name}
 						</h3>
-						<p className="text-muted-foreground mt-0.5 text-sm">{product.brand}</p>
+						<p className="text-muted-foreground mt-1 text-sm">{product.brand}</p>
 					</div>
 					<span
 						className={cn(
@@ -219,10 +219,15 @@ export function PharmacyProductsClient({
 			</p>
 
 			{filtered.length === 0 ? (
-				<div className="border-border bg-card rounded-xl border px-6 py-12 text-center">
-					<p className="text-foreground mb-1 font-medium">No products found</p>
-					<p className="text-muted-foreground mb-4 text-sm">
-						Try adjusting your search or selecting a different category.
+				<div className="border-border bg-card/50 rounded-2xl border px-6 py-16 text-center shadow-sm backdrop-blur-sm">
+					<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 text-muted-foreground mb-4">
+						<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+						</svg>
+					</div>
+					<p className="text-foreground mb-2 text-lg font-semibold tracking-tight">No products found</p>
+					<p className="text-muted-foreground mb-6 text-sm">
+						We couldn't find anything matching your search.
 					</p>
 					<button
 						type="button"
@@ -230,19 +235,20 @@ export function PharmacyProductsClient({
 							setQuery("")
 							setCategory("")
 						}}
-						className="text-primary text-sm font-medium hover:underline"
+						className="inline-flex h-9 items-center justify-center rounded-md bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/80 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
 					>
 						Clear filters
 					</button>
 				</div>
 			) : (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-					{filtered.map(product => (
+				<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+					{filtered.map((product, i) => (
 						<div
 							key={product.id}
 							role="button"
 							tabIndex={0}
-							className="focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2"
+							className="animate-in fade-in slide-in-from-bottom-4 focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2"
+							style={{ animationDelay: `${Math.min(i * 50, 500)}ms`, animationFillMode: "both" }}
 							onClick={() => {
 								router.push(`/product/${product.id}` as Route)
 							}}

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
+import { useInView } from "@/core/hooks/use-in-view"
 import { landingPharmacies } from "@/features/landing/data/pharmacies"
 import { landingProducts } from "@/features/landing/data/products"
 import type { LandingProduct } from "@/features/landing/data/types"
@@ -49,7 +50,6 @@ function filterProducts(
 	return result
 }
 
-/** Price used for sorting: for products with variants, use the minimum variant price so order matches what users see. */
 function getSortPrice(p: LandingProduct): number {
 	if (p.variants && p.variants.length > 0) {
 		return Math.min(...p.variants.map(v => v.price))
@@ -106,7 +106,7 @@ function ProductCard({
 	const stockLabel = display.quantity === 0 ? "Out of stock" : isLow ? "Low stock" : "In stock"
 
 	return (
-		<Card className="flex min-h-0 min-w-0 flex-col transition-shadow hover:shadow-md">
+		<Card className="flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
@@ -174,6 +174,9 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 
+	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
+	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
+
 	const pharmacyById = useMemo(() => new Map(landingPharmacies.map(s => [s.id, s])), [])
 	const categories = useMemo(
 		() => Array.from(new Set(landingProducts.map(p => p.category))).sort(),
@@ -200,7 +203,10 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 
 	return (
 		<div className="w-full space-y-6">
-			<section className="space-y-2">
+			<section
+				ref={headingRef}
+				className={`space-y-2 transition-all duration-700 ${headingInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+			>
 				<h2 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
 					Find medicines & medical supplies
 				</h2>
@@ -303,13 +309,19 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					</button>
 				</div>
 			) : (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-					{filtered.map(product => (
+				<div
+					ref={gridRef}
+					className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+				>
+					{filtered.map((product, i) => (
 						<div
 							key={product.id}
 							role="button"
 							tabIndex={0}
-							className="focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2"
+							className={`focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2 transition-all duration-500 ${
+								gridInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+							}`}
+							style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
 							onClick={() => {
 								if (isCustomer) {
 									router.push(`/product/${product.id}` as Route)

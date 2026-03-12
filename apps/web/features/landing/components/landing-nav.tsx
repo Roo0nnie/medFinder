@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import {
 	BadgeCheck,
@@ -27,11 +28,11 @@ import { getDisplayName, getInitials } from "@/core/lib/utils"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 
 const SECTIONS = [
-	{ href: "#home", label: "Home" },
-	{ href: "#find-product", label: "Find Product" },
-	{ href: "#pharmacy", label: "Pharmacy" },
-	{ href: "#about", label: "About" },
-	{ href: "#contact", label: "Contact" },
+	{ href: "#home", label: "Home", id: "home" },
+	{ href: "#find-product", label: "Products", id: "find-product" },
+	{ href: "#pharmacy", label: "Pharmacy", id: "pharmacy" },
+	{ href: "#about", label: "About", id: "about" },
+	{ href: "#contact", label: "Contact", id: "contact" },
 ] as const
 
 function scrollToSection(href: string) {
@@ -42,8 +43,36 @@ function scrollToSection(href: string) {
 	}
 }
 
+function useActiveSection() {
+	const [active, setActive] = useState("home")
+
+	useEffect(() => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						setActive(entry.target.id)
+					}
+				}
+			},
+			{ rootMargin: "-20% 0px -70% 0px", threshold: 0 }
+		)
+
+		for (const section of SECTIONS) {
+			const el = document.getElementById(section.id)
+			if (el) observer.observe(el)
+		}
+
+		return () => observer.disconnect()
+	}, [])
+
+	return active
+}
+
 export function LandingNav({ session }: { session: AuthSession | null }) {
 	const signOutMutation = useSignOutMutation("/")
+	const activeSection = useActiveSection()
+	const [mobileOpen, setMobileOpen] = useState(false)
 
 	return (
 		<>
@@ -61,8 +90,10 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 					MedFinder
 				</span>
 			</a>
-			<div className="text-muted-foreground hidden items-center gap-4 text-sm md:flex">
-				{SECTIONS.map(({ href, label }) => (
+
+			{/* Desktop nav */}
+			<div className="text-muted-foreground hidden items-center gap-1 text-sm md:flex">
+				{SECTIONS.map(({ href, label, id }) => (
 					<a
 						key={href}
 						href={href}
@@ -70,9 +101,14 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 							e.preventDefault()
 							scrollToSection(href)
 						}}
-						className="hover:text-foreground transition-colors"
+						className={`relative rounded-md px-3 py-1.5 transition-colors hover:text-foreground ${
+							activeSection === id ? "text-foreground font-medium" : ""
+						}`}
 					>
 						{label}
+						{activeSection === id && (
+							<span className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full transition-all" />
+						)}
 					</a>
 				))}
 				{session ? (
@@ -151,12 +187,57 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 				) : (
 					<Link
 						href="/login"
-						className="bg-primary text-primary-foreground hover:bg-primary/80 inline-flex h-7 items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors"
+						className="bg-primary text-primary-foreground hover:bg-primary/80 ml-2 inline-flex h-7 items-center justify-center rounded-lg px-3 text-sm font-medium transition-all hover:scale-105 active:scale-95"
 					>
 						Login
 					</Link>
 				)}
 			</div>
+
+			{/* Mobile hamburger */}
+			<button
+				type="button"
+				className="md:hidden flex flex-col gap-1.5 p-2"
+				aria-label="Toggle navigation menu"
+				onClick={() => setMobileOpen(!mobileOpen)}
+			>
+				<span className={`h-0.5 w-5 bg-foreground rounded transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-2" : ""}`} />
+				<span className={`h-0.5 w-5 bg-foreground rounded transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} />
+				<span className={`h-0.5 w-5 bg-foreground rounded transition-all duration-300 ${mobileOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+			</button>
+
+			{/* Mobile menu */}
+			{mobileOpen && (
+				<div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur border-b border-border animate-fade-in-up">
+					<div className="flex flex-col gap-1 px-4 py-4">
+						{SECTIONS.map(({ href, label, id }) => (
+							<a
+								key={href}
+								href={href}
+								onClick={e => {
+									e.preventDefault()
+									scrollToSection(href)
+									setMobileOpen(false)
+								}}
+								className={`rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted ${
+									activeSection === id ? "text-primary font-medium bg-primary/5" : "text-muted-foreground"
+								}`}
+							>
+								{label}
+							</a>
+						))}
+						{!session && (
+							<Link
+								href="/login"
+								className="bg-primary text-primary-foreground mt-2 rounded-lg px-3 py-2 text-sm font-medium text-center transition-all hover:bg-primary/80"
+								onClick={() => setMobileOpen(false)}
+							>
+								Login
+							</Link>
+						)}
+					</div>
+				</div>
+			)}
 		</>
 	)
 }

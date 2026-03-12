@@ -28,6 +28,13 @@ INSTALLED_APPS = [
     "api.v1.health",
     "api.v1.users",
     "api.v1.staff",
+    "api.v1.pharmacies",
+    "api.v1.products",
+    "api.v1.inventory",
+    "api.v1.reviews",
+    "api.v1.analytics",
+    "api.v1.deletion_requests",
+    "api.v1.reservations",
 ]
 
 MIDDLEWARE = [
@@ -98,7 +105,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS - allow list from env
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3001").split(",")
+    for origin in os.environ.get(
+        "CORS_ORIGINS", "http://localhost:8001,http://localhost:3001"
+    ).split(",")
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
@@ -107,6 +116,7 @@ CORS_ALLOW_CREDENTIALS = True
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "api.v1.users.authentication.BetterAuthSessionAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",

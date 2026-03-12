@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Card, CardContent } from "@/core/components/ui/card"
+import { useInView } from "@/core/hooks/use-in-view"
 import { landingPharmacies } from "@/features/landing/data/pharmacies"
 import type { LandingPharmacy } from "@/features/landing/data/types"
 import { LandingRegisterModal } from "./landing-register-modal"
@@ -36,10 +37,10 @@ function LocationIcon({ className }: { className?: string }) {
 
 function PharmacyCard({ store }: { store: LandingPharmacy }) {
 	return (
-		<Card className="flex min-h-0 min-w-0 overflow-hidden transition-shadow hover:shadow-md">
+		<Card className="flex min-h-0 min-w-0 overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+					<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
 						<LocationIcon className="h-5 w-5 text-primary" />
 					</div>
 					<div className="min-w-0 flex-1">
@@ -65,6 +66,10 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 	const router = useRouter()
 	const [cityFilter, setCityFilter] = useState("")
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
+
+	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
+	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
+
 	const cities = useMemo(
 		() =>
 			Array.from(
@@ -84,7 +89,10 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 
 	return (
 		<div className="w-full space-y-6">
-			<section className="space-y-2">
+			<section
+				ref={headingRef}
+				className={`space-y-2 transition-all duration-700 ${headingInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+			>
 				<h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
 					Pharmacy locations
 				</h2>
@@ -115,13 +123,19 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 				</select>
 			</div>
 
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-				{filtered.map((store) => (
+			<div
+				ref={gridRef}
+				className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+			>
+				{filtered.map((store, i) => (
 					<div
 						key={store.id}
 						role="button"
 						tabIndex={0}
-						className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+						className={`group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl transition-all duration-500 ${
+							gridInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+						}`}
+						style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
 						onClick={() => {
 							if (isCustomer) {
 								router.push(`/pharmacy/${store.id}` as Route)

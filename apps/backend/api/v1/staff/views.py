@@ -20,14 +20,25 @@ from .serializers import (
 
 
 class StaffListSearchView(APIView):
-    """GET list/search staff (with pagination and FTS search)."""
+    """
+    GET list/search staff (with pagination and FTS search).
+
+    - Admins can see all staff.
+    - Owners only see staff connected to their pharmacies via PharmacyStaff.
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         # Get pagination and search params
         search_query = request.query_params.get("search", None)
-        is_active = request.query_params.get("is_active", "true").lower() != "false"
+        raw_is_active = request.query_params.get("is_active", None)
+        if raw_is_active is None:
+            is_active = None
+        elif raw_is_active.lower() == "false":
+            is_active = False
+        else:
+            is_active = True
         limit = request.query_params.get("limit", None)
         offset = request.query_params.get("offset", None)
 
@@ -39,8 +50,27 @@ class StaffListSearchView(APIView):
             limit = None
             offset = None
 
-        # Get staff with filters
-        staff = services.get_all_staff(
+        # Get staff with filters, scoping by role/ownership
+        user = request.user
+        if getattr(user, "role", None) == "owner":
+            base_queryset = Staff.objects.filter(owner_id=str(user.id))
+        else:
+            # Admins (and other privileged roles) can see all staff
+            base_queryset = Staff.objects.all()
+
+        # Apply filters twice: once without pagination for total count,
+        # and once with pagination for the current page slice.
+        filtered_queryset = services._apply_staff_filters(
+            base_queryset,
+            is_active=is_active,
+            search_query=search_query,
+            limit=None,
+            offset=None,
+        )
+        total_count = filtered_queryset.count()
+
+        staff_page = services._apply_staff_filters(
+            base_queryset,
             is_active=is_active,
             search_query=search_query,
             limit=limit,
@@ -48,15 +78,17 @@ class StaffListSearchView(APIView):
         )
 
         # Serialize
-        serializer = StaffListSerializer(staff, many=True)
-        return Response(
-            {
-                "data": serializer.data,
-                "count": len(serializer.data),
-                "search": search_query,
-                "isActive": is_active,
-            }
-        )
+        serializer = StaffListSerializer(staff_page, many=True)
+        response_data = {
+            "data": serializer.data,
+            "count": total_count,
+            "search": search_query,
+        }
+        # Only include isActive when a filter was explicitly applied
+        if is_active is not None:
+            response_data["isActive"] = is_active
+
+        return Response(response_data)
 
 
 class StaffCreateView(APIView):
@@ -70,6 +102,7 @@ class StaffCreateView(APIView):
         data = in_serializer.validated_data
 
         staff = services.create_staff(
+            owner_id=str(request.user.id),
             user_id=data["userId"],
             department=data["department"],
             position=data["position"],
@@ -102,6 +135,16 @@ class StaffDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Enforce owner scoping for owner-role users on detail access.
+        user = request.user
+        if getattr(user, "role", None) == "owner" and str(staff.owner_id) != str(
+            user.id
+        ):
+            return Response(
+                {"detail": "You do not have permission to access this staff member"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = StaffDetailSerializer(staff)
         return Response(serializer.data)
 
@@ -112,6 +155,16 @@ class StaffDetailView(APIView):
             return Response(
                 {"detail": "Staff member not found"},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Enforce owner scoping for owner-role users on update.
+        user = request.user
+        if getattr(user, "role", None) == "owner" and str(staff.owner_id) != str(
+            user.id
+        ):
+            return Response(
+                {"detail": "You do not have permission to modify this staff member"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         in_serializer = StaffUpdateInputSerializer(data=request.data, partial=True)
@@ -138,6 +191,16 @@ class StaffDetailView(APIView):
             return Response(
                 {"detail": "Staff member not found"},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Enforce owner scoping for owner-role users on delete.
+        user = request.user
+        if getattr(user, "role", None) == "owner" and str(staff.owner_id) != str(
+            user.id
+        ):
+            return Response(
+                {"detail": "You do not have permission to delete this staff member"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         result = services.delete_staff(pk)

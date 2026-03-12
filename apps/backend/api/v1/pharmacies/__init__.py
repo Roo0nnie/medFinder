@@ -1,0 +1,4 @@
+"""
+Pharmacies Django app package.
+"""
+

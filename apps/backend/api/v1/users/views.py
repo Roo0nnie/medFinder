@@ -3,7 +3,7 @@ User API views. List, retrieve, update, delete.
 Users must be created via Better Auth (auth.api.signUpEmail), not through this API.
 """
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -17,9 +17,10 @@ from .serializers import (
 
 
 class UserListView(APIView):
-    """GET list of users (authenticated only)."""
+    """GET list of users."""
 
-    permission_classes = [IsAuthenticated]
+    # Only authenticated admin/owner roles can list users for staff management.
+    permission_classes = [IsAuthenticated, IsOwner]
 
     def get(self, request):
         users = services.get_all_users()

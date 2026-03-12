@@ -35,15 +35,15 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 export async function fetchUsers(): Promise<User[]> {
-	return apiFetch<User[]>("/api/v1/users/")
+	return apiFetch<User[]>("/v1/users/")
 }
 
 export async function fetchUser(id: string): Promise<User> {
-	return apiFetch<User>(`/api/v1/users/${id}/`)
+	return apiFetch<User>(`/v1/users/${id}/`)
 }
 
 export async function createUser(input: CreateUserInput): Promise<User> {
-	return apiFetch<User>("/api/v1/users/", {
+	return apiFetch<User>("/v1/users/", {
 		method: "POST",
 		body: JSON.stringify({
 			email: input.email,
@@ -57,14 +57,14 @@ export async function createUser(input: CreateUserInput): Promise<User> {
 }
 
 export async function updateUser(id: string, input: UpdateUserInput): Promise<User> {
-	return apiFetch<User>(`/api/v1/users/${id}/`, {
+	return apiFetch<User>(`/v1/users/${id}/`, {
 		method: "PUT",
 		body: JSON.stringify(input),
 	})
 }
 
 export async function deleteUser(id: string): Promise<{ success: boolean; id: string }> {
-	return apiFetch<{ success: boolean; id: string }>(`/api/v1/users/${id}/`, {
+	return apiFetch<{ success: boolean; id: string }>(`/v1/users/${id}/`, {
 		method: "DELETE",
 	})
 }

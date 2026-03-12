@@ -13,7 +13,9 @@ import {
 	medicalProducts,
 	pharmacies,
 	pharmacyInventory,
+	pharmacyStaff,
 	productCategories,
+	staff,
 	users,
 } from "@repo/db/schema"
 
@@ -93,6 +95,9 @@ async function seed() {
 	const auth = getAuth()
 	const db = createDBClient()
 
+	let ownerId: string | undefined
+	let staffUserId: string | undefined
+
 	for (const u of SEED_USERS) {
 		const existing = await db.select().from(users).where(eq(users.email, u.email)).limit(1)
 		if (existing.length > 0) {
@@ -107,6 +112,14 @@ async function seed() {
 				})
 				.where(eq(users.id, existing[0]!.id))
 			console.log(`Updated existing user: ${u.email} (${u.role})`)
+
+			// Capture IDs for owner and staff users
+			if (u.role === "owner") {
+				ownerId = existing[0]!.id
+			}
+			if (u.role === "staff") {
+				staffUserId = existing[0]!.id
+			}
 			continue
 		}
 		try {
@@ -134,17 +147,48 @@ async function seed() {
 				})
 				.where(eq(users.id, userId))
 			console.log(`Created user: ${u.email} (${u.role})`)
+
+			// Capture IDs for owner and staff users
+			if (u.role === "owner") {
+				ownerId = userId
+			}
+			if (u.role === "staff") {
+				staffUserId = userId
+			}
 		} catch (err) {
 			console.error(`Failed to create ${u.email}:`, err instanceof Error ? err.message : err)
 		}
 	}
 
 	// Seed pharmacies, product categories, medical products, and pharmacy inventory (optional)
-	const ownerRow = await db.select().from(users).where(eq(users.email, "owner@example.com")).limit(1)
-	const ownerId = ownerRow[0]?.id
 	if (!ownerId) {
 		console.log("Skipping products/pharmacies seed: owner user not found.")
 		process.exit(0)
+	}
+
+	// Seed a staff profile linked to the owner (1 owner -> many staff, staff -> 1 owner)
+	if (staffUserId) {
+		const existingStaff = await db
+			.select()
+			.from(staff)
+			.where(eq(staff.userId, staffUserId))
+			.limit(1)
+
+		if (existingStaff.length === 0) {
+			const staffId = "seed-staff-1"
+			await db.insert(staff).values({
+				id: staffId,
+				userId: staffUserId,
+				ownerId,
+				department: "Pharmacy",
+				position: "Pharmacist",
+				specialization: "General Practice",
+				bio: "Seed staff member for development.",
+				phone: "+63-900-000-0000",
+				isActive: true,
+			})
+			console.log("Created staff profile linked to owner.")
+		}
 	}
 
 	// Product categories (unique from products)
@@ -190,6 +234,32 @@ async function seed() {
 				country: "US",
 			})
 			console.log(`Created pharmacy: ${s.name}`)
+		}
+	}
+
+	// Link the seeded staff (if any) to all seeded pharmacies via pharmacy_staff
+	if (staffUserId) {
+		const staffRow = await db.select().from(staff).where(eq(staff.userId, staffUserId)).limit(1)
+		const staffId = staffRow[0]?.id
+
+		if (staffId) {
+			for (const s of SEED_PHARMACIES) {
+				const pivotId = `ps-${staffId}-${s.id}`
+				const existingPivot = await db
+					.select()
+					.from(pharmacyStaff)
+					.where(eq(pharmacyStaff.id, pivotId))
+					.limit(1)
+
+				if (existingPivot.length === 0) {
+					await db.insert(pharmacyStaff).values({
+						id: pivotId,
+						pharmacyId: s.id,
+						staffId,
+					})
+				}
+			}
+			console.log("Linked staff to seeded pharmacies.")
 		}
 	}
 

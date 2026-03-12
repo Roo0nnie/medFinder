@@ -8,6 +8,7 @@ from django.db import models
 class Staff(models.Model):
     id = models.CharField(max_length=255, primary_key=True)
     user_id = models.CharField(max_length=255)
+    owner_id = models.CharField(max_length=255)
     department = models.CharField(max_length=255)
     position = models.CharField(max_length=255)
     specialization = models.TextField(blank=True, null=True)
@@ -23,6 +24,7 @@ class Staff(models.Model):
         ordering = ["-updated_at"]
         indexes = [
             models.Index(fields=["user_id"]),
+            models.Index(fields=["owner_id"]),
             models.Index(fields=["is_active"]),
             models.Index(fields=["department"]),
             models.Index(fields=["position"]),

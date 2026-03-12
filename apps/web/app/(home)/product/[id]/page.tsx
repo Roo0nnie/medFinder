@@ -34,38 +34,49 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 				← Back to home
 			</Link>
 
-			<div className="space-y-8">
-				<div className="flex flex-col gap-6 sm:flex-row">
+			<div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+				<div className="flex flex-col gap-8 sm:flex-row lg:gap-12">
 					{product.imageUrl && (
-						<div className="bg-muted/30 relative flex h-48 w-48 shrink-0 items-center justify-center overflow-hidden rounded-lg border sm:h-64 sm:w-64">
+						<div className="bg-muted/30 group relative flex h-56 w-56 shrink-0 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-lg sm:h-72 sm:w-72">
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img
 								src={product.imageUrl}
 								alt={product.name}
-								className="max-h-full max-w-full object-contain"
+								className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-500 group-hover:scale-105"
 							/>
 						</div>
 					)}
-					<div className="min-w-0 flex-1">
-						<div className="flex h-full flex-col justify-between">
+					<div className="flex min-w-0 flex-1 flex-col py-2">
+						<div className="flex h-full flex-col justify-between gap-6">
 							<div>
-								<h1 className="text-3xl font-bold tracking-tight">{product.name}</h1>
-								<p className="text-muted-foreground mt-1 text-lg">{product.brand}</p>
+								<div className="mb-2 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+									{product.brand}
+								</div>
+								<h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{product.name}</h1>
 
-								{product.category && (
-									<p className="text-muted-foreground mt-1 text-sm">Category: {product.category}</p>
-								)}
-								{product.dosage && (
-									<p className="text-muted-foreground mt-1 text-sm">Dosage: {product.dosage}</p>
-								)}
+								<div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+									{product.category && (
+										<div>
+											<span className="text-muted-foreground">Category: </span>
+											<span className="font-medium text-foreground">{product.category}</span>
+										</div>
+									)}
+									{product.dosage && (
+										<div>
+											<span className="text-muted-foreground">Dosage: </span>
+											<span className="font-medium text-foreground">{product.dosage}</span>
+										</div>
+									)}
+									{product.manufacturer && (
+										<div>
+											<span className="text-muted-foreground">Manufacturer: </span>
+											<span className="font-medium text-foreground">{product.manufacturer}</span>
+										</div>
+									)}
+								</div>
 							</div>
-							<div>
-								{product.manufacturer && (
-									<p className="text-muted-foreground mt-1 text-sm">
-										Manufacturer: {product.manufacturer}
-									</p>
-								)}
-								<p className="text-muted-foreground mt-2 text-2xl font-semibold">
+							<div className="border-t pt-6">
+								<p className="text-foreground text-3xl font-bold tracking-tight">
 									₱{product.price.toFixed(2)}
 								</p>
 							</div>
@@ -74,34 +85,42 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 				</div>
 
 				{product.description && (
-					<CardContent className="p-6">
-						<h2 className="text-lg font-semibold">Description</h2>
-						<p className="text-muted-foreground mt-2 whitespace-pre-wrap">{product.description}</p>
-					</CardContent>
+					<Card className="overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-shadow duration-300 hover:shadow-md">
+						<CardContent className="p-6">
+							<h2 className="text-xl font-semibold tracking-tight">Description</h2>
+							<p className="text-muted-foreground mt-3 leading-relaxed whitespace-pre-wrap">
+								{product.description}
+							</p>
+						</CardContent>
+					</Card>
 				)}
 
-				<Card>
+				<Card className="overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-shadow duration-300 hover:shadow-md">
 					<CardContent className="p-6">
-						<h2 className="text-lg font-semibold">Available at</h2>
+						<h2 className="text-xl font-semibold tracking-tight">Available at</h2>
 						{pharmacies.length === 0 ? (
-							<p className="text-muted-foreground mt-2 text-sm">No pharmacies listed.</p>
+							<p className="text-muted-foreground mt-3 text-sm">No pharmacies listed.</p>
 						) : (
-							<ul className="mt-3 space-y-2">
+							<ul className="mt-4 space-y-3">
 								{pharmacies.map(ph => (
-									<li key={ph.id} className="flex items-center">
+									<li key={ph.id}>
 										<Link
 											href={`/pharmacy/${ph.id}` as Route}
-											className="text-primary flex items-center gap-1 hover:underline"
+											className="group flex flex-col gap-1 rounded-xl border border-transparent p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted/50 hover:shadow-sm sm:flex-row sm:items-center sm:justify-between"
 										>
-											<span className="mr-1">
-												<MapPinned className="inline-block h-4 w-4 align-text-bottom" />
+											<div className="flex items-center gap-2">
+												<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+													<MapPinned className="h-4 w-4" />
+												</div>
+												<span className="font-medium text-foreground transition-colors group-hover:text-primary">
+													{ph.name}
+												</span>
+											</div>
+											<span className="text-muted-foreground text-sm transition-colors group-hover:text-foreground">
+												{ph.address}
+												{ph.city && `, ${ph.city}`}
 											</span>
-											{ph.name}
 										</Link>
-										<span className="text-muted-foreground ml-2 text-sm">
-											{ph.address}
-											{ph.city && `, ${ph.city}`}
-										</span>
 									</li>
 								))}
 							</ul>

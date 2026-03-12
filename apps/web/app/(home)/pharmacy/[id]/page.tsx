@@ -48,9 +48,9 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 			</Link>
 
 			<div className="space-y-10">
-				<section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+				<section className="animate-in fade-in slide-in-from-bottom-4 grid grid-cols-1 gap-6 duration-500 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
 					{mapEmbedUrl && (
-						<Card className="h-full">
+						<Card className="overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-full">
 							<CardContent className="flex h-full flex-col gap-4 p-4 sm:p-6">
 								<div className="bg-muted/30 flex-1 overflow-hidden rounded-lg border">
 									<iframe
@@ -79,16 +79,16 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 						<div className="flex h-full flex-col justify-between">
 							<div>
 								<div className="space-y-3">
-									<h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pharmacy.name}</h1>
+									<h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">{pharmacy.name}</h1>
 									{pharmacy.whatIsThis && (
-										<p className="text-muted-foreground text-base sm:text-lg">
+										<p className="text-muted-foreground text-lg sm:text-xl">
 											{pharmacy.whatIsThis}
 										</p>
 									)}
 								</div>
 							</div>
 
-							<div className="flex flex-col gap-4">
+							<div className="flex flex-col gap-6">
 								{headerAverageRating != null && (
 									<div className="flex flex-wrap items-center gap-3 text-sm">
 										<div className="bg-primary/10 text-primary inline-flex items-center gap-2 rounded-full px-3 py-1">
@@ -105,9 +105,9 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 									</div>
 								)}
 
-								<div className="bg-card/40 rounded-lg border p-4 text-sm">
-									<div className="text-foreground font-medium">Pharmacy details</div>
-									<div className="text-muted-foreground mt-2 space-y-1.5">
+								<div className="bg-card/60 overflow-hidden rounded-2xl border border-border/50 p-6 text-sm shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
+									<div className="text-foreground text-base font-semibold tracking-tight">Pharmacy details</div>
+									<div className="text-muted-foreground mt-4 space-y-3">
 										<p>
 											<span className="text-foreground font-medium">Address: </span>
 											{pharmacy.address}, {pharmacy.municipality}, {pharmacy.city}
@@ -160,29 +160,33 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 				</section>
 
 				{pharmacy.description && (
-					<CardContent className="p-6">
-						<h2 className="text-lg font-semibold">About</h2>
-						<p className="text-muted-foreground mt-2 whitespace-pre-wrap">{pharmacy.description}</p>
-					</CardContent>
+					<Card className="animate-in fade-in slide-in-from-bottom-4 overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md delay-100 fill-mode-both">
+						<CardContent className="p-6">
+							<h2 className="text-xl font-semibold tracking-tight">About</h2>
+							<p className="text-muted-foreground mt-3 leading-relaxed whitespace-pre-wrap">{pharmacy.description}</p>
+						</CardContent>
+					</Card>
 				)}
 
-				<Card>
-					<CardContent className="space-y-4 p-6">
-						<h2 className="text-lg font-semibold">Products available here</h2>
+				<Card className="animate-in fade-in slide-in-from-bottom-4 overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md delay-150 fill-mode-both">
+					<CardContent className="space-y-6 p-6">
+						<h2 className="text-xl font-semibold tracking-tight">Products available here</h2>
 						{productsAtPharmacy.length === 0 ? (
-							<p className="text-muted-foreground mt-1 text-sm">No products listed.</p>
+							<p className="text-muted-foreground mt-2 text-sm italic">No products listed.</p>
 						) : (
 							<PharmacyProductsClient products={productsAtPharmacy} pharmacyName={pharmacy.name} />
 						)}
 					</CardContent>
 				</Card>
 
-				<PharmacyDetailClient
-					pharmacyId={pharmacy.id}
-					initialRating={pharmacy.rating}
-					initialAverageRating={averageRating}
-					initialReviews={reviews}
-				/>
+				<div className="animate-in fade-in slide-in-from-bottom-4 delay-200 duration-500 fill-mode-both">
+					<PharmacyDetailClient
+						pharmacyId={pharmacy.id}
+						initialRating={pharmacy.rating}
+						initialAverageRating={averageRating}
+						initialReviews={reviews}
+					/>
+				</div>
 			</div>
 		</div>
 	)

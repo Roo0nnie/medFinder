@@ -38,7 +38,7 @@ export const staffListResponseSchema = z.object({
 	data: z.array(staffSchema),
 	count: z.number(),
 	search: z.string().optional(),
-	isActive: z.boolean(),
+	isActive: z.boolean().optional(),
 })
 
 export type StaffListResponse = z.infer<typeof staffListResponseSchema>

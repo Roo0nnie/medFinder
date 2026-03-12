@@ -7,4 +7,11 @@ urlpatterns = [
     path("health/", include("api.v1.health.urls")),
     path("users/", include("api.v1.users.urls")),
     path("staff/", include("api.v1.staff.urls")),
+    path("pharmacies/", include("api.v1.pharmacies.urls")),
+    path("products/", include("api.v1.products.urls")),
+    path("inventory/", include("api.v1.inventory.urls")),
+    path("reviews/", include("api.v1.reviews.urls")),
+    path("analytics/", include("api.v1.analytics.urls")),
+    path("deletion-requests/", include("api.v1.deletion_requests.urls")),
+    path("reservations/", include("api.v1.reservations.urls")),
 ]

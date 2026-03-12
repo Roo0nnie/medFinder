@@ -4,7 +4,7 @@ import Link from "next/link"
 
 const SECTIONS = [
 	{ href: "#home", label: "Home" },
-	{ href: "#find-product", label: "Find Product" },
+	{ href: "#find-product", label: "Products" },
 	{ href: "#pharmacy", label: "Pharmacy" },
 	{ href: "#about", label: "About" },
 	{ href: "#contact", label: "Contact" },
@@ -29,14 +29,15 @@ export function LandingFooterNav() {
 						e.preventDefault()
 						scrollToSection(href)
 					}}
-					className="hover:text-foreground"
+					className="transition-colors hover:text-foreground hover:underline underline-offset-4"
 				>
 					{label}
 				</a>
 			))}
-			<Link href="/login" className="hover:text-foreground">
+			<Link href="/login" className="transition-colors hover:text-foreground hover:underline underline-offset-4">
 				Login
 			</Link>
 		</nav>
 	)
 }
+

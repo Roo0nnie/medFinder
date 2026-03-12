@@ -5,7 +5,7 @@ import { createContext, useContext, type ReactNode } from "react"
 import { authClient } from "@/services/better-auth/auth-client"
 
 interface AuthContextType {
-	session: { user?: { id: string; email: string; name: string } } | null
+	session: { user?: { id: string; email: string; name: string; role: string } } | null
 	isLoading: boolean
 }
 

@@ -104,14 +104,14 @@ pnpm dev
 
 ### Backend (`apps/backend/.env`)
 
-| Variable        | Required | Description                                          |
-| --------------- | -------- | ---------------------------------------------------- |
-| `DATABASE_URL`  | Yes      | PostgreSQL connection string                         |
-| `SECRET_KEY`    | Yes      | Django secret (change in production)                 |
+| Variable        | Required | Description                                             |
+| --------------- | -------- | ------------------------------------------------------- |
+| `DATABASE_URL`  | Yes      | PostgreSQL connection string                            |
+| `SECRET_KEY`    | Yes      | Django secret (change in production)                    |
 | `PORT`          | No       | Server port (default 8000); set if you use another port |
-| `DEBUG`         | No       | Set to false in production                           |
-| `ALLOWED_HOSTS` | No       | Comma-separated hosts (production)                   |
-| `CORS_ORIGINS`  | Yes      | Comma-separated CORS origins (e.g. web app URL)      |
+| `DEBUG`         | No       | Set to false in production                              |
+| `ALLOWED_HOSTS` | No       | Comma-separated hosts (production)                      |
+| `CORS_ORIGINS`  | Yes      | Comma-separated CORS origins (e.g. web app URL)         |
 
 ### Web (`apps/web/.env`)
 
@@ -169,3 +169,25 @@ See `aws/setup-guide.md` for deployment instructions.
 ## Links
 
 - [Turborepo](https://turbo.build/docs) · [Next.js](https://nextjs.org/docs) · [Django](https://docs.djangoproject.com/) · [Drizzle](https://orm.drizzle.team/) · [Better Auth](https://better-auth.com/docs)
+
+1. Create and activate a virtualenv (recommended)
+   From apps/backend:
+
+cd ~/software/medFinder/apps/backend
+python3 -m venv .venv
+source .venv/bin/activate
+
+2. Install backend dependencies
+   Still in apps/backend with the venv active:
+   pip install --upgrade pippip install -r requirements.txt
+
+pip install --upgrade pip
+pip install -r requirements.txt
+
+3. Run migrations
+
+python manage.py migrate
+
+From now on, whenever you work on the Django backend, first run:
+cd ~/software/medFinder/apps/backendsource .venv/bin/activate
+so python / python3 sees the installed Django.

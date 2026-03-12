@@ -93,6 +93,10 @@ export const staff = createTable(
 			.text("user_id")
 			.notNull()
 			.references(() => users.id, { onDelete: "cascade" }),
+		ownerId: t
+			.text("owner_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
 		department: t.text("department").notNull(),
 		position: t.text("position").notNull(),
 		specialization: t.text("specialization"),
@@ -105,6 +109,7 @@ export const staff = createTable(
 	t => [
 		// Index for FTS search (on department, position, specialization, bio)
 		index("staff_user_id_idx").on(t.userId),
+		index("staff_owner_id_idx").on(t.ownerId),
 		// Index for active staff lookups
 		index("staff_is_active_idx").on(t.isActive),
 	]
@@ -129,6 +134,9 @@ export const pharmacies = createTable(
 		state: t.text("state").notNull(),
 		zipCode: t.text("zip_code").notNull(),
 		country: t.text("country").notNull().default("US"),
+		logo: t.text("logo"),
+		googleMapEmbed: t.text("google_map_embed"),
+		socialLinks: t.text("social_links"),
 		latitude: t.real("latitude"),
 		longitude: t.real("longitude"),
 		phone: t.text("phone"),
@@ -293,6 +301,43 @@ export const productReservations = createTable(
 )
 
 // ============================================================================
+// DELETION REQUESTS
+// ============================================================================
+
+export const deletionRequests = createTable(
+	"deletion_requests",
+	t => ({
+		id: t.text("id").primaryKey(),
+		productId: t
+			.text("product_id")
+			.notNull()
+			.references(() => medicalProducts.id, { onDelete: "cascade" }),
+		pharmacyId: t
+			.text("pharmacy_id")
+			.notNull()
+			.references(() => pharmacies.id, { onDelete: "cascade" }),
+		requestedBy: t
+			.text("requested_by")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		reviewedBy: t
+			.text("reviewed_by")
+			.references(() => users.id, { onDelete: "set null" }),
+		status: t.text("status").notNull().default("pending"), // pending, approved, rejected
+		reason: t.text("reason"),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [
+		index("deletion_requests_product_id_idx").on(t.productId),
+		index("deletion_requests_pharmacy_id_idx").on(t.pharmacyId),
+		index("deletion_requests_requested_by_idx").on(t.requestedBy),
+		index("deletion_requests_reviewed_by_idx").on(t.reviewedBy!),
+		index("deletion_requests_status_idx").on(t.status),
+	]
+)
+
+// ============================================================================
 // PHARMACY & PRODUCT REVIEWS
 // ============================================================================
 
@@ -362,6 +407,7 @@ export const relations = defineRelations(
 		productReservations,
 		pharmacyReviews,
 		productReviews,
+		deletionRequests,
 	},
 	r => ({
 		users: {
@@ -470,6 +516,24 @@ export const relations = defineRelations(
 				to: r.users.id,
 			}),
 		},
+		deletionRequests: {
+			product: r.one.medicalProducts({
+				from: r.deletionRequests.productId,
+				to: r.medicalProducts.id,
+			}),
+			pharmacy: r.one.pharmacies({
+				from: r.deletionRequests.pharmacyId,
+				to: r.pharmacies.id,
+			}),
+			requester: r.one.users({
+				from: r.deletionRequests.requestedBy,
+				to: r.users.id,
+			}),
+			reviewer: r.one.users({
+				from: r.deletionRequests.reviewedBy!,
+				to: r.users.id,
+			}),
+		},
 	})
 )
 
@@ -492,6 +556,7 @@ export const schema = Object.assign(
 		productReservations,
 		pharmacyReviews,
 		productReviews,
+		deletionRequests,
 	},
 	relations
 )

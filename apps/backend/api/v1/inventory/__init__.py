@@ -1,0 +1,4 @@
+"""
+Inventory Django app package.
+"""
+
