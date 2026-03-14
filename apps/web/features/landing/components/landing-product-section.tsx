@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation"
 
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
-import { cn } from "@/core/lib/utils"
 import { useInView } from "@/core/hooks/use-in-view"
-import { landingPharmacies } from "@/features/landing/data/pharmacies"
-import { landingProducts } from "@/features/landing/data/products"
-import type { LandingProduct } from "@/features/landing/data/types"
+import { cn } from "@/core/lib/utils"
+import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
+import type { LandingPharmacy, LandingProduct } from "@/features/landing/data/types"
 
 import { LandingRegisterModal } from "./landing-register-modal"
 
@@ -23,7 +22,7 @@ const SORT_OPTIONS = [
 
 function filterProducts(
 	products: LandingProduct[],
-	pharmacies: typeof landingPharmacies,
+	pharmacies: LandingPharmacy[],
 	query: string,
 	category: string,
 	city: string,
@@ -106,7 +105,7 @@ function ProductCard({
 	const stockLabel = display.quantity === 0 ? "Out of stock" : isLow ? "Low stock" : "In stock"
 
 	return (
-		<Card className="flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
+		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
@@ -177,26 +176,40 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
 
-	const pharmacyById = useMemo(() => new Map(landingPharmacies.map(s => [s.id, s])), [])
-	const categories = useMemo(
-		() => Array.from(new Set(landingProducts.map(p => p.category))).sort(),
-		[]
-	)
+	const { data: catalog, isLoading, isError } = useLandingCatalog()
+	const products = catalog?.products ?? []
+	const pharmacies: LandingPharmacy[] = catalog?.pharmacies ?? []
+	const catalogCategories = catalog?.categories ?? []
+
+	const pharmacyById = useMemo(() => new Map(pharmacies.map(s => [s.id, s])), [pharmacies])
+	// When a store is selected, only show categories that belong to that owner and appear in that store's products
+	const categories = useMemo(() => {
+		if (storeId) {
+			const ownerId = pharmacyById.get(storeId)?.ownerId
+			if (!ownerId) {
+				return Array.from(new Set(products.map(p => p.category))).sort()
+			}
+			const ownerCategoryNames = new Set(
+				catalogCategories.filter(c => c.ownerId === ownerId).map(c => c.name)
+			)
+			const productCategoryNamesInStore = new Set(
+				products.filter(p => p.storeId === storeId).map(p => p.category)
+			)
+			return Array.from(productCategoryNamesInStore)
+				.filter(name => ownerCategoryNames.has(name))
+				.sort()
+		}
+		return Array.from(new Set(products.map(p => p.category))).sort()
+	}, [products, storeId, pharmacyById, catalogCategories])
 	const cities = useMemo(
 		() =>
-			Array.from(
-				new Set(landingPharmacies.flatMap(s => [s.city, s.municipality].filter(Boolean)))
-			).sort(),
-		[]
+			Array.from(new Set(pharmacies.flatMap(s => [s.city, s.municipality].filter(Boolean)))).sort(),
+		[pharmacies]
 	)
 
 	const filtered = useMemo(
-		() =>
-			sortProducts(
-				filterProducts(landingProducts, landingPharmacies, query, category, city, storeId),
-				sort
-			),
-		[query, category, city, storeId, sort]
+		() => sortProducts(filterProducts(products, pharmacies, query, category, city, storeId), sort),
+		[products, pharmacies, query, category, city, storeId, sort]
 	)
 
 	const hasFilters = category || city || storeId
@@ -205,7 +218,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 		<div className="w-full space-y-6">
 			<section
 				ref={headingRef}
-				className={`space-y-2 transition-all duration-700 ${headingInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+				className={`space-y-2 transition-all duration-700 ${headingInView ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
 			>
 				<h2 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">
 					Find medicines & medical supplies
@@ -269,9 +282,9 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[180px] sm:flex-none md:min-w-[200px]"
 				>
 					<option value="">All stores</option>
-					{landingPharmacies.map(s => (
-						<option key={s.id} value={s.id}>
-							{s.name}
+					{pharmacies.map(pharmacy => (
+						<option key={pharmacy.id} value={pharmacy.id}>
+							{pharmacy.name}
 						</option>
 					))}
 				</select>
@@ -291,7 +304,9 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 			</div>
 
 			<p className="text-muted-foreground text-sm">
-				{filtered.length} result{filtered.length !== 1 ? "s" : ""}
+				{isLoading
+					? "Loading real-time availability..."
+					: `${filtered.length}${isError ? " (API error)" : ""} result${filtered.length !== 1 ? "s" : ""}`}
 			</p>
 
 			{filtered.length === 0 ? (
@@ -318,8 +333,8 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							key={product.id}
 							role="button"
 							tabIndex={0}
-							className={`focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2 transition-all duration-500 ${
-								gridInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+							className={`focus-visible:ring-ring cursor-pointer rounded-xl transition-all duration-500 outline-none focus-visible:ring-2 ${
+								gridInView ? "translate-y-0 opacity-100" : "translate-y-4 opacity-100"
 							}`}
 							style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
 							onClick={() => {

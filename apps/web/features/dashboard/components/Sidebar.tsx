@@ -7,6 +7,7 @@ import {
 	Activity,
 	AlertTriangle,
 	BarChart3,
+	FileQuestion,
 	LayoutDashboard,
 	LogOut,
 	MessageSquare,
@@ -52,8 +53,8 @@ const ownerLinks = [
 	{ href: "/dashboard/owner", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/dashboard/owner/pharmacies", label: "My Pharmacies", icon: Store },
 	{ href: "/dashboard/owner/products", label: "Product Management", icon: Package },
-	{ href: "/dashboard/owner/inventory", label: "Inventory", icon: Activity },
 	{ href: "/dashboard/owner/staff", label: "Staff Management", icon: Users },
+	{ href: "/dashboard/owner/deletion-requests", label: "Deletion Requests", icon: FileQuestion },
 	{ href: "/dashboard/owner/reviews", label: "Reviews", icon: MessageSquare },
 	{ href: "/dashboard/owner/analytics", label: "Analytics", icon: BarChart3 },
 	{ href: "/dashboard/owner/audits", label: "Audit Logs", icon: Activity },
@@ -65,6 +66,8 @@ const staffLinks = [
 	{ href: "/dashboard/staff/products", label: "Products", icon: Package },
 	{ href: "/dashboard/staff/stock-alerts", label: "Stock Alerts", icon: AlertTriangle },
 	{ href: "/dashboard/staff/reports", label: "Reports", icon: BarChart3 },
+	{ href: "/dashboard/staff/audits", label: "Audit Logs", icon: Activity },
+	{ href: "/dashboard/staff/settings", label: "Settings", icon: Settings },
 ] as const
 
 export function Sidebar({ role, collapsed }: SidebarProps) {
@@ -211,13 +214,13 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 							</div>
 							<DropdownMenuSeparator />
 							<DropdownMenuGroup>
-								<DropdownMenuItem onSelect={() => router.push("/dashboard/profile" as any)}>
+								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/profile` as any)}>
 									<span className="text-sm">Profile</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => router.push("/dashboard/settings" as any)}>
+								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/settings` as any)}>
 									<span className="text-sm">Settings</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => router.push("/dashboard/help" as any)}>
+								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/help` as any)}>
 									<span className="text-sm">Help</span>
 								</DropdownMenuItem>
 							</DropdownMenuGroup>

@@ -14,14 +14,21 @@ def list_deletion_requests(
     *,
     pharmacy_id: Optional[str] = None,
     status: Optional[str] = None,
+    pharmacy_ids: Optional[list[str]] = None,
+    requested_by: Optional[str] = None,
 ) -> QuerySet[DeletionRequest]:
     qs = DeletionRequest.objects.all()
 
-    if pharmacy_id:
+    if pharmacy_ids is not None:
+        qs = qs.filter(pharmacy_id__in=pharmacy_ids)
+    elif pharmacy_id:
         qs = qs.filter(pharmacy_id=pharmacy_id)
 
     if status:
         qs = qs.filter(status=status)
+
+    if requested_by is not None:
+        qs = qs.filter(requested_by=requested_by)
 
     return qs.order_by("-created_at")
 

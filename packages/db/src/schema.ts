@@ -131,6 +131,7 @@ export const pharmacies = createTable(
 		description: t.text("description"),
 		address: t.text("address").notNull(),
 		city: t.text("city").notNull(),
+		municipality: t.text("municipality"),
 		state: t.text("state").notNull(),
 		zipCode: t.text("zip_code").notNull(),
 		country: t.text("country").notNull().default("US"),
@@ -182,19 +183,27 @@ export const productCategories = createTable(
 	"product_categories",
 	t => ({
 		id: t.text("id").primaryKey(),
-		name: t.text("name").notNull().unique(),
+		ownerId: t
+			.text("owner_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		name: t.text("name").notNull(),
 		description: t.text("description"),
 		parentCategoryId: t.text("parent_category_id"),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
 		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 	}),
-	t => [index("product_categories_parent_id_idx").on(t.parentCategoryId!)]
+	t => [
+		index("product_categories_owner_id_idx").on(t.ownerId),
+		index("product_categories_parent_id_idx").on(t.parentCategoryId!),
+	]
 )
 
 export const medicalProducts = createTable(
 	"medical_products",
 	t => ({
 		id: t.text("id").primaryKey(),
+		pharmacyId: t.text("pharmacy_id").references(() => pharmacies.id, { onDelete: "cascade" }),
 		name: t.text("name").notNull(),
 		genericName: t.text("generic_name"),
 		brandName: t.text("brand_name"),
@@ -209,14 +218,33 @@ export const medicalProducts = createTable(
 		unit: t.text("unit").notNull(), // e.g., tablet, ml, piece
 		requiresPrescription: t.boolean("requires_prescription").notNull().default(false),
 		imageUrl: t.text("image_url"),
+		supplier: t.text("supplier"),
+		lowStockThreshold: t.integer("low_stock_threshold"),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
 		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 	}),
 	t => [
+		index("medical_products_pharmacy_id_idx").on(t.pharmacyId),
 		index("medical_products_category_id_idx").on(t.categoryId),
 		index("medical_products_name_idx").on(t.name),
 		index("medical_products_requires_prescription_idx").on(t.requiresPrescription),
 	]
+)
+
+export const medicalProductVariants = createTable(
+	"medical_product_variants",
+	t => ({
+		id: t.text("id").primaryKey(),
+		productId: t
+			.text("product_id")
+			.notNull()
+			.references(() => medicalProducts.id, { onDelete: "cascade" }),
+		label: t.text("label").notNull(),
+		sortOrder: t.integer("sort_order").notNull().default(0),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [index("medical_product_variants_product_id_idx").on(t.productId)]
 )
 
 // ============================================================================
@@ -235,6 +263,9 @@ export const pharmacyInventory = createTable(
 			.text("product_id")
 			.notNull()
 			.references(() => medicalProducts.id, { onDelete: "restrict" }),
+		variantId: t
+			.text("variant_id")
+			.references(() => medicalProductVariants.id, { onDelete: "cascade" }),
 		quantity: t.integer("quantity").notNull().default(0),
 		price: t.numeric("price", { precision: 10, scale: 2 }).notNull(),
 		discountPrice: t.numeric("discount_price", { precision: 10, scale: 2 }),
@@ -248,6 +279,7 @@ export const pharmacyInventory = createTable(
 	t => [
 		index("pharmacy_inventory_pharmacy_id_idx").on(t.pharmacyId),
 		index("pharmacy_inventory_product_id_idx").on(t.productId),
+		index("pharmacy_inventory_variant_id_idx").on(t.variantId),
 		index("pharmacy_inventory_is_available_idx").on(t.isAvailable),
 		index("pharmacy_inventory_expiry_date_idx").on(t.expiryDate),
 	]
@@ -261,9 +293,7 @@ export const productSearches = createTable(
 	"product_searches",
 	t => ({
 		id: t.text("id").primaryKey(),
-		customerId: t
-			.text("customer_id")
-			.references(() => users.id, { onDelete: "cascade" }),
+		customerId: t.text("customer_id").references(() => users.id, { onDelete: "cascade" }),
 		searchQuery: t.text("search_query").notNull(),
 		resultsCount: t.integer("results_count").notNull().default(0),
 		searchedAt: t.timestamp("searched_at").notNull().defaultNow(),
@@ -320,9 +350,7 @@ export const deletionRequests = createTable(
 			.text("requested_by")
 			.notNull()
 			.references(() => users.id, { onDelete: "cascade" }),
-		reviewedBy: t
-			.text("reviewed_by")
-			.references(() => users.id, { onDelete: "set null" }),
+		reviewedBy: t.text("reviewed_by").references(() => users.id, { onDelete: "set null" }),
 		status: t.text("status").notNull().default("pending"), // pending, approved, rejected
 		reason: t.text("reason"),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
@@ -402,6 +430,7 @@ export const relations = defineRelations(
 		pharmacyStaff,
 		productCategories,
 		medicalProducts,
+		medicalProductVariants,
 		pharmacyInventory,
 		productSearches,
 		productReservations,
@@ -415,6 +444,7 @@ export const relations = defineRelations(
 			accounts: r.many.accounts(),
 			staffProfiles: r.many.staff(),
 			pharmaciesOwned: r.many.pharmacies(),
+			productCategoriesOwned: r.many.productCategories(),
 			productSearches: r.many.productSearches(),
 			productReservations: r.many.productReservations(),
 			pharmacyReviews: r.many.pharmacyReviews(),
@@ -446,6 +476,7 @@ export const relations = defineRelations(
 			}),
 			staff: r.many.pharmacyStaff(),
 			inventory: r.many.pharmacyInventory(),
+			products: r.many.medicalProducts(),
 			reviews: r.many.pharmacyReviews(),
 		},
 		pharmacyStaff: {
@@ -459,15 +490,31 @@ export const relations = defineRelations(
 			}),
 		},
 		productCategories: {
+			owner: r.one.users({
+				from: r.productCategories.ownerId,
+				to: r.users.id,
+			}),
 			products: r.many.medicalProducts(),
 		},
 		medicalProducts: {
+			pharmacy: r.one.pharmacies({
+				from: r.medicalProducts.pharmacyId,
+				to: r.pharmacies.id,
+			}),
 			category: r.one.productCategories({
 				from: r.medicalProducts.categoryId,
 				to: r.productCategories.id,
 			}),
+			variants: r.many.medicalProductVariants(),
 			inventory: r.many.pharmacyInventory(),
 			reviews: r.many.productReviews(),
+		},
+		medicalProductVariants: {
+			product: r.one.medicalProducts({
+				from: r.medicalProductVariants.productId,
+				to: r.medicalProducts.id,
+			}),
+			inventory: r.many.pharmacyInventory(),
 		},
 		pharmacyInventory: {
 			pharmacy: r.one.pharmacies({
@@ -477,6 +524,10 @@ export const relations = defineRelations(
 			product: r.one.medicalProducts({
 				from: r.pharmacyInventory.productId,
 				to: r.medicalProducts.id,
+			}),
+			variant: r.one.medicalProductVariants({
+				from: r.pharmacyInventory.variantId,
+				to: r.medicalProductVariants.id,
 			}),
 			reservations: r.many.productReservations(),
 		},
@@ -551,6 +602,7 @@ export const schema = Object.assign(
 		pharmacyStaff,
 		productCategories,
 		medicalProducts,
+		medicalProductVariants,
 		pharmacyInventory,
 		productSearches,
 		productReservations,

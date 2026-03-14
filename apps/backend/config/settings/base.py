@@ -25,16 +25,16 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "api.v1.analytics",
+    "api.v1.deletion_requests",
     "api.v1.health",
+    "api.v1.reservations",
     "api.v1.users",
     "api.v1.staff",
     "api.v1.pharmacies",
     "api.v1.products",
     "api.v1.inventory",
     "api.v1.reviews",
-    "api.v1.analytics",
-    "api.v1.deletion_requests",
-    "api.v1.reservations",
 ]
 
 MIDDLEWARE = [
@@ -102,11 +102,12 @@ TEMPLATES = [
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS - allow list from env
+# CORS - allow list from env (default includes common dev origins)
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
-        "CORS_ORIGINS", "http://localhost:8001,http://localhost:3001"
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,http://localhost:8001",
     ).split(",")
     if origin.strip()
 ]

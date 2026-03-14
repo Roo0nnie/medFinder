@@ -14,6 +14,7 @@ def list_pharmacy_reviews(
     *,
     pharmacy_id: Optional[str] = None,
     user_id: Optional[str] = None,
+    rating: Optional[int] = None,
 ) -> QuerySet[PharmacyReview]:
     qs = PharmacyReview.objects.all()
 
@@ -22,6 +23,9 @@ def list_pharmacy_reviews(
 
     if user_id:
         qs = qs.filter(user_id=user_id)
+
+    if rating is not None:
+        qs = qs.filter(rating=rating)
 
     return qs.order_by("-created_at")
 

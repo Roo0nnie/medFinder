@@ -9,6 +9,7 @@ class PharmacyInventory(models.Model):
     id = models.CharField(max_length=255, primary_key=True)
     pharmacy_id = models.CharField(max_length=255)
     product_id = models.CharField(max_length=255)
+    variant_id = models.CharField(max_length=255, blank=True, null=True, db_column="variant_id")
     quantity = models.IntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -20,6 +21,7 @@ class PharmacyInventory(models.Model):
     updated_at = models.DateTimeField()
 
     class Meta:
+        app_label = "inventory"
         db_table = "pharmacy_inventory"
         managed = False
         ordering = ["-updated_at"]

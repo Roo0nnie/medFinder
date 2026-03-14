@@ -18,12 +18,38 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 	}
 
 	const { id } = await params
-	const pharmacy = landingPharmacies.find(p => p.id === id)
-	if (!pharmacy) notFound()
+	const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "")
 
-	const productsAtPharmacy = landingProducts.filter(
-		p => p.storeId === pharmacy.id || p.availableAtStoreIds?.includes(pharmacy.id)
-	)
+	let pharmacy: any = null
+	let productsAtPharmacy: any[] = []
+
+	if (apiBase) {
+		try {
+			const [pharmacyRes, inventoryRes, productsRes] = await Promise.all([
+				fetch(`${apiBase}/v1/pharmacies/${id}/`, { cache: "no-store" }),
+				fetch(`${apiBase}/v1/inventory/?pharmacyId=${id}`, { cache: "no-store" }),
+				fetch(`${apiBase}/v1/products/`, { cache: "no-store" }),
+			])
+
+			if (pharmacyRes.ok) {
+				pharmacy = await pharmacyRes.json()
+				const inventory = inventoryRes.ok ? await inventoryRes.json() : []
+				const products = productsRes.ok ? await productsRes.json() : []
+				const productIds = new Set((inventory as any[]).map(item => item.productId))
+				productsAtPharmacy = (products as any[]).filter(p => productIds.has(p.id))
+			}
+		} catch {
+			pharmacy = null
+		}
+	}
+
+	if (!pharmacy) {
+		pharmacy = landingPharmacies.find(p => p.id === id)
+		if (!pharmacy) notFound()
+		productsAtPharmacy = landingProducts.filter(
+			p => p.storeId === pharmacy.id || p.availableAtStoreIds?.includes(pharmacy.id)
+		)
+	}
 
 	const hasCoordinates = pharmacy.latitude != null && pharmacy.longitude != null
 	const mapUrl = hasCoordinates
@@ -33,10 +59,9 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 		? `https://www.google.com/maps?q=${pharmacy.latitude},${pharmacy.longitude}&output=embed`
 		: null
 
-	const { reviews, averageRating } = await getPharmacyReviews(pharmacy.id)
+	const { reviews, averageRating, reviewCount } = await getPharmacyReviews(pharmacy.id)
 	const headerAverageRating =
 		averageRating != null ? averageRating : pharmacy.rating != null ? pharmacy.rating : null
-	const reviewCount = reviews.length
 
 	return (
 		<div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-8">
@@ -50,7 +75,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 			<div className="space-y-10">
 				<section className="animate-in fade-in slide-in-from-bottom-4 grid grid-cols-1 gap-6 duration-500 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
 					{mapEmbedUrl && (
-						<Card className="overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md h-full">
+						<Card className="border-border/50 bg-card/50 h-full overflow-hidden shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
 							<CardContent className="flex h-full flex-col gap-4 p-4 sm:p-6">
 								<div className="bg-muted/30 flex-1 overflow-hidden rounded-lg border">
 									<iframe
@@ -79,7 +104,9 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 						<div className="flex h-full flex-col justify-between">
 							<div>
 								<div className="space-y-3">
-									<h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">{pharmacy.name}</h1>
+									<h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">
+										{pharmacy.name}
+									</h1>
 									{pharmacy.whatIsThis && (
 										<p className="text-muted-foreground text-lg sm:text-xl">
 											{pharmacy.whatIsThis}
@@ -105,8 +132,10 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 									</div>
 								)}
 
-								<div className="bg-card/60 overflow-hidden rounded-2xl border border-border/50 p-6 text-sm shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
-									<div className="text-foreground text-base font-semibold tracking-tight">Pharmacy details</div>
+								<div className="bg-card/60 border-border/50 overflow-hidden rounded-2xl border p-6 text-sm shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
+									<div className="text-foreground text-base font-semibold tracking-tight">
+										Pharmacy details
+									</div>
 									<div className="text-muted-foreground mt-4 space-y-3">
 										<p>
 											<span className="text-foreground font-medium">Address: </span>
@@ -160,15 +189,17 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 				</section>
 
 				{pharmacy.description && (
-					<Card className="animate-in fade-in slide-in-from-bottom-4 overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md delay-100 fill-mode-both">
+					<Card className="animate-in fade-in slide-in-from-bottom-4 border-border/50 bg-card/50 fill-mode-both overflow-hidden shadow-sm backdrop-blur-sm transition-all delay-100 duration-300 hover:shadow-md">
 						<CardContent className="p-6">
 							<h2 className="text-xl font-semibold tracking-tight">About</h2>
-							<p className="text-muted-foreground mt-3 leading-relaxed whitespace-pre-wrap">{pharmacy.description}</p>
+							<p className="text-muted-foreground mt-3 leading-relaxed whitespace-pre-wrap">
+								{pharmacy.description}
+							</p>
 						</CardContent>
 					</Card>
 				)}
 
-				<Card className="animate-in fade-in slide-in-from-bottom-4 overflow-hidden border-border/50 bg-card/50 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md delay-150 fill-mode-both">
+				<Card className="animate-in fade-in slide-in-from-bottom-4 border-border/50 bg-card/50 fill-mode-both overflow-hidden shadow-sm backdrop-blur-sm transition-all delay-150 duration-300 hover:shadow-md">
 					<CardContent className="space-y-6 p-6">
 						<h2 className="text-xl font-semibold tracking-tight">Products available here</h2>
 						{productsAtPharmacy.length === 0 ? (
@@ -179,11 +210,12 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 					</CardContent>
 				</Card>
 
-				<div className="animate-in fade-in slide-in-from-bottom-4 delay-200 duration-500 fill-mode-both">
+				<div className="animate-in fade-in slide-in-from-bottom-4 fill-mode-both delay-200 duration-500">
 					<PharmacyDetailClient
 						pharmacyId={pharmacy.id}
 						initialRating={pharmacy.rating}
 						initialAverageRating={averageRating}
+						initialReviewCount={reviewCount}
 						initialReviews={reviews}
 					/>
 				</div>

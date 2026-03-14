@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.staff.models import Staff
 from api.v1.users.permissions import IsOwner
 
 from .models import Pharmacy
@@ -55,6 +56,14 @@ class PharmacyCreateView(APIView):
     permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request):
+        # Owners are limited to a single pharmacy record.
+        existing_count = services.get_pharmacies_by_owner(str(request.user.id)).count()
+        if existing_count >= 1 and getattr(request.user, "role", None) == "owner":
+            return Response(
+                {"detail": "Owners may only create one pharmacy. Edit your existing pharmacy instead."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         in_serializer = PharmacyCreateInputSerializer(data=request.data)
         in_serializer.is_valid(raise_exception=True)
         data = in_serializer.validated_data
@@ -172,13 +181,22 @@ class PharmacyDetailView(APIView):
 
 class MyPharmaciesView(APIView):
     """
-    GET pharmacies owned by the authenticated user.
+    GET pharmacies owned by the authenticated user (owner) or by the staff's owner (staff).
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        pharmacies = services.get_pharmacies_by_owner(str(request.user.id))
+        role = getattr(request.user, "role", None)
+        if role == "staff":
+            try:
+                staff_profile = Staff.objects.get(user_id=str(request.user.id))
+                pharmacies = services.get_pharmacies_by_owner(staff_profile.owner_id)
+            except Staff.DoesNotExist:
+                pharmacies = []
+            else:
+                pharmacies = list(pharmacies)
+        else:
+            pharmacies = services.get_pharmacies_by_owner(str(request.user.id))
         serializer = PharmacyListSerializer(pharmacies, many=True)
         return Response(serializer.data)
-

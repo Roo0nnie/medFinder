@@ -72,17 +72,21 @@ function ProductCard({
 			? (() => {
 					const v = product.variants!.find(x => x.id === selectedVariantId)
 					return v
-						? { price: v.price, quantity: v.quantity, lowStockThreshold: v.lowStockThreshold }
+						? {
+								price: v.price ?? 0,
+								quantity: v.quantity ?? 0,
+								lowStockThreshold: v.lowStockThreshold ?? 0,
+							}
 						: {
-								price: product.price,
-								quantity: product.quantity,
-								lowStockThreshold: product.lowStockThreshold,
+								price: product.price ?? 0,
+								quantity: product.quantity ?? 0,
+								lowStockThreshold: product.lowStockThreshold ?? 0,
 							}
 				})()
 			: {
-					price: product.price,
-					quantity: product.quantity,
-					lowStockThreshold: product.lowStockThreshold,
+					price: product.price ?? 0,
+					quantity: product.quantity ?? 0,
+					lowStockThreshold: product.lowStockThreshold ?? 0,
 				}
 
 	const isLow = display.quantity <= display.lowStockThreshold
@@ -143,7 +147,7 @@ function ProductCard({
 				</p>
 				<div className="border-border mt-4 flex items-center justify-between gap-2 border-t pt-3">
 					<span className="text-foreground text-lg font-semibold">
-						₱{display.price.toFixed(2)}
+						₱{(display.price ?? 0).toFixed(2)}
 					</span>
 					<span className="text-muted-foreground truncate text-sm">{storeName}</span>
 				</div>
@@ -205,10 +209,12 @@ export function PharmacyProductsClient({
 					onChange={e => setCategory(e.target.value)}
 					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[160px] sm:flex-none md:min-w-[180px]"
 				>
-					<option value="">All categories</option>
-					{categories.map(c => (
-						<option key={c} value={c}>
-							{c}
+					<option key="__all__" value="">
+						All categories
+					</option>
+					{categories.map((c, i) => (
+						<option key={c ? `${c}-${i}` : `category-${i}`} value={c}>
+							{c || "Uncategorized"}
 						</option>
 					))}
 				</select>
