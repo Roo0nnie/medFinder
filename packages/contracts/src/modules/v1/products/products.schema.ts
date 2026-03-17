@@ -69,6 +69,10 @@ export const ProductSearchSchema = z.object({
 	categoryId: z.string().optional(),
 	requiresPrescription: z.boolean().optional(),
 	manufacturer: z.string().optional(),
+	limit: z.number().int().min(0).max(100).optional(),
+	offset: z.number().int().min(0).optional(),
+	prefix: z.boolean().optional(),
+	searchType: z.enum(["plain", "websearch"]).optional(),
 })
 
 export const ProductIdSchema = z.object({

@@ -41,16 +41,47 @@ class ProductListView(APIView):
         category_id = request.query_params.get("categoryId")
         requires_prescription_param = request.query_params.get("requiresPrescription")
         manufacturer = request.query_params.get("manufacturer")
+        limit_param = request.query_params.get("limit")
+        offset_param = request.query_params.get("offset")
+        prefix_param = request.query_params.get("prefix")
+        search_type = request.query_params.get("searchType") or "plain"
 
         requires_prescription = None
         if requires_prescription_param is not None:
             requires_prescription = requires_prescription_param.lower() == "true"
+
+        limit = None
+        offset = None
+        try:
+            if limit_param is not None:
+                limit = max(0, min(int(limit_param), 100))
+            if offset_param is not None:
+                offset = max(0, int(offset_param))
+        except ValueError:
+            return Response(
+                {"detail": "limit and offset must be integers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        prefix = False
+        if prefix_param is not None:
+            prefix = prefix_param.lower() == "true"
+
+        if search_type not in ("plain", "websearch"):
+            return Response(
+                {"detail": "searchType must be one of: plain, websearch"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         products = services.list_products(
             query=query,
             category_id=category_id,
             requires_prescription=requires_prescription,
             manufacturer=manufacturer,
+            limit=limit,
+            offset=offset,
+            prefix=prefix,
+            search_type=search_type,
         )
         # Owner: only show products for their pharmacies. Staff: show all products of their owner's pharmacies.
         user_role = getattr(request.user, "role", None)

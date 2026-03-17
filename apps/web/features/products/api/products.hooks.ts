@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import { env } from "@/env"
+
 const getBaseUrl = () =>
 	(typeof window !== "undefined"
-		? process.env.NEXT_PUBLIC_API_BASE_URL
-		: process.env.NEXT_PUBLIC_API_BASE_URL) ?? ""
+		? env.NEXT_PUBLIC_API_BASE_URL
+		: env.NEXT_PUBLIC_API_BASE_URL) ?? ""
 
 function parseErrorBody(text: string): string {
 	try {
@@ -107,6 +109,37 @@ export function useProductsQuery() {
 	})
 }
 
+export type ProductSearchParams = {
+	query?: string
+	categoryId?: string
+	requiresPrescription?: boolean
+	manufacturer?: string
+	limit?: number
+	offset?: number
+	prefix?: boolean
+	searchType?: "plain" | "websearch"
+}
+
+export function useProductSearchQuery(params: ProductSearchParams = {}) {
+	return useQuery({
+		queryKey: ["products", "search", params],
+		queryFn: () => {
+			const search = new URLSearchParams()
+			if (params.query) search.set("query", params.query)
+			if (params.categoryId) search.set("categoryId", params.categoryId)
+			if (params.requiresPrescription !== undefined)
+				search.set("requiresPrescription", String(params.requiresPrescription))
+			if (params.manufacturer) search.set("manufacturer", params.manufacturer)
+			if (params.limit !== undefined) search.set("limit", String(params.limit))
+			if (params.offset !== undefined) search.set("offset", String(params.offset))
+			if (params.prefix !== undefined) search.set("prefix", String(params.prefix))
+			if (params.searchType) search.set("searchType", params.searchType)
+			const suffix = search.toString() ? `?${search.toString()}` : ""
+			return apiFetch<Product[]>(`/v1/products/${suffix}`)
+		},
+	})
+}
+
 export type ProductDetailAvailabilityItem = {
 	pharmacyId: string
 	pharmacyName: string
@@ -168,12 +201,12 @@ export function useInventoryListQuery(params: InventoryListParams = {}) {
 export function useInventoryByProductQuery(productId: string | undefined) {
 	return useQuery({
 		queryKey: ["inventory", "by-product", productId],
-		queryFn: async (): Promise<PharmacyInventoryItem | undefined> => {
-			if (!productId) return undefined
+		queryFn: async (): Promise<PharmacyInventoryItem | null> => {
+			if (!productId) return null
 			const list = await apiFetch<PharmacyInventoryItem[]>(
 				`/v1/inventory/?productId=${encodeURIComponent(productId)}`
 			)
-			return list[0]
+			return list[0] ?? null
 		},
 		enabled: !!productId,
 	})

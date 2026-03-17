@@ -16,14 +16,6 @@ import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/core/components/ui/table"
 import { useToast } from "@/core/components/ui/use-toast"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import {
@@ -31,10 +23,11 @@ import {
 	useInventoryDeleteMutation,
 	useInventoryListQuery,
 	useInventoryUpdateMutation,
-	useProductVariantsQuery,
 	useProductsQuery,
+	useProductVariantsQuery,
 	type PharmacyInventoryItem,
 } from "@/features/products/api/products.hooks"
+import { InventoryTable } from "@/features/products/components/inventory-table"
 
 type InventoryForm = {
 	pharmacyId: string
@@ -64,7 +57,7 @@ export default function OwnerInventoryTabPage() {
 	const { toast } = useToast()
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: products } = useProductsQuery()
-	const { data: inventory, isLoading, isError } = useInventoryListQuery()
+	useInventoryListQuery()
 	const createMutation = useInventoryCreateMutation()
 	const updateMutation = useInventoryUpdateMutation()
 	const deleteMutation = useInventoryDeleteMutation()
@@ -74,7 +67,10 @@ export default function OwnerInventoryTabPage() {
 	const [form, setForm] = useState<InventoryForm>(emptyForm)
 
 	const productMap = useMemo(() => new Map((products ?? []).map(p => [p.id, p.name])), [products])
-	const pharmacyMap = useMemo(() => new Map((pharmacies ?? []).map(p => [p.id, p.name])), [pharmacies])
+	const pharmacyMap = useMemo(
+		() => new Map((pharmacies ?? []).map(p => [p.id, p.name])),
+		[pharmacies]
+	)
 	const { data: variants = [] } = useProductVariantsQuery(form.productId || undefined)
 
 	const beginCreate = () => {
@@ -177,72 +173,17 @@ export default function OwnerInventoryTabPage() {
 						<Button onClick={beginCreate}>Add inventory</Button>
 					</div>
 
-					{isLoading && <p className="text-muted-foreground mt-3 text-sm">Loading...</p>}
-					{isError && <p className="text-destructive mt-3 text-sm">Failed to load inventory.</p>}
-
-					<div className="mt-4 overflow-x-auto">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Pharmacy</TableHead>
-									<TableHead>Product</TableHead>
-									<TableHead>Variant</TableHead>
-									<TableHead>Quantity</TableHead>
-									<TableHead>Price</TableHead>
-									<TableHead>Discount</TableHead>
-									<TableHead>Expiry</TableHead>
-									<TableHead>Batch</TableHead>
-									<TableHead>Available</TableHead>
-									<TableHead className="text-right">Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{(inventory ?? []).map(row => (
-									<TableRow key={row.id}>
-										<TableCell>{pharmacyMap.get(row.pharmacyId) ?? row.pharmacyId}</TableCell>
-										<TableCell>{productMap.get(row.productId) ?? row.productId}</TableCell>
-										<TableCell className="text-muted-foreground">
-											{row.variantLabel ?? (row.variantId ? row.variantId : "—")}
-										</TableCell>
-										<TableCell>{row.quantity}</TableCell>
-										<TableCell>{row.price}</TableCell>
-										<TableCell>{row.discountPrice || "—"}</TableCell>
-										<TableCell>
-											{row.expiryDate ? new Date(row.expiryDate).toLocaleDateString() : "—"}
-										</TableCell>
-										<TableCell>{row.batchNumber || "—"}</TableCell>
-										<TableCell>{row.isAvailable ? "Yes" : "No"}</TableCell>
-										<TableCell className="flex justify-end gap-2">
-											<Button size="sm" variant="outline" onClick={() => beginEdit(row)}>
-												Edit
-											</Button>
-											<Button
-												size="sm"
-												variant="ghost"
-												className="text-destructive"
-												onClick={() => setToDelete(row)}
-											>
-												Delete
-											</Button>
-										</TableCell>
-									</TableRow>
-								))}
-								{!isLoading && (inventory ?? []).length === 0 && (
-									<TableRow>
-										<TableCell colSpan={10} className="text-muted-foreground text-center text-sm">
-											No inventory rows found.
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+					<div className="mt-4">
+						<InventoryTable onEditRow={row => beginEdit(row)} onDeleteRow={row => setToDelete(row)} />
 					</div>
 				</CardContent>
 			</Card>
 
 			<Card>
 				<CardContent className="space-y-4 p-4 sm:p-6">
-					<h2 className="text-lg font-semibold">{editing ? "Edit inventory" : "New inventory row"}</h2>
+					<h2 className="text-lg font-semibold">
+						{editing ? "Edit inventory" : "New inventory row"}
+					</h2>
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="space-y-1">
 							<Label htmlFor="pharmacy">Pharmacy *</Label>
@@ -267,7 +208,9 @@ export default function OwnerInventoryTabPage() {
 								id="product"
 								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
 								value={form.productId}
-								onChange={e => setForm(prev => ({ ...prev, productId: e.target.value, variantId: "" }))}
+								onChange={e =>
+									setForm(prev => ({ ...prev, productId: e.target.value, variantId: "" }))
+								}
 								disabled={!!editing}
 							>
 								<option value="">Select product</option>
@@ -352,7 +295,9 @@ export default function OwnerInventoryTabPage() {
 								id="isAvailable"
 								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
 								value={form.isAvailable ? "true" : "false"}
-								onChange={e => setForm(prev => ({ ...prev, isAvailable: e.target.value === "true" }))}
+								onChange={e =>
+									setForm(prev => ({ ...prev, isAvailable: e.target.value === "true" }))
+								}
 							>
 								<option value="true">Yes</option>
 								<option value="false">No</option>

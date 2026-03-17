@@ -38,6 +38,9 @@ const CATEGORY_NAMES = [
 	"Medical Devices",
 ] as const
 
+const PHARMACY_COUNT = 20
+const PRODUCT_COUNT = 20
+
 function buildStaffSeed(ownerIndex: number, staffIndex: number) {
 	const o = ownerIndex + 1
 	const s = staffIndex + 1
@@ -182,14 +185,28 @@ async function seed() {
 		}
 	}
 
-	// Pharmacies: one per owner (store-1 .. store-5)
-	const PHARMACY_SEED = [
-		{ id: "store-1", name: "Sunrise Pharmacy", ownerIndex: 0 },
-		{ id: "store-2", name: "Reyes Drugstore", ownerIndex: 1 },
-		{ id: "store-3", name: "Cruz Health Mart", ownerIndex: 2 },
-		{ id: "store-4", name: "Dela Cruz Pharmacy", ownerIndex: 3 },
-		{ id: "store-5", name: "Garcia Family Pharmacy", ownerIndex: 4 },
+	// Pharmacies: 20 total (store-1 .. store-20), distributed across the 5 owners.
+	const pharmacyNamePrefixes = [
+		"Sunrise",
+		"Reyes",
+		"Cruz",
+		"Dela Cruz",
+		"Garcia",
+		"Harbor",
+		"River",
+		"Green",
+		"Metro",
+		"Prime",
 	] as const
+	const pharmacyNameSuffixes = ["Pharmacy", "Drugstore", "Health Mart", "Care Pharmacy", "Family Pharmacy"] as const
+
+	const PHARMACY_SEED = Array.from({ length: PHARMACY_COUNT }, (_, i) => {
+		const index = i + 1
+		const ownerIndex = i % Math.max(ownerIds.length, 1)
+		const prefix = pharmacyNamePrefixes[i % pharmacyNamePrefixes.length]!
+		const suffix = pharmacyNameSuffixes[i % pharmacyNameSuffixes.length]!
+		return { id: `store-${index}`, name: `${prefix} ${suffix}`, ownerIndex }
+	})
 
 	for (const ph of PHARMACY_SEED) {
 		const ownerId = ownerIds[ph.ownerIndex]
@@ -201,7 +218,7 @@ async function seed() {
 				ownerId,
 				name: ph.name,
 				description: "Community pharmacy providing essential medicines",
-				address: `${ph.ownerIndex + 1}00 Main St`,
+				address: `${ph.ownerIndex + 1}${String(ph.id).replace("store-", "").padStart(2, "0")} Main St`,
 				city: "Quezon City",
 				state: "NCR",
 				zipCode: "1100",
@@ -213,61 +230,48 @@ async function seed() {
 				isActive: true,
 			})
 			console.log(`Created pharmacy ${ph.name}`)
+		} else {
+			await db
+				.update(pharmacies)
+				.set({ ownerId, name: ph.name, updatedAt: new Date() })
+				.where(eq(pharmacies.id, ph.id))
 		}
 	}
 
-	// Products: at least 3, with 2 having variants (across the 5 owners)
-	// Product 1: no variant (owner 1). Product 2: with variants (owner 2). Product 3: with variants (owner 3).
-	const PRODUCT_SEED = [
-		{
-			id: "prod-1",
-			pharmacyId: "store-1",
-			categoryId: "cat-o1-1",
-			name: "Paracetamol 500mg",
-			brandName: "Generic",
-			genericName: "Paracetamol",
-			description: "Pain reliever and fever reducer",
-			manufacturer: "MediCorp",
-			dosageForm: "Tablet",
-			strength: "500mg",
-			unit: "tablet",
-			variants: null as null | { id: string; label: string; sortOrder: number; price: string; quantity: number }[],
-		},
-		{
-			id: "prod-2",
-			pharmacyId: "store-2",
-			categoryId: "cat-o2-1",
-			name: "Alcohol 70%",
-			brandName: "Generics",
-			genericName: "Ethanol",
-			description: "Rubbing alcohol for disinfection. Available in 100ml and 500ml.",
-			manufacturer: "MedSupply",
-			dosageForm: "Liquid",
-			strength: "70%",
-			unit: "bottle",
-			variants: [
-				{ id: "var-p2-100", label: "100ml bottle", sortOrder: 0, price: "35.00", quantity: 20 },
-				{ id: "var-p2-500", label: "500ml bottle", sortOrder: 1, price: "120.00", quantity: 8 },
-			],
-		},
-		{
-			id: "prod-3",
-			pharmacyId: "store-3",
-			categoryId: "cat-o3-1",
-			name: "Paracetamol Syrup",
-			brandName: "Biogesic",
-			genericName: "Paracetamol",
-			description: "Fever and pain reliever for children. Different volumes available.",
-			manufacturer: "Unilab",
-			dosageForm: "Syrup",
-			strength: "",
-			unit: "bottle",
-			variants: [
-				{ id: "var-p3-30", label: "30ml", sortOrder: 0, price: "45.00", quantity: 20 },
-				{ id: "var-p3-15", label: "15ml", sortOrder: 1, price: "28.00", quantity: 35 },
-			],
-		},
-	]
+	// Products: 20 total (prod-1 .. prod-20), linked to pharmacies and owner categories.
+	const productNames = [
+		{ name: "Paracetamol", genericName: "Paracetamol", dosageForm: "Tablet", strength: "500mg", unit: "tablet", manufacturer: "MediCorp", brandName: "Generic" },
+		{ name: "Ibuprofen", genericName: "Ibuprofen", dosageForm: "Tablet", strength: "200mg", unit: "tablet", manufacturer: "MediCorp", brandName: "Generic" },
+		{ name: "Cetirizine", genericName: "Cetirizine", dosageForm: "Tablet", strength: "10mg", unit: "tablet", manufacturer: "MedSupply", brandName: "Generic" },
+		{ name: "Loperamide", genericName: "Loperamide", dosageForm: "Capsule", strength: "2mg", unit: "capsule", manufacturer: "MedSupply", brandName: "Generic" },
+		{ name: "Alcohol", genericName: "Ethanol", dosageForm: "Liquid", strength: "70%", unit: "bottle", manufacturer: "MedSupply", brandName: "Generics" },
+		{ name: "Vitamin C", genericName: "Ascorbic Acid", dosageForm: "Tablet", strength: "500mg", unit: "tablet", manufacturer: "NutriHealth", brandName: "Generic" },
+		{ name: "Zinc", genericName: "Zinc", dosageForm: "Tablet", strength: "10mg", unit: "tablet", manufacturer: "NutriHealth", brandName: "Generic" },
+		{ name: "Bandage Roll", genericName: "Bandage", dosageForm: "Device", strength: "", unit: "roll", manufacturer: "CarePlus", brandName: "CarePlus" },
+		{ name: "Antiseptic Solution", genericName: "Povidone-Iodine", dosageForm: "Liquid", strength: "10%", unit: "bottle", manufacturer: "CarePlus", brandName: "CarePlus" },
+		{ name: "Digital Thermometer", genericName: "Thermometer", dosageForm: "Device", strength: "", unit: "piece", manufacturer: "HealthTech", brandName: "HealthTech" },
+	] as const
+
+	const PRODUCT_SEED = Array.from({ length: PRODUCT_COUNT }, (_, i) => {
+		const index = i + 1
+		const ph = PHARMACY_SEED[i % PHARMACY_SEED.length]!
+		const ownerIndex = ph.ownerIndex
+		const p = productNames[i % productNames.length]!
+		const categoryId = `cat-o${ownerIndex + 1}-1`
+		return {
+			id: `prod-${index}`,
+			pharmacyId: ph.id,
+			categoryId,
+			name: `${p.name}${p.strength ? ` ${p.strength}` : ""}`.trim(),
+			brandName: p.brandName,
+			genericName: p.genericName,
+			description: `${p.name} for everyday health needs`,
+			manufacturer: p.manufacturer,
+			dosageForm: p.dosageForm,
+			strength: p.strength,
+			unit: p.unit,
+		}
+	})
 
 	for (const prod of PRODUCT_SEED) {
 		const existingProd = await db.select().from(medicalProducts).where(eq(medicalProducts.id, prod.id)).limit(1)
@@ -288,37 +292,46 @@ async function seed() {
 				lowStockThreshold: 10,
 			})
 			console.log(`Created product ${prod.name}`)
-		}
-
-		// Variants (for products that have them)
-		if (prod.variants) {
-			for (const v of prod.variants) {
-				const existingVar = await db
-					.select()
-					.from(medicalProductVariants)
-					.where(eq(medicalProductVariants.id, v.id))
-					.limit(1)
-				if (existingVar.length === 0) {
-					await db.insert(medicalProductVariants).values({
-						id: v.id,
-						productId: prod.id,
-						label: v.label,
-						sortOrder: v.sortOrder,
-					})
-					console.log(`  Created variant ${v.label} for ${prod.name}`)
-				}
-			}
+		} else {
+			await db
+				.update(medicalProducts)
+				.set({
+					pharmacyId: prod.pharmacyId,
+					name: prod.name,
+					brandName: prod.brandName,
+					genericName: prod.genericName,
+					description: prod.description,
+					manufacturer: prod.manufacturer,
+					categoryId: prod.categoryId,
+					dosageForm: prod.dosageForm,
+					strength: prod.strength,
+					unit: prod.unit,
+					updatedAt: new Date(),
+				})
+				.where(eq(medicalProducts.id, prod.id))
 		}
 	}
 
-	// Inventory: one row per product (default) or per variant
-	const inventoryRows: { id: string; pharmacyId: string; productId: string; variantId: string | null; quantity: number; price: string }[] = [
-		{ id: "inv-1", pharmacyId: "store-1", productId: "prod-1", variantId: null, quantity: 120, price: "5.00" },
-		{ id: "inv-p2-100", pharmacyId: "store-2", productId: "prod-2", variantId: "var-p2-100", quantity: 20, price: "35.00" },
-		{ id: "inv-p2-500", pharmacyId: "store-2", productId: "prod-2", variantId: "var-p2-500", quantity: 8, price: "120.00" },
-		{ id: "inv-p3-30", pharmacyId: "store-3", productId: "prod-3", variantId: "var-p3-30", quantity: 20, price: "45.00" },
-		{ id: "inv-p3-15", pharmacyId: "store-3", productId: "prod-3", variantId: "var-p3-15", quantity: 35, price: "28.00" },
-	]
+	// Inventory: one row per product
+	const inventoryRows: {
+		id: string
+		pharmacyId: string
+		productId: string
+		variantId: string | null
+		quantity: number
+		price: string
+	}[] = PRODUCT_SEED.map((p, i) => {
+		const basePrice = 10 + (i % 10) * 5
+		const quantity = 25 + (i % 8) * 10
+		return {
+			id: `inv-${p.id}`,
+			pharmacyId: p.pharmacyId,
+			productId: p.id,
+			variantId: null,
+			quantity,
+			price: `${basePrice}.00`,
+		}
+	})
 
 	for (const inv of inventoryRows) {
 		const existingInv = await db
@@ -344,7 +357,7 @@ async function seed() {
 		console.warn("No owner users found; skipped seeding pharmacies/products/inventory.")
 	}
 
-	console.log("Seed complete (users, 5 pharmacies, 3 products with 2 having variants, inventory).")
+	console.log(`Seed complete (users, ${PHARMACY_COUNT} pharmacies, ${PRODUCT_COUNT} products, inventory).`)
 	process.exit(0)
 }
 

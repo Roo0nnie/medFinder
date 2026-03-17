@@ -16,14 +16,6 @@ import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/core/components/ui/table"
 import { useToast } from "@/core/components/ui/use-toast"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import {
@@ -31,7 +23,6 @@ import {
 	useProductCategoriesQuery,
 	useProductCreateMutation,
 	useProductDeleteMutation,
-	useProductsQuery,
 	useProductUpdateMutation,
 	useProductVariantsQuery,
 	useVariantCreateMutation,
@@ -40,6 +31,7 @@ import {
 	type Product,
 	type ProductVariant,
 } from "@/features/products/api/products.hooks"
+import { ProductsTable } from "@/features/products/components/products-table"
 
 const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	pharmacyId: "",
@@ -68,7 +60,6 @@ export default function OwnerProductsTabPage() {
 	const { toast } = useToast()
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: categories } = useProductCategoriesQuery()
-	const { data: products, isLoading, isError } = useProductsQuery()
 	const [editing, setEditing] = useState<Product | null>(null)
 	const [productToDelete, setProductToDelete] = useState<Product | null>(null)
 	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
@@ -87,10 +78,6 @@ export default function OwnerProductsTabPage() {
 	const variantUpdateMutation = useVariantUpdateMutation()
 	const variantDeleteMutation = useVariantDeleteMutation()
 	const [form, setForm] = useState<Partial<Product> & { variantId?: string | null }>(emptyForm)
-
-	const currentInventoryRow = editing?.id && inventoryList
-		? inventoryList.find(r => (r.variantId ?? null) === selectedVariantId)
-		: undefined
 
 	useEffect(() => {
 		if (!editing) {
@@ -214,9 +201,6 @@ export default function OwnerProductsTabPage() {
 		}
 	}
 
-	const productList = products ?? []
-	const pharmacyMap = new Map((pharmacies ?? []).map(p => [p.id, p.name]))
-
 	return (
 		<div className="space-y-6">
 			<Card>
@@ -230,68 +214,8 @@ export default function OwnerProductsTabPage() {
 						</div>
 						<Button onClick={() => setEditing(null)}>Add product</Button>
 					</div>
-					{isLoading && <p className="text-muted-foreground mt-3 text-sm">Loading...</p>}
-					{isError && <p className="text-destructive mt-3 text-sm">Failed to load products from the API.</p>}
-					<div className="mt-4 overflow-x-auto">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Name</TableHead>
-									<TableHead>Pharmacy</TableHead>
-									<TableHead>Brand / Generic</TableHead>
-									<TableHead>Category</TableHead>
-									<TableHead>Unit</TableHead>
-									<TableHead>Variants</TableHead>
-									<TableHead>Strength</TableHead>
-									<TableHead>Supplier</TableHead>
-									<TableHead>Rx</TableHead>
-									<TableHead className="text-right">Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{productList.map(prod => (
-									<TableRow key={prod.id}>
-										<TableCell className="font-semibold">{prod.name}</TableCell>
-										<TableCell className="text-muted-foreground">
-											{prod.pharmacyId ? (pharmacyMap.get(prod.pharmacyId) ?? prod.pharmacyId) : "—"}
-										</TableCell>
-										<TableCell>{prod.brandName || prod.genericName || "—"}</TableCell>
-										<TableCell>
-											{categories?.find(c => c.id === prod.categoryId)?.name ?? prod.categoryId}
-										</TableCell>
-										<TableCell>{prod.unit}</TableCell>
-										<TableCell className="text-muted-foreground text-sm">
-											{prod.variants && prod.variants.length > 0
-												? `${prod.variants.length} variant${prod.variants.length !== 1 ? "s" : ""}`
-												: "—"}
-										</TableCell>
-										<TableCell>{prod.strength || "—"}</TableCell>
-										<TableCell>{prod.supplier || "—"}</TableCell>
-										<TableCell>{prod.requiresPrescription ? "Yes" : "No"}</TableCell>
-										<TableCell className="flex justify-end gap-2">
-											<Button size="sm" variant="outline" onClick={() => setEditing(prod)}>
-												Edit
-											</Button>
-											<Button
-												size="sm"
-												variant="ghost"
-												className="text-destructive"
-												onClick={() => setProductToDelete(prod)}
-											>
-												Delete
-											</Button>
-										</TableCell>
-									</TableRow>
-								))}
-								{!isLoading && productList.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={10} className="text-muted-foreground text-center text-sm">
-											No products yet. Add a pharmacy in My Pharmacies, then create a product below.
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+					<div className="mt-4">
+						<ProductsTable onEdit={p => setEditing(p)} onDelete={p => setProductToDelete(p)} />
 					</div>
 				</CardContent>
 			</Card>

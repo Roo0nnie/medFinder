@@ -13,6 +13,19 @@ from api.v1.inventory.models import PharmacyInventory
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory, ProductSearch
 
 
+def _build_prefix_raw_query(query: str) -> str:
+    """
+    Build a tsquery string with prefix matching (term:*).
+    Only keeps alphanumeric tokens to avoid tsquery syntax issues/injection.
+    """
+    tokens = []
+    for part in query.split():
+        token = "".join(ch for ch in part if ch.isalnum())
+        if token:
+            tokens.append(f"{token}:*")
+    return " & ".join(tokens)
+
+
 def list_products(
     *,
     query: Optional[str] = None,
@@ -20,6 +33,10 @@ def list_products(
     requires_prescription: Optional[bool] = None,
     manufacturer: Optional[str] = None,
     pharmacy_ids: Optional[list[str]] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    prefix: bool = False,
+    search_type: str = "plain",
 ) -> QuerySet[MedicalProduct]:
     qs = MedicalProduct.objects.all()
 
@@ -37,20 +54,35 @@ def list_products(
 
     if query:
         query = query.strip()
-        search_query = SearchQuery(query, search_type="plain")
+        if prefix:
+            raw = _build_prefix_raw_query(query)
+            search_query = SearchQuery(raw, search_type="raw", config="english") if raw else None
+        else:
+            search_query = SearchQuery(query, search_type=search_type, config="english")
+
         vector = (
-            SearchVector("name", weight="A")
-            + SearchVector("brand_name", weight="B")
-            + SearchVector("generic_name", weight="B")
-            + SearchVector("manufacturer", weight="C")
+            SearchVector("name", weight="A", config="english")
+            + SearchVector("brand_name", weight="B", config="english")
+            + SearchVector("generic_name", weight="B", config="english")
+            + SearchVector("manufacturer", weight="C", config="english")
+            + SearchVector("dosage_form", weight="C", config="english")
+            + SearchVector("strength", weight="C", config="english")
+            + SearchVector("description", weight="D", config="english")
         )
-        qs = (
-            qs.annotate(rank=SearchRank(vector, search_query))
-            .filter(rank__gt=0)
-            .order_by("-rank", "name")
-        )
+
+        if search_query is not None:
+            qs = (
+                qs.annotate(rank=SearchRank(vector, search_query))
+                .filter(rank__gt=0)
+                .order_by("-rank", "name")
+            )
     else:
         qs = qs.order_by("name")
+
+    if offset is not None:
+        qs = qs[offset:]
+    if limit is not None:
+        qs = qs[:limit]
 
     return qs
 

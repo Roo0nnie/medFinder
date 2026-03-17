@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
 
@@ -172,6 +172,8 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const [storeId, setStoreId] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
+	const [page, setPage] = useState(1)
+	const pageSize = 9
 
 	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
@@ -213,6 +215,16 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	)
 
 	const hasFilters = category || city || storeId
+	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+	const safePage = Math.min(page, totalPages)
+	const paged = useMemo(() => {
+		const start = (safePage - 1) * pageSize
+		return filtered.slice(start, start + pageSize)
+	}, [filtered, safePage])
+
+	useEffect(() => {
+		setPage(1)
+	}, [query, category, city, storeId, sort])
 
 	return (
 		<div className="w-full space-y-6">
@@ -234,6 +246,17 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					placeholder="Search by name, brand, category..."
 					value={query}
 					onChange={e => setQuery(e.target.value)}
+					onKeyDown={e => {
+						if (e.key !== "Enter") return
+						e.preventDefault()
+						const q = query.trim()
+						if (!q) return
+						if (isCustomer) {
+							router.push(`/search?q=${encodeURIComponent(q)}&prefix=true` as Route)
+						} else {
+							setRegisterModalOpen(true)
+						}
+					}}
 					className="w-full sm:max-w-md"
 					aria-label="Search products"
 				/>
@@ -324,45 +347,71 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					</button>
 				</div>
 			) : (
-				<div
-					ref={gridRef}
-					className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-				>
-					{filtered.map((product, i) => (
-						<div
-							key={product.id}
-							role="button"
-							tabIndex={0}
-							className={`focus-visible:ring-ring cursor-pointer rounded-xl transition-all duration-500 outline-none focus-visible:ring-2 ${
-								gridInView ? "translate-y-0 opacity-100" : "translate-y-4 opacity-100"
-							}`}
-							style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
-							onClick={() => {
-								if (isCustomer) {
-									router.push(`/product/${product.id}` as Route)
-								} else {
-									setRegisterModalOpen(true)
-								}
-							}}
-							onKeyDown={e => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault()
+				<>
+					<div
+						ref={gridRef}
+						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+					>
+						{paged.map((product, i) => (
+							<div
+								key={product.id}
+								role="button"
+								tabIndex={0}
+								className={`focus-visible:ring-ring cursor-pointer rounded-xl transition-all duration-500 outline-none focus-visible:ring-2 ${
+									gridInView ? "translate-y-0 opacity-100" : "translate-y-4 opacity-100"
+								}`}
+								style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
+								onClick={() => {
 									if (isCustomer) {
 										router.push(`/product/${product.id}` as Route)
 									} else {
 										setRegisterModalOpen(true)
 									}
-								}
-							}}
-						>
-							<ProductCard
-								product={product}
-								storeName={pharmacyById.get(product.storeId)?.name ?? "Unknown"}
-								onSelectClick={e => e.stopPropagation()}
-							/>
+								}}
+								onKeyDown={e => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault()
+										if (isCustomer) {
+											router.push(`/product/${product.id}` as Route)
+										} else {
+											setRegisterModalOpen(true)
+										}
+									}
+								}}
+							>
+								<ProductCard
+									product={product}
+									storeName={pharmacyById.get(product.storeId)?.name ?? "Unknown"}
+									onSelectClick={e => e.stopPropagation()}
+								/>
+							</div>
+						))}
+					</div>
+
+					<div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+						<p className="text-muted-foreground text-sm">
+							Page {safePage} of {totalPages}
+						</p>
+						<div className="flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => setPage(p => Math.max(1, p - 1))}
+								disabled={safePage <= 1}
+								className="border-input bg-background text-foreground inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium disabled:opacity-50"
+							>
+								Prev
+							</button>
+							<button
+								type="button"
+								onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+								disabled={safePage >= totalPages}
+								className="border-input bg-background text-foreground inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium disabled:opacity-50"
+							>
+								Next
+							</button>
 						</div>
-					))}
-				</div>
+					</div>
+				</>
 			)}
 			<LandingRegisterModal open={registerModalOpen} onOpenChange={setRegisterModalOpen} />
 		</div>
