@@ -15,7 +15,7 @@
 		"db:studio": "turbo -F @repo/db studio",
 		"db:generate": "turbo -F @repo/db generate",
 		"db:migrate": "turbo -F @repo/db migrate",
-		"dev:seed": "pnpm -F @repo/scripts run seed",
+		"db:seed": "pnpm -F @repo/scripts run seed",
 		"dev": "turbo watch dev --continue",
 		"dev:web": "turbo watch dev -F @repo/web...",
 		"dev:mobile": "turbo watch dev -F @repo/mobile...",

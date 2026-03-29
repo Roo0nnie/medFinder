@@ -1,5 +1,5 @@
 /**
- * Seed script: creates admin, customer, 5 owners, 5 staff per owner (25 staff), and sample catalog.
+ * Seed script: creates admin, customer, 5 owners (each with 1 pharmacy), 5 staff per owner (25 staff), and sample catalog.
  * Run from repo root: pnpm dev:seed
  * Requires: DATABASE_URL (packages/db/.env), BETTER_AUTH_SECRET + BETTER_AUTH_TRUSTED_ORIGINS (apps/web/.env)
  */
@@ -38,7 +38,6 @@ const CATEGORY_NAMES = [
 	"Medical Devices",
 ] as const
 
-const PHARMACY_COUNT = 20
 const PRODUCT_COUNT = 20
 
 function buildStaffSeed(ownerIndex: number, staffIndex: number) {
@@ -185,7 +184,7 @@ async function seed() {
 		}
 	}
 
-	// Pharmacies: 20 total (store-1 .. store-20), distributed across the 5 owners.
+	// Pharmacies: one per owner (store-1 .. store-N).
 	const pharmacyNamePrefixes = [
 		"Sunrise",
 		"Reyes",
@@ -200,9 +199,9 @@ async function seed() {
 	] as const
 	const pharmacyNameSuffixes = ["Pharmacy", "Drugstore", "Health Mart", "Care Pharmacy", "Family Pharmacy"] as const
 
-	const PHARMACY_SEED = Array.from({ length: PHARMACY_COUNT }, (_, i) => {
+	const PHARMACY_SEED = Array.from({ length: ownerIds.length }, (_, i) => {
 		const index = i + 1
-		const ownerIndex = i % Math.max(ownerIds.length, 1)
+		const ownerIndex = i
 		const prefix = pharmacyNamePrefixes[i % pharmacyNamePrefixes.length]!
 		const suffix = pharmacyNameSuffixes[i % pharmacyNameSuffixes.length]!
 		return { id: `store-${index}`, name: `${prefix} ${suffix}`, ownerIndex }
@@ -252,26 +251,29 @@ async function seed() {
 		{ name: "Digital Thermometer", genericName: "Thermometer", dosageForm: "Device", strength: "", unit: "piece", manufacturer: "HealthTech", brandName: "HealthTech" },
 	] as const
 
-	const PRODUCT_SEED = Array.from({ length: PRODUCT_COUNT }, (_, i) => {
-		const index = i + 1
-		const ph = PHARMACY_SEED[i % PHARMACY_SEED.length]!
-		const ownerIndex = ph.ownerIndex
-		const p = productNames[i % productNames.length]!
-		const categoryId = `cat-o${ownerIndex + 1}-1`
-		return {
-			id: `prod-${index}`,
-			pharmacyId: ph.id,
-			categoryId,
-			name: `${p.name}${p.strength ? ` ${p.strength}` : ""}`.trim(),
-			brandName: p.brandName,
-			genericName: p.genericName,
-			description: `${p.name} for everyday health needs`,
-			manufacturer: p.manufacturer,
-			dosageForm: p.dosageForm,
-			strength: p.strength,
-			unit: p.unit,
-		}
-	})
+	const PRODUCT_SEED =
+		PHARMACY_SEED.length === 0
+			? []
+			: Array.from({ length: PRODUCT_COUNT }, (_, i) => {
+					const index = i + 1
+					const ph = PHARMACY_SEED[i % PHARMACY_SEED.length]!
+					const ownerIndex = ph.ownerIndex
+					const p = productNames[i % productNames.length]!
+					const categoryId = `cat-o${ownerIndex + 1}-1`
+					return {
+						id: `prod-${index}`,
+						pharmacyId: ph.id,
+						categoryId,
+						name: `${p.name}${p.strength ? ` ${p.strength}` : ""}`.trim(),
+						brandName: p.brandName,
+						genericName: p.genericName,
+						description: `${p.name} for everyday health needs`,
+						manufacturer: p.manufacturer,
+						dosageForm: p.dosageForm,
+						strength: p.strength,
+						unit: p.unit,
+					}
+				})
 
 	for (const prod of PRODUCT_SEED) {
 		const existingProd = await db.select().from(medicalProducts).where(eq(medicalProducts.id, prod.id)).limit(1)
@@ -357,7 +359,7 @@ async function seed() {
 		console.warn("No owner users found; skipped seeding pharmacies/products/inventory.")
 	}
 
-	console.log(`Seed complete (users, ${PHARMACY_COUNT} pharmacies, ${PRODUCT_COUNT} products, inventory).`)
+	console.log(`Seed complete (users, ${PHARMACY_SEED.length} pharmacies, ${PRODUCT_COUNT} products, inventory).`)
 	process.exit(0)
 }
 
