@@ -19,6 +19,25 @@ from .serializers import (
 )
 
 
+def user_can_view_inactive_pharmacy(request, pharmacy: Pharmacy) -> bool:
+    """Owners, admins, and staff of the owning business may view inactive pharmacies."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return False
+    role = getattr(user, "role", None)
+    if role == "admin":
+        return True
+    if role == "owner" and pharmacy.owner_id == str(user.id):
+        return True
+    if role == "staff":
+        try:
+            staff_profile = Staff.objects.get(user_id=str(user.id))
+        except Staff.DoesNotExist:
+            return False
+        return staff_profile.owner_id == pharmacy.owner_id
+    return False
+
+
 class PharmacyListView(APIView):
     """
     GET list/search pharmacies.
@@ -84,6 +103,7 @@ class PharmacyCreateView(APIView):
             website=data.get("website"),
             operating_hours=data.get("operatingHours"),
             logo=data.get("logo"),
+            owner_image=data.get("ownerImage"),
             google_map_embed=data.get("googleMapEmbed"),
             social_links=data.get("socialLinks"),
         )
@@ -109,6 +129,12 @@ class PharmacyDetailView(APIView):
         try:
             pharmacy = services.get_pharmacy_by_id(pk)
         except Pharmacy.DoesNotExist:
+            return Response(
+                {"detail": "Pharmacy not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not pharmacy.is_active and not user_can_view_inactive_pharmacy(request, pharmacy):
             return Response(
                 {"detail": "Pharmacy not found"},
                 status=status.HTTP_404_NOT_FOUND,
@@ -153,6 +179,7 @@ class PharmacyDetailView(APIView):
             operating_hours=data.get("operatingHours"),
             is_active=data.get("isActive"),
             logo=data.get("logo"),
+            owner_image=data.get("ownerImage"),
             google_map_embed=data.get("googleMapEmbed"),
             social_links=data.get("socialLinks"),
         )
@@ -177,6 +204,57 @@ class PharmacyDetailView(APIView):
 
         result = services.delete_pharmacy(pk)
         return Response(result)
+
+
+class PharmacyImageUploadView(APIView):
+    """
+    POST multipart/form-data with field `file` and query param `kind=logo` or `kind=owner`.
+    Owner of the pharmacy or admin only.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            pharmacy = services.get_pharmacy_by_id(pk)
+        except Pharmacy.DoesNotExist:
+            return Response(
+                {"detail": "Pharmacy not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if request.user.role != "admin" and pharmacy.owner_id != str(request.user.id):
+            return Response(
+                {"detail": "You do not have permission to modify this pharmacy."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        kind = (request.query_params.get("kind") or "").strip().lower()
+        if kind not in ("logo", "owner"):
+            return Response(
+                {"detail": "Query parameter kind must be logo or owner."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        upload = request.FILES.get("file")
+        if not upload:
+            return Response(
+                {"detail": "Missing file field."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            pharmacy = services.save_pharmacy_image_upload(
+                pharmacy_id=pk,
+                kind=kind,
+                uploaded_file=upload,
+                build_absolute_uri=lambda path: request.build_absolute_uri(path),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        out_serializer = PharmacyDetailSerializer(pharmacy)
+        return Response(out_serializer.data, status=status.HTTP_200_OK)
 
 
 class MyPharmaciesView(APIView):

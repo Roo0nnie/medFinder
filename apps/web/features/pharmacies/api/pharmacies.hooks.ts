@@ -20,6 +20,37 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 	return res.json() as Promise<T>
 }
 
+/** Multipart upload; do not set Content-Type (browser sets boundary). */
+export async function uploadPharmacyImage(
+	pharmacyId: string,
+	kind: "logo" | "owner",
+	file: File
+): Promise<Pharmacy> {
+	const base = getBaseUrl().replace(/\/$/, "")
+	const fd = new FormData()
+	fd.append("file", file)
+	const res = await fetch(
+		`${base}/v1/pharmacies/${pharmacyId}/upload-image/?kind=${encodeURIComponent(kind)}`,
+		{
+			method: "POST",
+			body: fd,
+			credentials: "include",
+		}
+	)
+	if (!res.ok) {
+		const text = await res.text()
+		let message = text || res.statusText
+		try {
+			const j = JSON.parse(text) as { detail?: string }
+			if (j.detail) message = j.detail
+		} catch {
+			/* use raw */
+		}
+		throw new Error(message)
+	}
+	return res.json() as Promise<Pharmacy>
+}
+
 export type Pharmacy = {
 	id: string
 	ownerId: string
@@ -37,6 +68,7 @@ export type Pharmacy = {
 	website?: string | null
 	operatingHours?: string | null
 	logo?: string | null
+	ownerImage?: string | null
 	googleMapEmbed?: string | null
 	socialLinks?: string | null
 	isActive: boolean

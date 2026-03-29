@@ -8,6 +8,7 @@ node_modules
 .pnpm-store
 
 # Python (virtualenvs, bytecode, generated)
+apps/backend/media/
 .venv/
 venv/
 env/

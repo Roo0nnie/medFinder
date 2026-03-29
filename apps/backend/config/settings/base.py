@@ -84,6 +84,10 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# User-uploaded files (pharmacy logos, etc.)
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = "/media/"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",

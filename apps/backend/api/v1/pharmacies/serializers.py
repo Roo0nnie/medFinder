@@ -16,6 +16,7 @@ class PharmacyListSerializer(serializers.ModelSerializer):
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
     logo = serializers.CharField(read_only=True)
+    ownerImage = serializers.CharField(source="owner_image", read_only=True)
     googleMapEmbed = serializers.CharField(source="google_map_embed", read_only=True)
     socialLinks = serializers.CharField(source="social_links", read_only=True)
     distance = serializers.FloatField(read_only=True, required=False)
@@ -40,6 +41,7 @@ class PharmacyListSerializer(serializers.ModelSerializer):
             "operatingHours",
             "isActive",
             "logo",
+            "ownerImage",
             "googleMapEmbed",
             "socialLinks",
             "createdAt",
@@ -69,6 +71,7 @@ class PharmacyCreateInputSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True)
     operatingHours = serializers.CharField(required=False, allow_blank=True)
     logo = serializers.CharField(required=False, allow_blank=True)
+    ownerImage = serializers.CharField(required=False, allow_blank=True)
     googleMapEmbed = serializers.CharField(required=False, allow_blank=True)
     socialLinks = serializers.CharField(required=False, allow_blank=True)
 
@@ -89,6 +92,7 @@ class PharmacyUpdateInputSerializer(serializers.Serializer):
     operatingHours = serializers.CharField(required=False, allow_blank=True)
     isActive = serializers.BooleanField(required=False)
     logo = serializers.CharField(required=False, allow_blank=True)
+    ownerImage = serializers.CharField(required=False, allow_blank=True)
     googleMapEmbed = serializers.CharField(required=False, allow_blank=True)
     socialLinks = serializers.CharField(required=False, allow_blank=True)
 

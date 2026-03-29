@@ -15,6 +15,7 @@ class Pharmacy(models.Model):
     zip_code = models.CharField(max_length=50)
     country = models.CharField(max_length=100, default="US")
     logo = models.TextField(blank=True, null=True)
+    owner_image = models.TextField(blank=True, null=True)
     google_map_embed = models.TextField(blank=True, null=True)
     social_links = models.TextField(blank=True, null=True)
     latitude = models.FloatField(blank=True, null=True)

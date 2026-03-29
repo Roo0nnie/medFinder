@@ -2,9 +2,23 @@
 
 import React, { useState } from "react"
 
+import { DashboardShellHeader } from "@/core/components/sidebar/dashboard-shell-header"
+
 import type { Role } from "./Sidebar"
 import { Sidebar } from "./Sidebar"
-import { TopHeader } from "./TopHeader"
+
+function dashboardRootForRole(role: Role): { rootLabel: string; rootHref: string } {
+	switch (role) {
+		case "admin":
+			return { rootLabel: "Admin", rootHref: "/dashboard/admin" }
+		case "owner":
+			return { rootLabel: "Owner", rootHref: "/dashboard/owner" }
+		case "staff":
+			return { rootLabel: "Staff", rootHref: "/dashboard/staff" }
+		default:
+			return { rootLabel: "Dashboard", rootHref: "/dashboard" }
+	}
+}
 
 interface DashboardLayoutProps {
 	children: React.ReactNode
@@ -13,19 +27,20 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+	const { rootLabel, rootHref } = dashboardRootForRole(role)
 
 	return (
 		<div className="bg-background flex h-screen overflow-hidden font-sans">
 			<Sidebar role={role} collapsed={isSidebarCollapsed} />
-			<div className="flex flex-1 flex-col overflow-hidden">
-				<TopHeader
+			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<DashboardShellHeader
+					rootLabel={rootLabel}
+					rootHref={rootHref}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
 				/>
-				<main className="flex-1 overflow-y-auto p-6 lg:p-8">
-					<div className="animate-in fade-in zoom-in-95 mx-auto max-w-7xl duration-500">
-						{children}
-					</div>
+				<main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
+					<div className="animate-in fade-in zoom-in-95 duration-500">{children}</div>
 				</main>
 			</div>
 		</div>

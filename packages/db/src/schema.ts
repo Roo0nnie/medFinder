@@ -136,6 +136,7 @@ export const pharmacies = createTable(
 		zipCode: t.text("zip_code").notNull(),
 		country: t.text("country").notNull().default("US"),
 		logo: t.text("logo"),
+		ownerImage: t.text("owner_image"),
 		googleMapEmbed: t.text("google_map_embed"),
 		socialLinks: t.text("social_links"),
 		latitude: t.real("latitude"),

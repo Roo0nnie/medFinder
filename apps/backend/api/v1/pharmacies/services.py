@@ -1,13 +1,25 @@
 """
 Pharmacy business logic and CRUD operations.
 """
+import mimetypes
+import os
 import uuid
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
+from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from .models import Pharmacy
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+MAX_PHARMACY_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 def get_all_pharmacies(
@@ -66,6 +78,7 @@ def create_pharmacy(
     website: Optional[str] = None,
     operating_hours: Optional[str] = None,
     logo: Optional[str] = None,
+    owner_image: Optional[str] = None,
     google_map_embed: Optional[str] = None,
     social_links: Optional[str] = None,
 ) -> Pharmacy:
@@ -88,6 +101,7 @@ def create_pharmacy(
         website=website or "",
         operating_hours=operating_hours or "",
         logo=logo or "",
+        owner_image=owner_image or "",
         google_map_embed=google_map_embed or "",
         social_links=social_links or "",
         is_active=True,
@@ -114,6 +128,7 @@ def update_pharmacy(
     operating_hours: Optional[str] = None,
     is_active: Optional[bool] = None,
     logo: Optional[str] = None,
+    owner_image: Optional[str] = None,
     google_map_embed: Optional[str] = None,
     social_links: Optional[str] = None,
 ) -> Pharmacy:
@@ -165,6 +180,9 @@ def update_pharmacy(
     if logo is not None:
         pharmacy.logo = logo
         update_fields.append("logo")
+    if owner_image is not None:
+        pharmacy.owner_image = owner_image
+        update_fields.append("owner_image")
     if google_map_embed is not None:
         pharmacy.google_map_embed = google_map_embed
         update_fields.append("google_map_embed")
@@ -183,6 +201,74 @@ def delete_pharmacy(pk: str) -> dict:
     pharmacy = Pharmacy.objects.get(pk=pk)
     pharmacy.delete()
     return {"success": True, "id": str(pk)}
+
+
+def _remove_old_media_file_if_ours(old_url: Optional[str], pharmacy_id: str) -> None:
+    if not old_url:
+        return
+    marker = "/media/"
+    if marker not in old_url:
+        return
+    rel = old_url.split(marker, 1)[1].split("?", 1)[0].strip()
+    prefix = f"pharmacies/{pharmacy_id}/"
+    if not rel.startswith(prefix):
+        return
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel.replace("/", os.sep))
+    if os.path.isfile(abs_path):
+        try:
+            os.remove(abs_path)
+        except OSError:
+            pass
+
+
+def save_pharmacy_image_upload(
+    *,
+    pharmacy_id: str,
+    kind: str,
+    uploaded_file: UploadedFile,
+    build_absolute_uri: Callable[[str], str],
+) -> Pharmacy:
+    """
+    Persist an image to MEDIA_ROOT, update logo or owner_image URL, return updated pharmacy.
+    `build_absolute_uri` is typically request.build_absolute_uri bound to a path starting with /.
+    """
+    if kind not in ("logo", "owner"):
+        raise ValueError("kind must be logo or owner")
+
+    content_type = (uploaded_file.content_type or "").split(";")[0].strip().lower()
+    ext = ALLOWED_IMAGE_TYPES.get(content_type)
+    if not ext and uploaded_file.name:
+        guessed, _ = mimetypes.guess_type(uploaded_file.name)
+        if guessed:
+            ext = ALLOWED_IMAGE_TYPES.get(guessed.lower())
+    if not ext:
+        raise ValueError(
+            "Unsupported image type. Use JPEG, PNG, WebP, or GIF."
+        )
+
+    size = getattr(uploaded_file, "size", None) or 0
+    if size > MAX_PHARMACY_IMAGE_BYTES:
+        raise ValueError("Image must be 5 MB or smaller.")
+
+    pharmacy = get_pharmacy_by_id(pharmacy_id)
+    old_url = pharmacy.logo if kind == "logo" else pharmacy.owner_image
+    _remove_old_media_file_if_ours(old_url or None, pharmacy_id)
+
+    name = "logo" if kind == "logo" else "owner"
+    rel_path = f"pharmacies/{pharmacy_id}/{name}{ext}"
+    abs_fs = os.path.join(settings.MEDIA_ROOT, rel_path.replace("/", os.sep))
+    os.makedirs(os.path.dirname(abs_fs), exist_ok=True)
+
+    with open(abs_fs, "wb") as dest:
+        for chunk in uploaded_file.chunks():
+            dest.write(chunk)
+
+    url_path = f"{settings.MEDIA_URL.rstrip('/')}/{rel_path}"
+    absolute_url = build_absolute_uri(url_path)
+
+    if kind == "logo":
+        return update_pharmacy(pharmacy_id, logo=absolute_url)
+    return update_pharmacy(pharmacy_id, owner_image=absolute_url)
 
 
 def search_pharmacies(
