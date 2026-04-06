@@ -28,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/core/components/ui/dropdown-menu"
 import { cn, getDisplayName, getInitials } from "@/core/lib/utils"
+import { OwnerProductManagementSidebar } from "@/features/dashboard/components/OwnerProductManagementSidebar"
 import { useAuth } from "@/services/better-auth/context/auth-provider"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 
@@ -52,7 +53,12 @@ const adminLinks = [
 const ownerLinks = [
 	{ href: "/dashboard/owner", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/dashboard/owner/pharmacies", label: "My Pharmacies", icon: Store },
-	{ href: "/dashboard/owner/products", label: "Product Management", icon: Package },
+	{
+		href: "/dashboard/owner/products",
+		label: "Product Management",
+		icon: Package,
+		isProductManagementNav: true as const,
+	},
 	{ href: "/dashboard/owner/staff", label: "Staff Management", icon: Users },
 	{ href: "/dashboard/owner/deletion-requests", label: "Deletion Requests", icon: FileQuestion },
 	{ href: "/dashboard/owner/reviews", label: "Reviews", icon: MessageSquare },
@@ -126,6 +132,18 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 			<div className={cn("flex-1 overflow-y-auto py-6", collapsed ? "px-2" : "px-3")}>
 				<nav className="space-y-1">
 					{links.map(link => {
+						if (
+							role === "owner" &&
+							"isProductManagementNav" in link &&
+							link.isProductManagementNav
+						) {
+							return (
+								<OwnerProductManagementSidebar
+									key="product-management"
+									collapsed={collapsed}
+								/>
+							)
+						}
 						const isActive = pathname === link.href
 						const Icon = link.icon
 						return (
