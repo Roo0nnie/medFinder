@@ -53,6 +53,18 @@ class InventoryListView(APIView):
             product_id=product_id,
             is_available=is_available,
         )
+        if not request.user or not request.user.is_authenticated:
+            inventory = inventory.filter(
+                pharmacy_id__in=Pharmacy.objects.filter(
+                    is_active=True, certificate_status="approved"
+                ).values_list("id", flat=True)
+            )
+        elif getattr(request.user, "role", None) not in ("admin", "owner", "staff"):
+            inventory = inventory.filter(
+                pharmacy_id__in=Pharmacy.objects.filter(
+                    is_active=True, certificate_status="approved"
+                ).values_list("id", flat=True)
+            )
         if allowed_pharmacies is not None:
             inventory = inventory.filter(pharmacy_id__in=allowed_pharmacies)
         serializer = PharmacyInventorySerializer(inventory, many=True)

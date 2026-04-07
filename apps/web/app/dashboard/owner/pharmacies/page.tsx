@@ -135,11 +135,29 @@ export default function OwnerPharmaciesPage() {
 
 				{pharmacy && (
 					<div className="space-y-10">
+						<Card>
+							<CardContent className="p-4 sm:p-5">
+								<p className="text-sm font-medium text-foreground">Business Certificate</p>
+								<p className="mt-1 text-sm text-muted-foreground">
+									Status:{" "}
+									<span className="font-medium uppercase">
+										{pharmacy.certificateStatus ?? "pending"}
+									</span>
+								</p>
+								{pharmacy.certificateReviewNote && (
+									<p className="mt-1 text-xs text-muted-foreground">
+										Review note: {pharmacy.certificateReviewNote}
+									</p>
+								)}
+							</CardContent>
+						</Card>
+
 						<PharmacyStorefrontHero
 							name={pharmacy.name}
 							description={pharmacy.description}
 							ownerImage={pharmacy.ownerImage}
 							logo={pharmacy.logo}
+							mediaCacheKey={pharmacy.updatedAt}
 							addressLine={addressLine}
 							phone={pharmacy.phone}
 							email={pharmacy.email}

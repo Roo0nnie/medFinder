@@ -60,6 +60,7 @@ import { useToast } from "@/core/components/ui/use-toast"
 import { cn } from "@/core/lib/utils"
 import { useCreateDeletionRequestMutation } from "@/features/deletion-requests/api/deletion-requests.hooks"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
+import { getStockStatus, type StockStatusKind } from "@/features/products/lib/stock-status"
 import {
 	useInventoryListQuery,
 	useInventoryUpdateMutation,
@@ -74,7 +75,8 @@ type StockAlertRow = PharmacyInventoryItem & {
 	productName: string
 	categoryName: string
 	lowStockThreshold: number
-	isLowStock: boolean
+	stockKind: StockStatusKind
+	stockLabel: string
 }
 
 export default function StaffStockAlertsPage() {
@@ -94,7 +96,9 @@ export default function StaffStockAlertsPage() {
 	const [pageIndex, setPageIndex] = useState(0)
 	const [pharmacyFilter, setPharmacyFilter] = useState<string>("all")
 	const [categoryFilter, setCategoryFilter] = useState<string>("all")
-	const [stockFilter, setStockFilter] = useState<"all" | "low" | "ok">("all")
+	const [stockFilter, setStockFilter] = useState<
+		"all" | "low" | "ok" | "out" | "unavailable"
+	>("all")
 
 	const [editingRow, setEditingRow] = useState<StockAlertRow | null>(null)
 	const [editQuantity, setEditQuantity] = useState("")
@@ -127,13 +131,18 @@ export default function StaffStockAlertsPage() {
 			const productName = info?.name ?? inv.productId
 			const categoryName = info ? categoryMap.get(info.categoryId) ?? "" : ""
 			const lowStockThreshold = info?.lowStockThreshold ?? 5
-			const isLowStock = inv.quantity <= lowStockThreshold
+			const st = getStockStatus({
+				quantity: inv.quantity,
+				isAvailable: inv.isAvailable,
+				lowStockThreshold,
+			})
 			return {
 				...inv,
 				productName,
 				categoryName,
 				lowStockThreshold,
-				isLowStock,
+				stockKind: st.kind,
+				stockLabel: st.label,
 			}
 		})
 	}, [inventory, productMap, categoryMap])
@@ -152,9 +161,13 @@ export default function StaffStockAlertsPage() {
 			list = list.filter(r => productMap.get(r.productId)?.categoryId === categoryFilter)
 		}
 		if (stockFilter === "low") {
-			list = list.filter(r => r.isLowStock)
+			list = list.filter(r => r.stockKind === "low_stock")
 		} else if (stockFilter === "ok") {
-			list = list.filter(r => !r.isLowStock)
+			list = list.filter(r => r.stockKind === "in_stock")
+		} else if (stockFilter === "out") {
+			list = list.filter(r => r.stockKind === "out_of_stock")
+		} else if (stockFilter === "unavailable") {
+			list = list.filter(r => r.stockKind === "not_for_sale")
 		}
 		return list
 	}, [rows, pharmacyFilter, categoryFilter, stockFilter, productMap])
@@ -207,28 +220,25 @@ export default function StaffStockAlertsPage() {
 			{
 				id: "lowStock",
 				header: "Stock",
-				cell: ({ row }) =>
-					row.original.isLowStock ? (
+				cell: ({ row }) => {
+					const k = row.original.stockKind
+					return (
 						<Badge
 							variant="outline"
 							className={cn(
 								"border-0",
-								"bg-amber-500/15 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+								k === "not_for_sale" && "bg-muted text-muted-foreground",
+								k === "out_of_stock" && "bg-destructive/15 text-destructive",
+								k === "low_stock" &&
+									"bg-amber-500/15 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+								k === "in_stock" &&
+									"bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
 							)}
 						>
-							Low
+							{row.original.stockLabel}
 						</Badge>
-					) : (
-						<Badge
-							variant="outline"
-							className={cn(
-								"border-0",
-								"bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-							)}
-						>
-							OK
-						</Badge>
-					),
+					)
+				},
 			},
 			{
 				id: "actions",
@@ -445,7 +455,7 @@ export default function StaffStockAlertsPage() {
 							<Select
 								value={stockFilter}
 								onValueChange={v => {
-									setStockFilter(v as "all" | "low" | "ok")
+									setStockFilter(v as "all" | "low" | "ok" | "out" | "unavailable")
 									setPageIndex(0)
 								}}
 							>
@@ -455,7 +465,9 @@ export default function StaffStockAlertsPage() {
 								<SelectContent>
 									<SelectItem value="all">All stock</SelectItem>
 									<SelectItem value="low">Low stock</SelectItem>
-									<SelectItem value="ok">OK</SelectItem>
+									<SelectItem value="ok">In stock</SelectItem>
+									<SelectItem value="out">Out of stock</SelectItem>
+									<SelectItem value="unavailable">Not for sale</SelectItem>
 								</SelectContent>
 							</Select>
 							<Input

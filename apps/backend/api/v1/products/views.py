@@ -28,6 +28,12 @@ from .serializers import (
 )
 
 
+def _is_public_request(request) -> bool:
+    if not request.user or not request.user.is_authenticated:
+        return True
+    return getattr(request.user, "role", None) not in ("admin", "owner", "staff")
+
+
 class ProductListView(APIView):
     """
     GET list/search products.
@@ -83,6 +89,12 @@ class ProductListView(APIView):
             prefix=prefix,
             search_type=search_type,
         )
+        if _is_public_request(request):
+            approved_pharmacy_ids = Pharmacy.objects.filter(
+                is_active=True, certificate_status="approved"
+            ).values_list("id", flat=True)
+            products = products.filter(pharmacy_id__in=approved_pharmacy_ids)
+
         # Owner: only show products for their pharmacies. Staff: show all products of their owner's pharmacies.
         user_role = getattr(request.user, "role", None)
         if user_role == "owner" and request.user.is_authenticated:
@@ -167,6 +179,16 @@ class ProductDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        if _is_public_request(request):
+            if not product.pharmacy_id:
+                return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                pharmacy = Pharmacy.objects.get(pk=product.pharmacy_id)
+            except Pharmacy.DoesNotExist:
+                return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+            if not pharmacy.is_active or pharmacy.certificate_status != "approved":
+                return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
         data = MedicalProductSerializer(product).data
 
         # Resolve category name from product_categories
@@ -184,7 +206,10 @@ class ProductDetailView(APIView):
             ).order_by("price")
         )
         pharmacy_ids = [inv.pharmacy_id for inv in inventories]
-        pharmacies = {p.id: p for p in Pharmacy.objects.filter(id__in=pharmacy_ids)}
+        pharmacies_qs = Pharmacy.objects.filter(id__in=pharmacy_ids)
+        if _is_public_request(request):
+            pharmacies_qs = pharmacies_qs.filter(is_active=True, certificate_status="approved")
+        pharmacies = {p.id: p for p in pharmacies_qs}
 
         availability = []
         for inv in inventories:
@@ -532,13 +557,31 @@ class ProductManageView(APIView):
             )
 
         try:
+            pharmacy = Pharmacy.objects.get(pk=pharmacy_id)
+        except Pharmacy.DoesNotExist:
+            return Response(
+                {"detail": "Pharmacy not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        owner_id = pharmacy.owner_id
+        try:
+            resolved_brand_id, resolved_brand_name = services.resolve_brand_for_product_create(
+                owner_id,
+                data.get("brandId") or data.get("brand_id"),
+                data.get("brandName"),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
             product = services.create_product(
                 name=data["name"],
                 category_id=data["categoryId"],
                 unit=data["unit"],
                 pharmacy_id=pharmacy_id,
                 generic_name=data.get("genericName"),
-                brand_name=data.get("brandName"),
+                brand_id=resolved_brand_id,
+                brand_name=resolved_brand_name,
                 description=data.get("description"),
                 manufacturer=data.get("manufacturer"),
                 dosage_form=data.get("dosageForm"),
@@ -604,13 +647,37 @@ class ProductManageDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        effective_pharmacy_id = pharmacy_id if pharmacy_id is not None else existing.pharmacy_id
+        raw = request.data
+        has_brand_keys = (
+            "brandId" in raw or "brand_id" in raw or "brandName" in raw
+        )
+        brand_fields = None
+        if has_brand_keys:
+            if not effective_pharmacy_id:
+                return Response(
+                    {"detail": "Cannot update brand without a pharmacy on the product."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                ph = Pharmacy.objects.get(pk=effective_pharmacy_id)
+            except Pharmacy.DoesNotExist:
+                return Response(
+                    {"detail": "Pharmacy not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                brand_fields = services.resolve_brand_for_product_update(ph.owner_id, raw)
+            except ValueError as exc:
+                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             product = services.update_product(
                 pk,
                 name=data.get("name"),
                 pharmacy_id=pharmacy_id,
                 generic_name=data.get("genericName"),
-                brand_name=data.get("brandName"),
+                brand_fields=brand_fields,
                 description=data.get("description"),
                 manufacturer=data.get("manufacturer"),
                 category_id=data.get("categoryId"),

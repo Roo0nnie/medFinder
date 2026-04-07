@@ -99,4 +99,39 @@ export const pharmaciesContract = {
 			tags: ["Pharmacies"],
 		})
 		.output(z.array(PharmacySchema)),
+
+	/**
+	 * Upload pharmacy business certificate
+	 * POST /pharmacies/{id}/certificate
+	 */
+	uploadCertificate: oc
+		.route({
+			method: "POST",
+			path: "/pharmacies/{id}/certificate",
+			summary: "Upload pharmacy certificate",
+			description: "Upload business certificate file metadata for pharmacy verification",
+			tags: ["Pharmacies"],
+		})
+		.input(PharmacyIdSchema.extend({ certificateNumber: z.string().min(1) }))
+		.output(PharmacySchema),
+
+	/**
+	 * Review pharmacy business certificate
+	 * POST /pharmacies/{id}/certificate/review
+	 */
+	reviewCertificate: oc
+		.route({
+			method: "POST",
+			path: "/pharmacies/{id}/certificate/review",
+			summary: "Review pharmacy certificate",
+			description: "Approve or reject a pharmacy business certificate (admin only)",
+			tags: ["Pharmacies"],
+		})
+		.input(
+			PharmacyIdSchema.extend({
+				status: z.enum(["approved", "rejected"]),
+				reviewNote: z.string().optional(),
+			})
+		)
+		.output(PharmacySchema),
 }

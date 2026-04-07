@@ -14,6 +14,7 @@ import {
 	Package,
 	Settings,
 	Store,
+	Tag,
 	Users,
 } from "lucide-react"
 
@@ -44,6 +45,7 @@ const adminLinks = [
 	{ href: "/dashboard/admin/users", label: "User Management", icon: Users },
 	{ href: "/dashboard/admin/pharmacies", label: "Pharmacy Management", icon: Store },
 	{ href: "/dashboard/admin/products", label: "Product Monitoring", icon: Activity },
+	{ href: "/dashboard/admin/brands", label: "Brand catalog", icon: Tag },
 	{ href: "/dashboard/admin/reviews", label: "Reviews & Ratings", icon: MessageSquare },
 	{ href: "/dashboard/admin/analytics", label: "Reports & Analytics", icon: BarChart3 },
 	{ href: "/dashboard/admin/audits", label: "Audit Logs", icon: Activity },

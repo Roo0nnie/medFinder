@@ -1,5 +1,5 @@
 import { defineRelations } from "drizzle-orm"
-import { index, primaryKey } from "drizzle-orm/pg-core"
+import { index, primaryKey, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { createTable } from "./utils/table.js"
 
@@ -137,6 +137,13 @@ export const pharmacies = createTable(
 		country: t.text("country").notNull().default("US"),
 		logo: t.text("logo"),
 		ownerImage: t.text("owner_image"),
+		certificateFileUrl: t.text("certificate_file_url"),
+		certificateNumber: t.text("certificate_number"),
+		certificateStatus: t.text("certificate_status").notNull().default("pending"),
+		certificateSubmittedAt: t.timestamp("certificate_submitted_at"),
+		certificateReviewedAt: t.timestamp("certificate_reviewed_at"),
+		certificateReviewedBy: t.text("certificate_reviewed_by"),
+		certificateReviewNote: t.text("certificate_review_note"),
 		googleMapEmbed: t.text("google_map_embed"),
 		socialLinks: t.text("social_links"),
 		latitude: t.real("latitude"),
@@ -200,6 +207,40 @@ export const productCategories = createTable(
 	]
 )
 
+export const brands = createTable(
+	"brands",
+	t => ({
+		id: t.text("id").primaryKey(),
+		name: t.text("name").notNull(),
+		normalizedName: t.text("normalized_name").notNull(),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [uniqueIndex("brands_normalized_name_uidx").on(t.normalizedName)]
+)
+
+export const ownerBrands = createTable(
+	"owner_brands",
+	t => ({
+		id: t.text("id").primaryKey(),
+		ownerId: t
+			.text("owner_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		brandId: t
+			.text("brand_id")
+			.notNull()
+			.references(() => brands.id, { onDelete: "restrict" }),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
+	}),
+	t => [
+		uniqueIndex("owner_brands_owner_brand_uidx").on(t.ownerId, t.brandId),
+		index("owner_brands_owner_id_idx").on(t.ownerId),
+		index("owner_brands_brand_id_idx").on(t.brandId),
+	]
+)
+
 export const medicalProducts = createTable(
 	"medical_products",
 	t => ({
@@ -208,6 +249,7 @@ export const medicalProducts = createTable(
 		name: t.text("name").notNull(),
 		genericName: t.text("generic_name"),
 		brandName: t.text("brand_name"),
+		brandId: t.text("brand_id").references(() => brands.id, { onDelete: "restrict" }),
 		description: t.text("description"),
 		manufacturer: t.text("manufacturer"),
 		categoryId: t
@@ -227,6 +269,7 @@ export const medicalProducts = createTable(
 	t => [
 		index("medical_products_pharmacy_id_idx").on(t.pharmacyId),
 		index("medical_products_category_id_idx").on(t.categoryId),
+		index("medical_products_brand_id_idx").on(t.brandId),
 		index("medical_products_name_idx").on(t.name),
 		index("medical_products_requires_prescription_idx").on(t.requiresPrescription),
 	]
@@ -430,6 +473,8 @@ export const relations = defineRelations(
 		pharmacies,
 		pharmacyStaff,
 		productCategories,
+		brands,
+		ownerBrands,
 		medicalProducts,
 		medicalProductVariants,
 		pharmacyInventory,
@@ -446,6 +491,7 @@ export const relations = defineRelations(
 			staffProfiles: r.many.staff(),
 			pharmaciesOwned: r.many.pharmacies(),
 			productCategoriesOwned: r.many.productCategories(),
+			ownerBrands: r.many.ownerBrands(),
 			productSearches: r.many.productSearches(),
 			productReservations: r.many.productReservations(),
 			pharmacyReviews: r.many.pharmacyReviews(),
@@ -497,6 +543,20 @@ export const relations = defineRelations(
 			}),
 			products: r.many.medicalProducts(),
 		},
+		brands: {
+			ownerLinks: r.many.ownerBrands(),
+			products: r.many.medicalProducts(),
+		},
+		ownerBrands: {
+			owner: r.one.users({
+				from: r.ownerBrands.ownerId,
+				to: r.users.id,
+			}),
+			brand: r.one.brands({
+				from: r.ownerBrands.brandId,
+				to: r.brands.id,
+			}),
+		},
 		medicalProducts: {
 			pharmacy: r.one.pharmacies({
 				from: r.medicalProducts.pharmacyId,
@@ -505,6 +565,10 @@ export const relations = defineRelations(
 			category: r.one.productCategories({
 				from: r.medicalProducts.categoryId,
 				to: r.productCategories.id,
+			}),
+			brand: r.one.brands({
+				from: r.medicalProducts.brandId,
+				to: r.brands.id,
 			}),
 			variants: r.many.medicalProductVariants(),
 			inventory: r.many.pharmacyInventory(),
@@ -602,6 +666,8 @@ export const schema = Object.assign(
 		pharmacies,
 		pharmacyStaff,
 		productCategories,
+		brands,
+		ownerBrands,
 		medicalProducts,
 		medicalProductVariants,
 		pharmacyInventory,

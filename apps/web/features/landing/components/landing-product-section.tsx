@@ -9,9 +9,10 @@ import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { cn } from "@/core/lib/utils"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
+import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
 import type { LandingPharmacy, LandingProduct } from "@/features/landing/data/types"
-
-import { LandingRegisterModal } from "./landing-register-modal"
+import { ProductLocationFlowModal } from "@/features/products/components/product-branch-selection-modal"
+import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
 	{ value: "name-asc", label: "Name A–Z" },
@@ -35,6 +36,10 @@ function filterProducts(
 			p =>
 				p.name.toLowerCase().includes(q) ||
 				p.brand.toLowerCase().includes(q) ||
+				(p.genericName ?? "").toLowerCase().includes(q) ||
+				(p.brandName ?? "").toLowerCase().includes(q) ||
+				(p.strength ?? "").toLowerCase().includes(q) ||
+				(p.dosageForm ?? "").toLowerCase().includes(q) ||
 				p.category.toLowerCase().includes(q)
 		)
 	}
@@ -101,8 +106,12 @@ function ProductCard({
 					lowStockThreshold: product.lowStockThreshold,
 				}
 
-	const isLow = display.quantity <= display.lowStockThreshold
-	const stockLabel = display.quantity === 0 ? "Out of stock" : isLow ? "Low stock" : "In stock"
+	const stock = getStockStatus({
+		quantity: display.quantity,
+		isAvailable: product.isAvailable !== false,
+		lowStockThreshold: display.lowStockThreshold,
+	})
+	const stockLabel = stock.label
 
 	return (
 		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
@@ -117,9 +126,10 @@ function ProductCard({
 					<span
 						className={cn(
 							"shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
-							display.quantity === 0 && "bg-destructive/10 text-destructive",
-							isLow && display.quantity > 0 && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-							!isLow && "bg-primary/10 text-primary"
+							stock.kind === "not_for_sale" && "bg-muted text-muted-foreground",
+							stock.kind === "out_of_stock" && "bg-destructive/10 text-destructive",
+							stock.kind === "low_stock" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+							stock.kind === "in_stock" && "bg-primary/10 text-primary"
 						)}
 					>
 						{stockLabel}
@@ -171,6 +181,8 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const [city, setCity] = useState("")
 	const [storeId, setStoreId] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
+	const [selectedProduct, setSelectedProduct] = useState<LandingProduct | null>(null)
+	const [branchModalOpen, setBranchModalOpen] = useState(false)
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 	const [page, setPage] = useState(1)
 	const pageSize = 9
@@ -179,7 +191,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
 
 	const { data: catalog, isLoading, isError } = useLandingCatalog()
-	const products = catalog?.products ?? []
+	const products = useMemo(() => catalog?.products ?? [], [catalog?.products])
 	const pharmacies: LandingPharmacy[] = catalog?.pharmacies ?? []
 	const catalogCategories = catalog?.categories ?? []
 
@@ -363,7 +375,8 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 								style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
 								onClick={() => {
 									if (isCustomer) {
-										router.push(`/product/${product.id}` as Route)
+										setSelectedProduct(product)
+										setBranchModalOpen(true)
 									} else {
 										setRegisterModalOpen(true)
 									}
@@ -372,7 +385,8 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 									if (e.key === "Enter" || e.key === " ") {
 										e.preventDefault()
 										if (isCustomer) {
-											router.push(`/product/${product.id}` as Route)
+											setSelectedProduct(product)
+											setBranchModalOpen(true)
 										} else {
 											setRegisterModalOpen(true)
 										}
@@ -414,6 +428,15 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 				</>
 			)}
 			<LandingRegisterModal open={registerModalOpen} onOpenChange={setRegisterModalOpen} />
+			{selectedProduct && (
+				<ProductLocationFlowModal
+					open={branchModalOpen}
+					onOpenChange={setBranchModalOpen}
+					clickedProduct={selectedProduct}
+					allProducts={products}
+					pharmacies={pharmacies}
+				/>
+			)}
 		</div>
 	)
 }

@@ -42,6 +42,11 @@ export type PharmacyStorefrontHeroProps = {
 	hideLocationDetails?: boolean
 	productCount?: number
 	className?: string
+	/**
+	 * Bust browser cache for logo / storefront images when the URL is stable but the file
+	 * was replaced (e.g. same path after re-upload). Use pharmacy `updatedAt` from the API.
+	 */
+	mediaCacheKey?: string | null
 }
 
 function telHref(phone: string) {
@@ -53,6 +58,16 @@ function normalizeWebsiteUrl(url: string) {
 	const t = url.trim()
 	if (!t) return ""
 	return /^https?:\/\//i.test(t) ? t : `https://${t}`
+}
+
+/** Appends a version query when media URLs are overwritten at the same path (backend uses fixed filenames). */
+function withMediaCacheBust(url: string | null, cacheKey: string | null | undefined): string | null {
+	if (!url?.trim()) return null
+	const trimmed = url.trim()
+	const key = cacheKey?.trim()
+	if (!key) return trimmed
+	const sep = trimmed.includes("?") ? "&" : "?"
+	return `${trimmed}${sep}v=${encodeURIComponent(key)}`
 }
 
 /** Splits prose into lines of at most `wordsPerLine` words (new line after each chunk). */
@@ -240,6 +255,7 @@ export function PharmacyStorefrontHero({
 	hideLocationDetails = false,
 	productCount,
 	className,
+	mediaCacheKey,
 }: PharmacyStorefrontHeroProps) {
 	const [descExpanded, setDescExpanded] = useState(false)
 	const [mapDialogOpen, setMapDialogOpen] = useState(false)
@@ -259,6 +275,9 @@ export function PharmacyStorefrontHero({
 			Boolean(ownerImage?.trim() && trimmedLogo !== ownerImage.trim()))
 			? trimmedLogo
 			: null
+
+	const heroImageSrcForImg = withMediaCacheBust(heroImageSrc, mediaCacheKey)
+	const logoHeaderSrcForImg = withMediaCacheBust(logoHeaderSrc, mediaCacheKey)
 
 	const mapEmbed = mapEmbedUrl?.trim() || null
 	const mapExternal = externalMapUrl?.trim() || null
@@ -351,12 +370,12 @@ export function PharmacyStorefrontHero({
 				>
 					{/* Copy column — headline hierarchy like landing hero */}
 					<div className="flex min-h-0 flex-col lg:h-full">
-						{logoHeaderSrc ? (
+						{logoHeaderSrcForImg ? (
 							<div className="border-border/30 shrink-0 border-b px-6 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-5">
 								<div className="flex justify-start">
 									{/* eslint-disable-next-line @next/next/no-img-element */}
 									<img
-										src={logoHeaderSrc}
+										src={logoHeaderSrcForImg}
 										alt={`${name} logo`}
 										className="border-border/40 size-14 rounded-xl border bg-white/95 object-contain p-2 shadow-sm dark:bg-muted/90 sm:size-16"
 									/>
@@ -592,11 +611,11 @@ export function PharmacyStorefrontHero({
 							</div>
 						) : null}
 
-						{heroImageSrc ? (
+						{heroImageSrcForImg ? (
 							<div className="flex h-full w-full min-h-48 flex-1 items-center justify-center p-4 sm:p-6 lg:min-h-0 lg:p-8">
 								{/* eslint-disable-next-line @next/next/no-img-element */}
 								<img
-									src={heroImageSrc}
+									src={heroImageSrcForImg}
 									alt={`${name} — storefront`}
 									className="max-h-[min(28rem,55vh)] w-full max-w-full object-contain object-center lg:max-h-[min(36rem,70vh)]"
 								/>

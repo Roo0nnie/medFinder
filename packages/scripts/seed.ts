@@ -1,7 +1,11 @@
 /**
- * Seed script: creates admin, customer, 5 owners (each with 1 pharmacy), 5 staff per owner (25 staff), and sample catalog.
- * Run from repo root: pnpm dev:seed
+ * Seed script: creates one user per supported role + a demo pharmacy catalog
+ * (brands, owner–brand links, products, variants, inventory) so customers can try
+ * centralized brand flows (e.g. same medicine, two brands).
+ *
+ * Run from repo root: pnpm db:seed
  * Requires: DATABASE_URL (packages/db/.env), BETTER_AUTH_SECRET + BETTER_AUTH_TRUSTED_ORIGINS (apps/web/.env)
+ * Prereq: DB migrations applied (brands / owner_brands / medical_products.brand_id).
  */
 import "./load-env"
 
@@ -10,69 +14,250 @@ import { eq } from "drizzle-orm"
 import { getAuth } from "@repo/auth"
 import { createDBClient } from "@repo/db/client"
 import {
+	brands,
 	medicalProductVariants,
 	medicalProducts,
+	ownerBrands,
 	pharmacies,
 	pharmacyInventory,
 	productCategories,
-	staff,
 	users,
 } from "@repo/db/schema"
 
-const SEED_OWNERS = [
-	{ email: "owner@example.com", password: "password123", firstName: "Maria", lastName: "Santos", middleName: "R", role: "owner" as const },
-	{ email: "owner2@example.com", password: "password123", firstName: "Jose", lastName: "Reyes", middleName: "M", role: "owner" as const },
-	{ email: "owner3@example.com", password: "password123", firstName: "Ana", lastName: "Cruz", middleName: "L", role: "owner" as const },
-	{ email: "owner4@example.com", password: "password123", firstName: "Carlos", lastName: "Dela Cruz", middleName: "G", role: "owner" as const },
-	{ email: "owner5@example.com", password: "password123", firstName: "Elena", lastName: "Garcia", middleName: "S", role: "owner" as const },
+const ROLES = ["user", "admin", "customer", "staff", "owner"] as const
+type Role = (typeof ROLES)[number]
+
+const SEED_USERS: Array<{
+	email: string
+	password: string
+	firstName: string
+	lastName: string
+	middleName: string
+	role: Role
+}> = [
+	{ email: "user@example.com", password: "password123", firstName: "Basic", lastName: "User", middleName: "U", role: "user" },
+	{ email: "admin@example.com", password: "password123", firstName: "Admin", lastName: "User", middleName: "A", role: "admin" },
+	{ email: "customer@example.com", password: "password123", firstName: "Customer", lastName: "User", middleName: "C", role: "customer" },
+	{ email: "staff@example.com", password: "password123", firstName: "Staff", lastName: "User", middleName: "S", role: "staff" },
+	{ email: "owner@example.com", password: "password123", firstName: "Owner", lastName: "User", middleName: "O", role: "owner" },
 ]
 
-const DEPARTMENTS = ["Pharmacy", "Inventory", "Sales", "Customer Service", "Operations"] as const
-const POSITIONS = ["Pharmacist", "Inventory Clerk", "Sales Associate", "Customer Rep", "Operations Lead"] as const
+/** Stable IDs so re-running the seed does not duplicate rows. */
+const DEMO = {
+	pharmacyId: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+	categoryId: "f47ac10b-58cc-4372-a567-0e02b2c3d47a",
+	brandMediCare: "f47ac10b-58cc-4372-a567-0e02b2c3d47b",
+	brandWellPlus: "f47ac10b-58cc-4372-a567-0e02b2c3d47c",
+	ownerBrandMediCare: "f47ac10b-58cc-4372-a567-0e02b2c3d47d",
+	ownerBrandWellPlus: "f47ac10b-58cc-4372-a567-0e02b2c3d47e",
+	productParacetamolMediCare: "f47ac10b-58cc-4372-a567-0e02b2c3d47f",
+	productParacetamolWellPlus: "f47ac10b-58cc-4372-a567-0e02b2c3d480",
+	variant20: "f47ac10b-58cc-4372-a567-0e02b2c3d481",
+	variant100: "f47ac10b-58cc-4372-a567-0e02b2c3d482",
+	variantBlister: "f47ac10b-58cc-4372-a567-0e02b2c3d483",
+	inv20: "f47ac10b-58cc-4372-a567-0e02b2c3d484",
+	inv100: "f47ac10b-58cc-4372-a567-0e02b2c3d485",
+	invBlister: "f47ac10b-58cc-4372-a567-0e02b2c3d486",
+} as const
 
-const CATEGORY_NAMES = [
-	"General Medicines",
-	"Vitamins & Supplements",
-	"First Aid & Wound Care",
-	"Personal Care",
-	"Medical Devices",
-] as const
-
-const PRODUCT_COUNT = 20
-
-function buildStaffSeed(ownerIndex: number, staffIndex: number) {
-	const o = ownerIndex + 1
-	const s = staffIndex + 1
-	return {
-		email: `staff-o${o}-${s}@example.com`,
-		password: "password123",
-		firstName: ["Luis", "Rosa", "Miguel", "Carmen", "Pedro"][staffIndex]!,
-		lastName: ["Villanueva", "Mendoza", "Torres", "Ramos", "Flores"][staffIndex]!,
-		middleName: ["A", "B", "C", "D", "E"][staffIndex]!,
-		role: "staff" as const,
-		ownerIndex,
-		department: DEPARTMENTS[staffIndex]!,
-		position: POSITIONS[staffIndex]!,
-	}
+function normBrandName(name: string): string {
+	return name.trim().toLowerCase()
 }
 
-const SEED_STAFF = Array.from({ length: 5 }, (_, o) =>
-	Array.from({ length: 5 }, (_, s) => buildStaffSeed(o, s))
-).flat()
+async function seedCatalogForOwner(db: ReturnType<typeof createDBClient>, ownerId: string) {
+	const existing = await db.select().from(pharmacies).where(eq(pharmacies.id, DEMO.pharmacyId)).limit(1)
+	if (existing.length > 0) {
+		console.log("Demo catalog already seeded (demo pharmacy id). Skipping catalog inserts.")
+		return
+	}
 
-const SEED_USERS = [
-	{ email: "admin@example.com", password: "password123", firstName: "Admin", lastName: "User", middleName: "A", role: "admin" as const },
-	...SEED_OWNERS,
-	{ email: "customer@example.com", password: "password123", firstName: "Customer", lastName: "User", middleName: "C", role: "customer" as const },
-	...SEED_STAFF,
-]
+	const now = new Date()
+
+	await db.transaction(async tx => {
+		await tx.insert(pharmacies).values({
+			id: DEMO.pharmacyId,
+			ownerId,
+			name: "Demo MedFinder Pharmacy",
+			description: "Seed data for testing brands, variants, and inventory.",
+			address: "123 Health Street",
+			city: "Manila",
+			municipality: null,
+			state: "NCR",
+			zipCode: "1000",
+			country: "PH",
+			certificateStatus: "approved",
+			certificateNumber: "SEED-DEMO-001",
+			isActive: true,
+			latitude: 14.5995,
+			longitude: 120.9842,
+			phone: "+63-2-0000-0000",
+			email: "demo-pharmacy@example.com",
+			createdAt: now,
+			updatedAt: now,
+		})
+
+		await tx.insert(productCategories).values({
+			id: DEMO.categoryId,
+			ownerId,
+			name: "Pain relief",
+			description: "OTC pain and fever medicines",
+			parentCategoryId: null,
+			createdAt: now,
+			updatedAt: now,
+		})
+
+		await tx.insert(brands).values([
+			{
+				id: DEMO.brandMediCare,
+				name: "MediCare Pharma",
+				normalizedName: normBrandName("MediCare Pharma"),
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.brandWellPlus,
+				name: "WellPlus",
+				normalizedName: normBrandName("WellPlus"),
+				createdAt: now,
+				updatedAt: now,
+			},
+		])
+
+		await tx.insert(ownerBrands).values([
+			{
+				id: DEMO.ownerBrandMediCare,
+				ownerId,
+				brandId: DEMO.brandMediCare,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.ownerBrandWellPlus,
+				ownerId,
+				brandId: DEMO.brandWellPlus,
+				createdAt: now,
+				updatedAt: now,
+			},
+		])
+
+		await tx.insert(medicalProducts).values([
+			{
+				id: DEMO.productParacetamolMediCare,
+				pharmacyId: DEMO.pharmacyId,
+				name: "Paracetamol 500mg Tablets",
+				genericName: "Paracetamol",
+				brandName: "MediCare Pharma",
+				brandId: DEMO.brandMediCare,
+				description: "Seed product A — same generic as WellPlus line for brand-grouping demos.",
+				manufacturer: "MediCare Pharma",
+				categoryId: DEMO.categoryId,
+				dosageForm: "tablet",
+				strength: "500mg",
+				unit: "tablet",
+				requiresPrescription: false,
+				lowStockThreshold: 10,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.productParacetamolWellPlus,
+				pharmacyId: DEMO.pharmacyId,
+				name: "Paracetamol 500mg Tablets",
+				genericName: "Paracetamol",
+				brandName: "WellPlus",
+				brandId: DEMO.brandWellPlus,
+				description: "Seed product B — same medicine & strength, different brandId for UI testing.",
+				manufacturer: "WellPlus Labs",
+				categoryId: DEMO.categoryId,
+				dosageForm: "tablet",
+				strength: "500mg",
+				unit: "tablet",
+				requiresPrescription: false,
+				lowStockThreshold: 10,
+				createdAt: now,
+				updatedAt: now,
+			},
+		])
+
+		await tx.insert(medicalProductVariants).values([
+			{
+				id: DEMO.variant20,
+				productId: DEMO.productParacetamolMediCare,
+				label: "20 tablet strip",
+				sortOrder: 0,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.variant100,
+				productId: DEMO.productParacetamolMediCare,
+				label: "100 tablet bottle",
+				sortOrder: 1,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.variantBlister,
+				productId: DEMO.productParacetamolWellPlus,
+				label: "Blister pack (10 tablets)",
+				sortOrder: 0,
+				createdAt: now,
+				updatedAt: now,
+			},
+		])
+
+		await tx.insert(pharmacyInventory).values([
+			{
+				id: DEMO.inv20,
+				pharmacyId: DEMO.pharmacyId,
+				productId: DEMO.productParacetamolMediCare,
+				variantId: DEMO.variant20,
+				quantity: 48,
+				price: "45.00",
+				discountPrice: null,
+				isAvailable: true,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.inv100,
+				pharmacyId: DEMO.pharmacyId,
+				productId: DEMO.productParacetamolMediCare,
+				variantId: DEMO.variant100,
+				quantity: 12,
+				price: "199.00",
+				discountPrice: "179.00",
+				isAvailable: true,
+				createdAt: now,
+				updatedAt: now,
+			},
+			{
+				id: DEMO.invBlister,
+				pharmacyId: DEMO.pharmacyId,
+				productId: DEMO.productParacetamolWellPlus,
+				variantId: DEMO.variantBlister,
+				quantity: 30,
+				price: "52.50",
+				discountPrice: null,
+				isAvailable: true,
+				createdAt: now,
+				updatedAt: now,
+			},
+		])
+	})
+
+	console.log("")
+	console.log("Demo catalog seeded:")
+	console.log(`  Pharmacy: Demo MedFinder Pharmacy (${DEMO.pharmacyId})`)
+	console.log("  Brands: MediCare Pharma, WellPlus (linked to owner)")
+	console.log("  Products: two Paracetamol 500mg rows (same generic, different brandId) + variants + inventory")
+	console.log("  Try: landing/search → same medicine should offer a brand choice; brandId groups catalog rows.")
+	console.log("")
+}
 
 async function seed() {
 	const auth = getAuth()
 	const db = createDBClient()
-
-	const ownerIds: string[] = []
-	const staffUserIds: string[] = []
 
 	for (const u of SEED_USERS) {
 		const existing = await db.select().from(users).where(eq(users.email, u.email)).limit(1)
@@ -88,10 +273,9 @@ async function seed() {
 				})
 				.where(eq(users.id, existing[0]!.id))
 			console.log(`Updated existing user: ${u.email} (${u.role})`)
-			if (u.role === "owner") ownerIds.push(existing[0]!.id)
-			if (u.role === "staff" && "ownerIndex" in u) staffUserIds.push(existing[0]!.id)
 			continue
 		}
+
 		try {
 			const result = await auth.api.signUpEmail({
 				body: {
@@ -104,6 +288,7 @@ async function seed() {
 					role: u.role,
 				} as { name: string; email: string; password: string },
 			})
+
 			const userId = result.user.id
 			await db
 				.update(users)
@@ -115,251 +300,28 @@ async function seed() {
 					updatedAt: new Date(),
 				})
 				.where(eq(users.id, userId))
+
 			console.log(`Created user: ${u.email} (${u.role})`)
-			if (u.role === "owner") ownerIds.push(userId)
-			if (u.role === "staff" && "ownerIndex" in u) staffUserIds.push(userId)
 		} catch (err) {
 			console.error(`Failed to create ${u.email}:`, err instanceof Error ? err.message : err)
 		}
 	}
 
-	// Create staff table rows: each staff user is linked to their owner
-	for (let i = 0; i < SEED_STAFF.length; i++) {
-		const s = SEED_STAFF[i]!
-		const ownerId = ownerIds[s.ownerIndex]
-		const userId = staffUserIds[i]
-		if (!ownerId || !userId) continue
-		const staffId = `staff-seed-o${s.ownerIndex + 1}-${(i % 5) + 1}`
-		const existingStaff = await db.select().from(staff).where(eq(staff.id, staffId)).limit(1)
-		if (existingStaff.length > 0) {
-			await db
-				.update(staff)
-				.set({
-					userId,
-					ownerId,
-					department: s.department,
-					position: s.position,
-					updatedAt: new Date(),
-				})
-				.where(eq(staff.id, staffId))
-			console.log(`Updated staff record: ${s.email} -> owner ${s.ownerIndex + 1}`)
-		} else {
-			await db.insert(staff).values({
-				id: staffId,
-				userId,
-				ownerId,
-				department: s.department,
-				position: s.position,
-				isActive: true,
-			})
-			console.log(`Created staff record: ${s.email} -> owner ${s.ownerIndex + 1}`)
+	const ownerRow = await db.select().from(users).where(eq(users.email, "owner@example.com")).limit(1)
+	if (ownerRow.length === 0) {
+		console.log("owner@example.com not found; skipping demo catalog seed.")
+	} else {
+		try {
+			await seedCatalogForOwner(db, ownerRow[0]!.id)
+		} catch (err) {
+			console.error(
+				"Demo catalog seed failed (did you run DB migrations?).",
+				err instanceof Error ? err.message : err
+			)
 		}
 	}
 
-	// Create 5 categories per owner
-	for (let o = 0; o < ownerIds.length; o++) {
-		const ownerId = ownerIds[o]!
-		for (let c = 0; c < CATEGORY_NAMES.length; c++) {
-			const categoryId = `cat-o${o + 1}-${c + 1}`
-			const name = CATEGORY_NAMES[c]!
-			const existingCat = await db
-				.select()
-				.from(productCategories)
-				.where(eq(productCategories.id, categoryId))
-				.limit(1)
-			if (existingCat.length === 0) {
-				await db.insert(productCategories).values({
-					id: categoryId,
-					ownerId,
-					name,
-					description: `${name} category`,
-				})
-				console.log(`Created category ${name} for owner ${o + 1}`)
-			} else {
-				await db
-					.update(productCategories)
-					.set({ ownerId, name, updatedAt: new Date() })
-					.where(eq(productCategories.id, categoryId))
-			}
-		}
-	}
-
-	// Pharmacies: one per owner (store-1 .. store-N).
-	const pharmacyNamePrefixes = [
-		"Sunrise",
-		"Reyes",
-		"Cruz",
-		"Dela Cruz",
-		"Garcia",
-		"Harbor",
-		"River",
-		"Green",
-		"Metro",
-		"Prime",
-	] as const
-	const pharmacyNameSuffixes = ["Pharmacy", "Drugstore", "Health Mart", "Care Pharmacy", "Family Pharmacy"] as const
-
-	const PHARMACY_SEED = Array.from({ length: ownerIds.length }, (_, i) => {
-		const index = i + 1
-		const ownerIndex = i
-		const prefix = pharmacyNamePrefixes[i % pharmacyNamePrefixes.length]!
-		const suffix = pharmacyNameSuffixes[i % pharmacyNameSuffixes.length]!
-		return { id: `store-${index}`, name: `${prefix} ${suffix}`, ownerIndex }
-	})
-
-	for (const ph of PHARMACY_SEED) {
-		const ownerId = ownerIds[ph.ownerIndex]
-		if (!ownerId) continue
-		const existingPh = await db.select().from(pharmacies).where(eq(pharmacies.id, ph.id)).limit(1)
-		if (existingPh.length === 0) {
-			await db.insert(pharmacies).values({
-				id: ph.id,
-				ownerId,
-				name: ph.name,
-				description: "Community pharmacy providing essential medicines",
-				address: `${ph.ownerIndex + 1}${String(ph.id).replace("store-", "").padStart(2, "0")} Main St`,
-				city: "Quezon City",
-				state: "NCR",
-				zipCode: "1100",
-				country: "PH",
-				phone: "+63 917 000 0000",
-				email: `contact@${ph.id}.ph`,
-				website: `https://${ph.id}.ph`,
-				operatingHours: "Mon-Sun 8am-9pm",
-				isActive: true,
-			})
-			console.log(`Created pharmacy ${ph.name}`)
-		} else {
-			await db
-				.update(pharmacies)
-				.set({ ownerId, name: ph.name, updatedAt: new Date() })
-				.where(eq(pharmacies.id, ph.id))
-		}
-	}
-
-	// Products: 20 total (prod-1 .. prod-20), linked to pharmacies and owner categories.
-	const productNames = [
-		{ name: "Paracetamol", genericName: "Paracetamol", dosageForm: "Tablet", strength: "500mg", unit: "tablet", manufacturer: "MediCorp", brandName: "Generic" },
-		{ name: "Ibuprofen", genericName: "Ibuprofen", dosageForm: "Tablet", strength: "200mg", unit: "tablet", manufacturer: "MediCorp", brandName: "Generic" },
-		{ name: "Cetirizine", genericName: "Cetirizine", dosageForm: "Tablet", strength: "10mg", unit: "tablet", manufacturer: "MedSupply", brandName: "Generic" },
-		{ name: "Loperamide", genericName: "Loperamide", dosageForm: "Capsule", strength: "2mg", unit: "capsule", manufacturer: "MedSupply", brandName: "Generic" },
-		{ name: "Alcohol", genericName: "Ethanol", dosageForm: "Liquid", strength: "70%", unit: "bottle", manufacturer: "MedSupply", brandName: "Generics" },
-		{ name: "Vitamin C", genericName: "Ascorbic Acid", dosageForm: "Tablet", strength: "500mg", unit: "tablet", manufacturer: "NutriHealth", brandName: "Generic" },
-		{ name: "Zinc", genericName: "Zinc", dosageForm: "Tablet", strength: "10mg", unit: "tablet", manufacturer: "NutriHealth", brandName: "Generic" },
-		{ name: "Bandage Roll", genericName: "Bandage", dosageForm: "Device", strength: "", unit: "roll", manufacturer: "CarePlus", brandName: "CarePlus" },
-		{ name: "Antiseptic Solution", genericName: "Povidone-Iodine", dosageForm: "Liquid", strength: "10%", unit: "bottle", manufacturer: "CarePlus", brandName: "CarePlus" },
-		{ name: "Digital Thermometer", genericName: "Thermometer", dosageForm: "Device", strength: "", unit: "piece", manufacturer: "HealthTech", brandName: "HealthTech" },
-	] as const
-
-	const PRODUCT_SEED =
-		PHARMACY_SEED.length === 0
-			? []
-			: Array.from({ length: PRODUCT_COUNT }, (_, i) => {
-					const index = i + 1
-					const ph = PHARMACY_SEED[i % PHARMACY_SEED.length]!
-					const ownerIndex = ph.ownerIndex
-					const p = productNames[i % productNames.length]!
-					const categoryId = `cat-o${ownerIndex + 1}-1`
-					return {
-						id: `prod-${index}`,
-						pharmacyId: ph.id,
-						categoryId,
-						name: `${p.name}${p.strength ? ` ${p.strength}` : ""}`.trim(),
-						brandName: p.brandName,
-						genericName: p.genericName,
-						description: `${p.name} for everyday health needs`,
-						manufacturer: p.manufacturer,
-						dosageForm: p.dosageForm,
-						strength: p.strength,
-						unit: p.unit,
-					}
-				})
-
-	for (const prod of PRODUCT_SEED) {
-		const existingProd = await db.select().from(medicalProducts).where(eq(medicalProducts.id, prod.id)).limit(1)
-		if (existingProd.length === 0) {
-			await db.insert(medicalProducts).values({
-				id: prod.id,
-				pharmacyId: prod.pharmacyId,
-				name: prod.name,
-				brandName: prod.brandName,
-				genericName: prod.genericName,
-				description: prod.description,
-				manufacturer: prod.manufacturer,
-				categoryId: prod.categoryId,
-				dosageForm: prod.dosageForm,
-				strength: prod.strength,
-				unit: prod.unit,
-				requiresPrescription: false,
-				lowStockThreshold: 10,
-			})
-			console.log(`Created product ${prod.name}`)
-		} else {
-			await db
-				.update(medicalProducts)
-				.set({
-					pharmacyId: prod.pharmacyId,
-					name: prod.name,
-					brandName: prod.brandName,
-					genericName: prod.genericName,
-					description: prod.description,
-					manufacturer: prod.manufacturer,
-					categoryId: prod.categoryId,
-					dosageForm: prod.dosageForm,
-					strength: prod.strength,
-					unit: prod.unit,
-					updatedAt: new Date(),
-				})
-				.where(eq(medicalProducts.id, prod.id))
-		}
-	}
-
-	// Inventory: one row per product
-	const inventoryRows: {
-		id: string
-		pharmacyId: string
-		productId: string
-		variantId: string | null
-		quantity: number
-		price: string
-	}[] = PRODUCT_SEED.map((p, i) => {
-		const basePrice = 10 + (i % 10) * 5
-		const quantity = 25 + (i % 8) * 10
-		return {
-			id: `inv-${p.id}`,
-			pharmacyId: p.pharmacyId,
-			productId: p.id,
-			variantId: null,
-			quantity,
-			price: `${basePrice}.00`,
-		}
-	})
-
-	for (const inv of inventoryRows) {
-		const existingInv = await db
-			.select()
-			.from(pharmacyInventory)
-			.where(eq(pharmacyInventory.id, inv.id))
-			.limit(1)
-		if (existingInv.length === 0) {
-			await db.insert(pharmacyInventory).values({
-				id: inv.id,
-				pharmacyId: inv.pharmacyId,
-				productId: inv.productId,
-				variantId: inv.variantId,
-				quantity: inv.quantity,
-				price: inv.price,
-				isAvailable: true,
-			})
-			console.log(`Created inventory ${inv.id} (product ${inv.productId}${inv.variantId ? `, variant ${inv.variantId}` : ""})`)
-		}
-	}
-
-	if (ownerIds.length === 0) {
-		console.warn("No owner users found; skipped seeding pharmacies/products/inventory.")
-	}
-
-	console.log(`Seed complete (users, ${PHARMACY_SEED.length} pharmacies, ${PRODUCT_COUNT} products, inventory).`)
+	console.log("Seed complete.")
 	process.exit(0)
 }
 

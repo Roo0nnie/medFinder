@@ -10,6 +10,12 @@ export interface LandingProduct {
 	id: string
 	name: string
 	brand: string
+	/** Stable brand identity when API provides it; prefer for grouping over string labels */
+	brandId?: string
+	brandName?: string
+	genericName?: string
+	strength?: string
+	dosageForm?: string
 	category: string
 	dosage?: string
 	description?: string
@@ -27,6 +33,8 @@ export interface LandingProduct {
 	rating?: number
 	/** Pharmacy IDs where this product is available; if omitted, only storeId is used */
 	availableAtStoreIds?: string[]
+	/** False when all inventory rows are marked not for sale */
+	isAvailable?: boolean
 }
 
 export interface LandingPharmacy {

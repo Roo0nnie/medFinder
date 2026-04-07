@@ -37,6 +37,7 @@ class ProductCategoryUpdateSerializer(serializers.Serializer):
 class MedicalProductSerializer(serializers.ModelSerializer):
     pharmacyId = serializers.CharField(source="pharmacy_id", allow_null=True)
     genericName = serializers.CharField(source="generic_name", allow_null=True)
+    brandId = serializers.CharField(source="brand_id", allow_null=True, required=False)
     brandName = serializers.CharField(source="brand_name", allow_null=True)
     manufacturer = serializers.CharField(allow_null=True)
     categoryId = serializers.CharField(source="category_id")
@@ -54,6 +55,7 @@ class MedicalProductSerializer(serializers.ModelSerializer):
             "pharmacyId",
             "name",
             "genericName",
+            "brandId",
             "brandName",
             "description",
             "manufacturer",
@@ -109,6 +111,7 @@ class MedicalProductCreateSerializer(serializers.Serializer):
     pharmacyId = serializers.CharField(max_length=255)
     name = serializers.CharField(max_length=255)
     genericName = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    brandId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     brandName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)
@@ -135,6 +138,7 @@ class MedicalProductUpdateSerializer(serializers.Serializer):
     pharmacyId = serializers.CharField(max_length=255, required=False, allow_null=True)
     name = serializers.CharField(max_length=255, required=False)
     genericName = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    brandId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     brandName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)

@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import {
 	AlertDialog,
@@ -35,10 +36,13 @@ import {
 	useVariantCreateMutation,
 	useVariantDeleteMutation,
 	useVariantUpdateMutation,
+	type PharmacyInventoryItem,
 	type Product,
 	type ProductVariant,
 } from "@/features/products/api/products.hooks"
+import { ProductBrandCombobox } from "@/features/products/components/product-brand-combobox"
 import { ProductsTable } from "@/features/products/components/products-table"
+import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	pharmacyId: "",
@@ -63,6 +67,181 @@ const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	isAvailable: true,
 }
 
+function inventoryRowFor(
+	list: PharmacyInventoryItem[] | undefined,
+	variantId: string | null
+): PharmacyInventoryItem | undefined {
+	return list?.find(r => (r.variantId ?? null) === (variantId ?? null))
+}
+
+function VariantInventoryEditor({
+	productId,
+	variantId,
+	title,
+	row,
+	lowStockThreshold,
+	onSaved,
+}: {
+	productId: string
+	variantId: string | null
+	title: string
+	row: PharmacyInventoryItem | undefined
+	lowStockThreshold: number
+	onSaved: () => void
+}) {
+	const { toast } = useToast()
+	const updateMutation = useProductUpdateMutation()
+	const [quantity, setQuantity] = useState(String(row?.quantity ?? 0))
+	const [price, setPrice] = useState(row?.price ? String(row.price) : "")
+	const [discountPrice, setDiscountPrice] = useState(row?.discountPrice ? String(row.discountPrice) : "")
+	const [expiryDate, setExpiryDate] = useState(
+		row?.expiryDate ? new Date(row.expiryDate).toISOString().slice(0, 10) : ""
+	)
+	const [batchNumber, setBatchNumber] = useState(row?.batchNumber ?? "")
+	const [isAvailable, setIsAvailable] = useState(row?.isAvailable ?? true)
+
+	useEffect(() => {
+		setQuantity(String(row?.quantity ?? 0))
+		setPrice(row?.price ? String(row.price) : "")
+		setDiscountPrice(row?.discountPrice ? String(row.discountPrice) : "")
+		setExpiryDate(row?.expiryDate ? new Date(row.expiryDate).toISOString().slice(0, 10) : "")
+		setBatchNumber(row?.batchNumber ?? "")
+		setIsAvailable(row?.isAvailable ?? true)
+	}, [row?.id, row?.quantity, row?.price, row?.discountPrice, row?.expiryDate, row?.batchNumber, row?.isAvailable])
+
+	const status = getStockStatus({
+		quantity: Number(quantity) || 0,
+		isAvailable,
+		lowStockThreshold,
+	})
+
+	const save = useCallback(async () => {
+		const q = Number(quantity)
+		const p = Number(price)
+		if (Number.isNaN(q) || q < 0 || Number.isNaN(p) || p < 0) {
+			toast({
+				title: "Validation",
+				description: "Quantity and price must be valid non-negative numbers.",
+				variant: "destructive",
+			})
+			return
+		}
+		try {
+			await updateMutation.mutateAsync({
+				id: productId,
+				variantId: variantId ?? null,
+				quantity: q,
+				price: String(p),
+				discountPrice: discountPrice.trim() ? discountPrice.trim() : null,
+				expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
+				batchNumber: batchNumber.trim() || null,
+				isAvailable,
+			})
+			toast({ title: "Inventory saved" })
+			onSaved()
+		} catch (e: unknown) {
+			toast({
+				title: "Save failed",
+				description: e instanceof Error ? e.message : "Unknown error",
+				variant: "destructive",
+			})
+		}
+	}, [
+		productId,
+		variantId,
+		quantity,
+		price,
+		discountPrice,
+		expiryDate,
+		batchNumber,
+		isAvailable,
+		onSaved,
+		toast,
+		updateMutation,
+	])
+
+	return (
+		<div className="border-border bg-background/80 space-y-3 rounded-lg border p-4">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<div>
+					<p className="text-foreground text-sm font-medium">{title}</p>
+					<p className="text-muted-foreground text-xs">Stock and price for this option at your pharmacy.</p>
+				</div>
+				<span
+					className={`rounded-md px-2 py-0.5 text-xs font-medium ${
+						status.kind === "not_for_sale"
+							? "bg-muted text-muted-foreground"
+							: status.kind === "out_of_stock"
+								? "bg-destructive/10 text-destructive"
+								: status.kind === "low_stock"
+									? "bg-amber-500/10 text-amber-600"
+									: "bg-primary/10 text-primary"
+					}`}
+				>
+					{status.label}
+				</span>
+			</div>
+			<div className="grid gap-3 sm:grid-cols-2">
+				<div className="space-y-1">
+					<Label className="text-xs">Quantity</Label>
+					<Input
+						type="number"
+						min={0}
+						value={quantity}
+						onChange={e => setQuantity(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-1">
+					<Label className="text-xs">Price</Label>
+					<Input
+						type="number"
+						min={0}
+						step="0.01"
+						value={price}
+						onChange={e => setPrice(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-1">
+					<Label className="text-xs">Discount price (optional)</Label>
+					<Input
+						type="number"
+						min={0}
+						step="0.01"
+						value={discountPrice}
+						onChange={e => setDiscountPrice(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-1">
+					<Label className="text-xs">Expiry (optional)</Label>
+					<Input
+						type="date"
+						value={expiryDate}
+						onChange={e => setExpiryDate(e.target.value)}
+					/>
+				</div>
+				<div className="space-y-1 sm:col-span-2">
+					<Label className="text-xs">Batch number (optional)</Label>
+					<Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} />
+				</div>
+				<div className="space-y-1 sm:col-span-2">
+					<Label className="text-xs">Available for sale</Label>
+					<select
+						className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+						value={isAvailable ? "true" : "false"}
+						onChange={e => setIsAvailable(e.target.value === "true")}
+					>
+						<option value="true">Yes</option>
+						<option value="false">No</option>
+					</select>
+				</div>
+			</div>
+			<Button type="button" size="sm" onClick={() => void save()} disabled={updateMutation.isPending}>
+				{updateMutation.isPending ? "Saving…" : "Save inventory"}
+			</Button>
+		</div>
+	)
+}
+
 export function OwnerProductSection() {
 	const { toast } = useToast()
 	const { data: pharmacies } = useMyPharmaciesQuery()
@@ -70,8 +249,8 @@ export function OwnerProductSection() {
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [editing, setEditing] = useState<Product | null>(null)
 	const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
 	const [newVariantLabel, setNewVariantLabel] = useState("")
+	const queryClient = useQueryClient()
 	const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null)
 	const [editVariantLabel, setEditVariantLabel] = useState("")
 
@@ -90,21 +269,27 @@ export function OwnerProductSection() {
 	useEffect(() => {
 		if (!editing) {
 			setForm(emptyForm)
-			setSelectedVariantId(null)
 			return
 		}
-		const row = inventoryList?.find(r => (r.variantId ?? null) === selectedVariantId)
 		setForm({
-			...editing,
-			variantId: selectedVariantId,
-			quantity: row?.quantity ?? 0,
-			price: row?.price ?? "",
-			discountPrice: row?.discountPrice ?? "",
-			expiryDate: row?.expiryDate ?? undefined,
-			batchNumber: row?.batchNumber ?? "",
-			isAvailable: row?.isAvailable ?? true,
+			...emptyForm,
+			pharmacyId: editing.pharmacyId ?? "",
+			name: editing.name,
+			brandId: editing.brandId ?? undefined,
+			brandName: editing.brandName,
+			genericName: editing.genericName,
+			description: editing.description,
+			categoryId: editing.categoryId,
+			unit: editing.unit,
+			manufacturer: editing.manufacturer,
+			dosageForm: editing.dosageForm,
+			strength: editing.strength,
+			requiresPrescription: editing.requiresPrescription,
+			imageUrl: editing.imageUrl,
+			supplier: editing.supplier,
+			lowStockThreshold: editing.lowStockThreshold ?? undefined,
 		})
-	}, [editing, selectedVariantId, inventoryList])
+	}, [editing])
 
 	const submit = async () => {
 		const name = (form.name ?? "").trim()
@@ -145,45 +330,61 @@ export function OwnerProductSection() {
 			return
 		}
 
-		const quantity = form.quantity !== undefined && form.quantity !== null ? Number(form.quantity) : 0
-		const priceNum =
-			form.price !== undefined && form.price !== null && String(form.price).trim() !== ""
-				? Number(form.price)
-				: 0
-		if (Number.isNaN(quantity) || quantity < 0 || Number.isNaN(priceNum) || priceNum < 0) {
-			toast({
-				title: "Validation",
-				description: "Quantity and Price must be non-negative numbers.",
-				variant: "destructive",
-			})
-			return
-		}
-
 		try {
-			const payload = {
-				...form,
-				name,
-				categoryId,
-				unit,
-				pharmacyId: pharmacyId || undefined,
-				lowStockThreshold: lowStockThreshold ?? null,
-				quantity,
-				price: String(priceNum),
-				discountPrice:
-					form.discountPrice !== undefined &&
-					form.discountPrice !== null &&
-					String(form.discountPrice).trim() !== ""
-						? String(form.discountPrice)
-						: null,
-				expiryDate: form.expiryDate ?? null,
-				batchNumber: form.batchNumber ?? null,
-				isAvailable: form.isAvailable ?? true,
-				...(editing && { variantId: selectedVariantId ?? null }),
-			}
 			if (editing) {
-				await updateMutation.mutateAsync({ id: editing.id, ...payload })
+				await updateMutation.mutateAsync({
+					id: editing.id,
+					name,
+					categoryId,
+					unit,
+					pharmacyId: (form.pharmacyId ?? editing.pharmacyId) || undefined,
+					brandId: form.brandId ?? null,
+					brandName: form.brandName,
+					genericName: form.genericName,
+					description: form.description,
+					manufacturer: form.manufacturer,
+					dosageForm: form.dosageForm,
+					strength: form.strength,
+					requiresPrescription: form.requiresPrescription,
+					imageUrl: form.imageUrl,
+					supplier: form.supplier,
+					lowStockThreshold: lowStockThreshold ?? null,
+				})
 				toast({ title: "Product updated" })
 			} else {
+				const quantity = form.quantity !== undefined && form.quantity !== null ? Number(form.quantity) : 0
+				const priceNum =
+					form.price !== undefined && form.price !== null && String(form.price).trim() !== ""
+						? Number(form.price)
+						: 0
+				if (Number.isNaN(quantity) || quantity < 0 || Number.isNaN(priceNum) || priceNum < 0) {
+					toast({
+						title: "Validation",
+						description: "Quantity and Price must be non-negative numbers.",
+						variant: "destructive",
+					})
+					return
+				}
+				const payload = {
+					...form,
+					name,
+					categoryId,
+					unit,
+					pharmacyId: pharmacyId || undefined,
+					lowStockThreshold: lowStockThreshold ?? null,
+					quantity,
+					price: String(priceNum),
+					discountPrice:
+						form.discountPrice !== undefined &&
+						form.discountPrice !== null &&
+						String(form.discountPrice).trim() !== ""
+							? String(form.discountPrice)
+							: null,
+					expiryDate: form.expiryDate ?? null,
+					batchNumber: form.batchNumber ?? null,
+					isAvailable: form.isAvailable ?? true,
+					variantId: null,
+				}
 				await createMutation.mutateAsync(payload)
 				toast({ title: "Product created" })
 			}
@@ -256,7 +457,7 @@ export function OwnerProductSection() {
 					</DialogHeader>
 					<p className="text-muted-foreground text-sm">
 						{editing
-							? "Update product details and inventory. To offer size/volume options (e.g. 100ml, 500ml), add variants below, then set price and quantity per variant in Initial inventory."
+							? "Update product details below, then use Save product. Set stock and price per variant (or default) separately — each has its own Save inventory button."
 							: "Fill in product details and set initial inventory. Name, Category, Unit, and Pharmacy are required. After creating a product, open Edit to add variants (sizes/volumes)."}
 					</p>
 					<div className="grid gap-4 sm:grid-cols-2">
@@ -311,12 +512,20 @@ export function OwnerProductSection() {
 								placeholder="e.g. tablet, bottle, box"
 							/>
 						</div>
-						<div className="space-y-1">
-							<Label htmlFor="brandName">Brand name</Label>
-							<Input
-								id="brandName"
-								value={form.brandName ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, brandName: e.target.value }))}
+						<div className="space-y-1 sm:col-span-2">
+							<Label>Brand</Label>
+							<ProductBrandCombobox
+								value={{
+									brandId: form.brandId,
+									brandName: form.brandName ?? "",
+								}}
+								onChange={next =>
+									setForm(prev => ({
+										...prev,
+										brandId: next.brandId ?? undefined,
+										brandName: next.brandName,
+									}))
+								}
 							/>
 						</div>
 						<div className="space-y-1">
@@ -389,7 +598,7 @@ export function OwnerProductSection() {
 								<div>
 									<h3 className="text-foreground text-sm font-semibold">Product variants (sizes / volumes)</h3>
 									<p className="text-muted-foreground mt-0.5 text-xs">
-										Add options like 100ml, 500ml so customers can choose. Each variant has its own price and stock — set them in Initial inventory below by selecting the variant.
+										Add options like 100ml, 500ml so customers can choose. Set stock and price for each variant in the inventory section below.
 									</p>
 								</div>
 								{variants.length === 0 ? (
@@ -459,7 +668,7 @@ export function OwnerProductSection() {
 															if (!editing?.id) return
 															try {
 																await variantDeleteMutation.mutateAsync({ productId: editing.id, variantId: v.id })
-																if (selectedVariantId === v.id) setSelectedVariantId(null)
+																void queryClient.invalidateQueries({ queryKey: ["inventory"] })
 																toast({ title: "Variant deleted" })
 															} catch (e) {
 																toast({
@@ -547,96 +756,111 @@ export function OwnerProductSection() {
 							</div>
 						)}
 						<div className="space-y-1 sm:col-span-2">
-							<h3 className="text-muted-foreground text-sm font-medium">Initial inventory</h3>
+							<h3 className="text-muted-foreground text-sm font-medium">
+								{editing ? "Inventory at your pharmacy" : "Initial inventory"}
+							</h3>
 						</div>
-						{editing && (
-							<div className="space-y-1 sm:col-span-2">
-								<Label htmlFor="inventory-variant">Variant (inventory row)</Label>
-								<select
-									id="inventory-variant"
-									className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-									value={selectedVariantId ?? ""}
-									onChange={e => setSelectedVariantId(e.target.value || null)}
-								>
-									<option value="">Default (no variant)</option>
-									{variants.map(v => (
-										<option key={v.id} value={v.id}>
-											{v.label}
-										</option>
-									))}
-								</select>
-								<p className="text-muted-foreground text-xs">
-									Choose which variant this inventory applies to. Add variants in the section above, then select one here and set price/quantity.
-								</p>
+						{editing && editing.id ? (
+							<div className="space-y-4 sm:col-span-2">
+								<VariantInventoryEditor
+									key={`default-${editing.id}`}
+									productId={editing.id}
+									variantId={null}
+									title="Default (no variant)"
+									row={inventoryRowFor(inventoryList, null)}
+									lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
+									onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
+								/>
+								{variants.map(v => (
+									<VariantInventoryEditor
+										key={`${v.id}-${editing.id}`}
+										productId={editing.id}
+										variantId={v.id}
+										title={v.label}
+										row={inventoryRowFor(inventoryList, v.id)}
+										lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
+										onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
+									/>
+								))}
 							</div>
+						) : (
+							<>
+								<div className="space-y-1">
+									<Label htmlFor="quantity">Quantity in stock</Label>
+									<Input
+										id="quantity"
+										type="number"
+										min={0}
+										value={form.quantity ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, quantity: Number(e.target.value || 0) }))}
+										placeholder="0"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="price">Price</Label>
+									<Input
+										id="price"
+										type="number"
+										min={0}
+										step="0.01"
+										value={form.price ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
+										placeholder="0.00"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="discountPrice">Discount price (optional)</Label>
+									<Input
+										id="discountPrice"
+										type="number"
+										min={0}
+										step="0.01"
+										value={form.discountPrice ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, discountPrice: e.target.value }))}
+										placeholder="0.00"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="expiryDate">Expiry date (optional)</Label>
+									<Input
+										id="expiryDate"
+										type="date"
+										value={
+											form.expiryDate ? new Date(form.expiryDate).toISOString().slice(0, 10) : ""
+										}
+										onChange={e => {
+											const v = e.target.value
+											setForm(prev => ({
+												...prev,
+												expiryDate: v ? new Date(v).toISOString() : undefined,
+											}))
+										}}
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="batchNumber">Batch number (optional)</Label>
+									<Input
+										id="batchNumber"
+										value={form.batchNumber ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, batchNumber: e.target.value }))}
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="isAvailable">Available for sale</Label>
+									<select
+										id="isAvailable"
+										className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+										value={form.isAvailable ? "true" : "false"}
+										onChange={e =>
+											setForm(prev => ({ ...prev, isAvailable: e.target.value === "true" }))
+										}
+									>
+										<option value="true">Yes</option>
+										<option value="false">No</option>
+									</select>
+								</div>
+							</>
 						)}
-						<div className="space-y-1">
-							<Label htmlFor="quantity">Quantity in stock</Label>
-							<Input
-								id="quantity"
-								type="number"
-								min={0}
-								value={form.quantity ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, quantity: Number(e.target.value || 0) }))}
-								placeholder="0"
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="price">Price</Label>
-							<Input
-								id="price"
-								type="number"
-								min={0}
-								step="0.01"
-								value={form.price ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
-								placeholder="0.00"
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="discountPrice">Discount price (optional)</Label>
-							<Input
-								id="discountPrice"
-								type="number"
-								min={0}
-								step="0.01"
-								value={form.discountPrice ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, discountPrice: e.target.value }))}
-								placeholder="0.00"
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="expiryDate">Expiry date (optional)</Label>
-							<Input
-								id="expiryDate"
-								type="date"
-								value={form.expiryDate ? new Date(form.expiryDate).toISOString().slice(0, 10) : ""}
-								onChange={e => {
-									const v = e.target.value
-									setForm(prev => ({ ...prev, expiryDate: v ? new Date(v).toISOString() : undefined }))
-								}}
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="batchNumber">Batch number (optional)</Label>
-							<Input
-								id="batchNumber"
-								value={form.batchNumber ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, batchNumber: e.target.value }))}
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="isAvailable">Available for sale</Label>
-							<select
-								id="isAvailable"
-								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-								value={form.isAvailable ? "true" : "false"}
-								onChange={e => setForm(prev => ({ ...prev, isAvailable: e.target.value === "true" }))}
-							>
-								<option value="true">Yes</option>
-								<option value="false">No</option>
-							</select>
-						</div>
 						<div className="space-y-1 sm:col-span-2">
 							<Label htmlFor="requiresPrescription">Requires prescription</Label>
 							<select
@@ -672,7 +896,7 @@ export function OwnerProductSection() {
 						>
 							Cancel
 						</Button>
-						<Button onClick={submit}>{editing ? "Save changes" : "Create product"}</Button>
+						<Button onClick={submit}>{editing ? "Save product" : "Create product"}</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

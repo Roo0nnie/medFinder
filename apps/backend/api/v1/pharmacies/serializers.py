@@ -17,6 +17,13 @@ class PharmacyListSerializer(serializers.ModelSerializer):
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
     logo = serializers.CharField(read_only=True)
     ownerImage = serializers.CharField(source="owner_image", read_only=True)
+    certificateFileUrl = serializers.CharField(source="certificate_file_url", read_only=True, allow_null=True)
+    certificateNumber = serializers.CharField(source="certificate_number", read_only=True, allow_null=True)
+    certificateStatus = serializers.CharField(source="certificate_status", read_only=True)
+    certificateSubmittedAt = serializers.DateTimeField(source="certificate_submitted_at", read_only=True)
+    certificateReviewedAt = serializers.DateTimeField(source="certificate_reviewed_at", read_only=True)
+    certificateReviewedBy = serializers.CharField(source="certificate_reviewed_by", read_only=True, allow_null=True)
+    certificateReviewNote = serializers.CharField(source="certificate_review_note", read_only=True, allow_null=True)
     googleMapEmbed = serializers.CharField(source="google_map_embed", read_only=True)
     socialLinks = serializers.CharField(source="social_links", read_only=True)
     distance = serializers.FloatField(read_only=True, required=False)
@@ -42,6 +49,13 @@ class PharmacyListSerializer(serializers.ModelSerializer):
             "isActive",
             "logo",
             "ownerImage",
+            "certificateFileUrl",
+            "certificateNumber",
+            "certificateStatus",
+            "certificateSubmittedAt",
+            "certificateReviewedAt",
+            "certificateReviewedBy",
+            "certificateReviewNote",
             "googleMapEmbed",
             "socialLinks",
             "createdAt",
@@ -95,4 +109,13 @@ class PharmacyUpdateInputSerializer(serializers.Serializer):
     ownerImage = serializers.CharField(required=False, allow_blank=True)
     googleMapEmbed = serializers.CharField(required=False, allow_blank=True)
     socialLinks = serializers.CharField(required=False, allow_blank=True)
+
+
+class PharmacyCertificateUploadSerializer(serializers.Serializer):
+    certificateNumber = serializers.CharField(max_length=255)
+
+
+class PharmacyCertificateReviewSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=("approved", "rejected"))
+    reviewNote = serializers.CharField(required=False, allow_blank=True)
 

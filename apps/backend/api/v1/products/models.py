@@ -26,6 +26,7 @@ class MedicalProduct(models.Model):
     name = models.CharField(max_length=255)
     generic_name = models.CharField(max_length=255, blank=True, null=True)
     brand_name = models.CharField(max_length=255, blank=True, null=True)
+    brand_id = models.CharField(max_length=255, blank=True, null=True, db_column="brand_id")
     description = models.TextField(blank=True, null=True)
     manufacturer = models.CharField(max_length=255, blank=True, null=True)
     category_id = models.CharField(max_length=255)

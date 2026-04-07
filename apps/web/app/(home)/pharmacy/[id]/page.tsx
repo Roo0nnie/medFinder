@@ -9,36 +9,69 @@ import { landingProducts } from "@/features/landing/data/products"
 import { PharmacyStorefrontHero } from "@/features/pharmacies/components/pharmacy-storefront-hero"
 import { formatPharmacyAddressLine } from "@/features/pharmacies/components/pharmacy-storefront-meta"
 
+import { mapApiProductToLandingProduct } from "@/features/landing/api/catalog.hooks"
+
 import { getPharmacyReviews } from "./actions"
 import { PharmacyDetailClient } from "./pharmacy-detail-client"
 import { PharmacyProductsClient } from "./pharmacy-products-client"
 
-export default async function PharmacyPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PharmacyPage({
+	params,
+	searchParams,
+}: {
+	params: Promise<{ id: string }>
+	searchParams: Promise<{ product?: string; brand?: string }>
+}) {
 	const session = await getSession()
 	if (!session || (session.user as { role?: string })?.role !== "customer") {
 		redirect("/login")
 	}
 
 	const { id } = await params
+	const sp = await searchParams
+	const initialProductId = typeof sp.product === "string" && sp.product.trim() ? sp.product.trim() : undefined
+	const initialBrandName = typeof sp.brand === "string" && sp.brand.trim() ? sp.brand.trim() : undefined
+
 	const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "")
 
 	let pharmacy: any = null
-	let productsAtPharmacy: any[] = []
+	let productsAtPharmacy: import("@/features/landing/data/types").LandingProduct[] = []
 
 	if (apiBase) {
 		try {
-			const [pharmacyRes, inventoryRes, productsRes] = await Promise.all([
+			const [pharmacyRes, inventoryRes, productsRes, categoriesRes] = await Promise.all([
 				fetch(`${apiBase}/v1/pharmacies/${id}/`, { cache: "no-store" }),
-				fetch(`${apiBase}/v1/inventory/?pharmacyId=${id}`, { cache: "no-store" }),
+				fetch(`${apiBase}/v1/inventory/?pharmacyId=${encodeURIComponent(id)}`, { cache: "no-store" }),
 				fetch(`${apiBase}/v1/products/`, { cache: "no-store" }),
+				fetch(`${apiBase}/v1/products/categories/`, { cache: "no-store" }),
 			])
 
 			if (pharmacyRes.ok) {
 				pharmacy = await pharmacyRes.json()
 				const inventory = inventoryRes.ok ? await inventoryRes.json() : []
 				const products = productsRes.ok ? await productsRes.json() : []
-				const productIds = new Set((inventory as any[]).map(item => item.productId))
-				productsAtPharmacy = (products as any[]).filter(p => productIds.has(p.id))
+				const categories = categoriesRes.ok ? await categoriesRes.json() : []
+				const categoryMap = new Map<string, string>(
+					(categories as { id?: string; categoryId?: string; name?: string }[]).map(c => [
+						(c.id ?? c.categoryId) as string,
+						c.name ?? "Uncategorized",
+					])
+				)
+				const inventoryByProduct = new Map<string, unknown[]>()
+				for (const row of inventory as any[]) {
+					const pid = row.productId ?? row.product_id
+					if (!pid) continue
+					const list = inventoryByProduct.get(pid) ?? []
+					list.push(row)
+					inventoryByProduct.set(pid, list)
+				}
+				const productIds = new Set(inventoryByProduct.keys())
+				productsAtPharmacy = (products as Record<string, unknown>[])
+					.filter(p => productIds.has(p.id as string))
+					.map(p =>
+						mapApiProductToLandingProduct(p, inventoryByProduct.get(p.id as string) ?? [], categoryMap)
+					)
+					.filter((x): x is NonNullable<typeof x> => x != null)
 			}
 		} catch {
 			pharmacy = null
@@ -98,6 +131,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 					subtitleFallback={pharmacy.whatIsThis}
 					ownerImage={pharmacy.ownerImage}
 					logo={pharmacy.logo}
+					mediaCacheKey={pharmacy.updatedAt}
 					addressLine={addressLine}
 					phone={pharmacy.phone}
 					email={pharmacy.email}
@@ -120,7 +154,13 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
 						{productsAtPharmacy.length === 0 ? (
 							<p className="text-muted-foreground mt-2 text-sm italic">No products listed.</p>
 						) : (
-							<PharmacyProductsClient products={productsAtPharmacy} pharmacyName={pharmacy.name} />
+							<PharmacyProductsClient
+								products={productsAtPharmacy}
+								pharmacyName={pharmacy.name}
+								pharmacyId={pharmacy.id}
+								initialProductId={initialProductId}
+								initialBrandName={initialBrandName}
+							/>
 						)}
 					</CardContent>
 				</Card>

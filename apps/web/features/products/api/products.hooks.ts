@@ -68,6 +68,7 @@ export type Product = {
 	id: string
 	pharmacyId?: string | null
 	name: string
+	brandId?: string | null
 	brandName?: string
 	genericName?: string
 	categoryId: string
@@ -87,6 +88,12 @@ export type Product = {
 	batchNumber?: string | null
 	isAvailable?: boolean
 	variants?: ProductVariant[]
+}
+
+/** PUT /v1/products/manage/:id/ — product fields plus optional per-variant inventory upsert */
+export type ProductManageUpdateInput = Partial<Product> & {
+	id: string
+	variantId?: string | null
 }
 
 export type ProductCategory = {
@@ -297,7 +304,7 @@ export function useProductCreateMutation() {
 export function useProductUpdateMutation() {
 	const qc = useQueryClient()
 	return useMutation({
-		mutationFn: ({ id, ...input }: Partial<Product> & { id: string }) =>
+		mutationFn: ({ id, ...input }: ProductManageUpdateInput) =>
 			apiFetch<Product>(`/v1/products/manage/${id}/`, {
 				method: "PUT",
 				body: JSON.stringify(input),

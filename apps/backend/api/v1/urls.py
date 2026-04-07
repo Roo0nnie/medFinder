@@ -8,6 +8,8 @@ urlpatterns = [
     path("users/", include("api.v1.users.urls")),
     path("staff/", include("api.v1.staff.urls")),
     path("pharmacies/", include("api.v1.pharmacies.urls")),
+    path("brands/", include("api.v1.brands.urls")),
+    path("admin/brands/", include("api.v1.brands.admin_urls")),
     path("products/", include("api.v1.products.urls")),
     path("inventory/", include("api.v1.inventory.urls")),
     path("reviews/", include("api.v1.reviews.urls")),

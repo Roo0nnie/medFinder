@@ -8,9 +8,52 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from api.v1.brands.models import Brand, OwnerBrand
 from api.v1.inventory.models import PharmacyInventory
 
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory, ProductSearch
+
+
+def resolve_brand_for_product_create(
+    owner_id: str,
+    brand_id: Optional[str],
+    brand_name: Optional[str],
+) -> tuple[Optional[str], str]:
+    """Validate brandId against owner_brands when set; otherwise legacy brand_name only."""
+    if brand_id:
+        bid = str(brand_id).strip()
+        if not bid:
+            return None, (brand_name or "").strip()
+        if not OwnerBrand.objects.filter(owner_id=owner_id, brand_id=bid).exists():
+            raise ValueError("brandId is not linked to this owner")
+        b = Brand.objects.get(pk=bid)
+        return b.id, b.name
+    return None, (brand_name or "").strip()
+
+
+def resolve_brand_for_product_update(
+    owner_id: str,
+    raw: dict,
+) -> Optional[tuple[Optional[str], str]]:
+    """
+    If neither brandId nor brandName is in the payload, return None (no change).
+    Otherwise return (brand_id, brand_name) for the product row.
+    """
+    has_bid = "brandId" in raw or "brand_id" in raw
+    has_bn = "brandName" in raw
+    if not has_bid and not has_bn:
+        return None
+    brand_id = raw.get("brandId") or raw.get("brand_id")
+    brand_name = raw.get("brandName")
+    if brand_id:
+        bid = str(brand_id).strip()
+        if not OwnerBrand.objects.filter(owner_id=owner_id, brand_id=bid).exists():
+            raise ValueError("brandId is not linked to this owner")
+        b = Brand.objects.get(pk=bid)
+        return b.id, b.name
+    if has_bid:
+        return None, (brand_name or "").strip()
+    return None, (brand_name or "").strip()
 
 
 def _build_prefix_raw_query(query: str) -> str:
@@ -171,6 +214,7 @@ def create_product(
     unit: str,
     pharmacy_id: Optional[str] = None,
     generic_name: Optional[str] = None,
+    brand_id: Optional[str] = None,
     brand_name: Optional[str] = None,
     description: Optional[str] = None,
     manufacturer: Optional[str] = None,
@@ -187,6 +231,7 @@ def create_product(
         pharmacy_id=pharmacy_id or None,
         name=name,
         generic_name=generic_name or "",
+        brand_id=brand_id,
         brand_name=brand_name or "",
         description=description or "",
         manufacturer=manufacturer or "",
@@ -209,7 +254,7 @@ def update_product(
     name: Optional[str] = None,
     pharmacy_id: Optional[str] = None,
     generic_name: Optional[str] = None,
-    brand_name: Optional[str] = None,
+    brand_fields: Optional[tuple[Optional[str], str]] = None,
     description: Optional[str] = None,
     manufacturer: Optional[str] = None,
     category_id: Optional[str] = None,
@@ -233,9 +278,11 @@ def update_product(
     if generic_name is not None:
         product.generic_name = generic_name
         update_fields.append("generic_name")
-    if brand_name is not None:
-        product.brand_name = brand_name
-        update_fields.append("brand_name")
+    if brand_fields is not None:
+        bid, bn = brand_fields
+        product.brand_id = bid
+        product.brand_name = bn
+        update_fields.extend(["brand_id", "brand_name"])
     if description is not None:
         product.description = description
         update_fields.append("description")

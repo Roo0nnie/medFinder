@@ -20,6 +20,108 @@ type CatalogData = {
 	categories: LandingCategory[]
 }
 
+/** Map a raw API product + inventory rows to `LandingProduct` (shared with pharmacy page). */
+export function mapApiProductToLandingProduct(
+	product: Record<string, unknown>,
+	inventoryRows: unknown[],
+	categoryMap: Map<string, string>
+): LandingProduct | null {
+	const productId = product.id as string | undefined
+	if (!productId) return null
+
+	const rows = inventoryRows as any[]
+	const hasInventory = rows.length > 0
+	const primary = rows[0]
+	const availableAtStoreIds = hasInventory
+		? Array.from(
+				new Set(
+					rows
+						.map(r => r.pharmacyId ?? r.pharmacy_id)
+						.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
+				)
+			)
+		: []
+	const totalQuantity = hasInventory
+		? rows.reduce(
+				(sum: number, r: any) => sum + (typeof r.quantity === "number" ? r.quantity : 0),
+				0
+			)
+		: 0
+	const anyInventoryAvailable =
+		!hasInventory ||
+		rows.some((r: any) => {
+			const v = r.isAvailable ?? r.is_available
+			return v !== false
+		})
+	const priceNumber = hasInventory
+		? Number(primary?.discountPrice ?? primary?.discount_price ?? primary?.price ?? 0)
+		: 0
+	const storeId = hasInventory
+		? (primary?.pharmacyId ?? primary?.pharmacy_id) ?? ""
+		: ((product.pharmacyId ?? product.pharmacy_id) as string) ?? ""
+
+	const variantsRaw = product.variants as
+		| { id: string; label: string; price: number; quantity: number; lowStockThreshold: number }[]
+		| undefined
+	const variants =
+		Array.isArray(variantsRaw) && variantsRaw.length > 0
+			? variantsRaw.map(v => ({
+					id: v.id,
+					label: v.label,
+					price: Number(v.price) ?? 0,
+					quantity: Number(v.quantity) ?? 0,
+					lowStockThreshold: Number(v.lowStockThreshold) ?? 5,
+				}))
+			: undefined
+
+	const brandNameRaw =
+		typeof product.brandName === "string" && product.brandName.trim()
+			? product.brandName.trim()
+			: undefined
+	const genericNameRaw =
+		typeof product.genericName === "string" && product.genericName.trim()
+			? product.genericName.trim()
+			: undefined
+	const strengthRaw =
+		typeof product.strength === "string" && product.strength.trim()
+			? product.strength.trim()
+			: undefined
+	const dosageFormRaw =
+		typeof product.dosageForm === "string" && product.dosageForm.trim()
+			? product.dosageForm.trim()
+			: undefined
+
+	const categoryId = product.categoryId as string | undefined
+
+	const brandIdRaw =
+		typeof product.brandId === "string" && product.brandId.trim() ? product.brandId.trim() : undefined
+
+	return {
+		id: productId,
+		name: product.name as string,
+		brand: brandNameRaw ?? genericNameRaw ?? (product.name as string),
+		brandId: brandIdRaw,
+		brandName: brandNameRaw,
+		genericName: genericNameRaw,
+		strength: strengthRaw,
+		dosageForm: dosageFormRaw,
+		category: (categoryId && categoryMap.get(categoryId)) ?? "Uncategorized",
+		dosage: (product.dosageForm as string | undefined) ?? (product.strength as string | undefined) ?? undefined,
+		description: (product.description as string) ?? "",
+		price: Number.isFinite(priceNumber) ? priceNumber : 0,
+		quantity: totalQuantity,
+		supplier: (product.manufacturer as string) ?? "Unknown",
+		storeId,
+		lowStockThreshold: (product.lowStockThreshold as number) ?? 5,
+		unit: (product.unit as string) ?? "piece",
+		imageUrl: product.imageUrl as string | undefined,
+		manufacturer: product.manufacturer as string | undefined,
+		availableAtStoreIds: availableAtStoreIds.length ? availableAtStoreIds : undefined,
+		isAvailable: anyInventoryAvailable,
+		variants,
+	}
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
 	const base = getBaseUrl()
 	if (!base) {
@@ -67,60 +169,8 @@ async function fetchCatalog(): Promise<CatalogData> {
 		if (!productId) continue
 
 		const rows = inventoryByProduct.get(productId) ?? []
-		const hasInventory = rows.length > 0
-		const primary = rows[0]
-		const availableAtStoreIds = hasInventory
-			? Array.from(
-					new Set(
-						rows
-							.map(r => r.pharmacyId ?? r.pharmacy_id)
-							.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
-					)
-				)
-			: []
-		const totalQuantity = hasInventory
-			? rows.reduce(
-					(sum: number, r: any) => sum + (typeof r.quantity === "number" ? r.quantity : 0),
-					0
-				)
-			: 0
-		const priceNumber = hasInventory
-			? Number(primary.discountPrice ?? primary.discount_price ?? primary.price ?? 0)
-			: 0
-		const storeId = hasInventory
-			? (primary.pharmacyId ?? primary.pharmacy_id) ?? ""
-			: (product.pharmacyId ?? product.pharmacy_id) ?? ""
-
-		const variantsRaw = product.variants as { id: string; label: string; price: number; quantity: number; lowStockThreshold: number }[] | undefined
-		const variants =
-			Array.isArray(variantsRaw) && variantsRaw.length > 0
-				? variantsRaw.map(v => ({
-						id: v.id,
-						label: v.label,
-						price: Number(v.price) ?? 0,
-						quantity: Number(v.quantity) ?? 0,
-						lowStockThreshold: Number(v.lowStockThreshold) ?? 5,
-					}))
-				: undefined
-
-		productsMapped.push({
-			id: productId,
-			name: product.name,
-			brand: product.brandName ?? product.genericName ?? product.name,
-			category: categoryMap.get(product.categoryId) ?? "Uncategorized",
-			dosage: product.dosageForm ?? product.strength ?? undefined,
-			description: product.description ?? "",
-			price: Number.isFinite(priceNumber) ? priceNumber : 0,
-			quantity: totalQuantity,
-			supplier: product.manufacturer ?? "Unknown",
-			storeId,
-			lowStockThreshold: product.lowStockThreshold ?? 5,
-			unit: product.unit ?? "piece",
-			imageUrl: product.imageUrl ?? undefined,
-			manufacturer: product.manufacturer ?? undefined,
-			availableAtStoreIds: availableAtStoreIds.length ? availableAtStoreIds : undefined,
-			variants,
-		})
+		const mapped = mapApiProductToLandingProduct(product as Record<string, unknown>, rows, categoryMap)
+		if (mapped) productsMapped.push(mapped)
 	}
 
 	const pharmaciesMapped: LandingPharmacy[] = pharmacies.map((p: any) => ({

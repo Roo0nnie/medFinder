@@ -51,6 +51,62 @@ export async function uploadPharmacyImage(
 	return res.json() as Promise<Pharmacy>
 }
 
+export async function uploadPharmacyCertificate(
+	pharmacyId: string,
+	file: File,
+	certificateNumber: string
+): Promise<Pharmacy> {
+	const base = getBaseUrl().replace(/\/$/, "")
+	const fd = new FormData()
+	fd.append("file", file)
+	fd.append("certificateNumber", certificateNumber)
+	const res = await fetch(`${base}/v1/pharmacies/${pharmacyId}/certificate/`, {
+		method: "POST",
+		body: fd,
+		credentials: "include",
+	})
+	if (!res.ok) {
+		const text = await res.text()
+		let message = text || res.statusText
+		try {
+			const j = JSON.parse(text) as { detail?: string }
+			if (j.detail) message = j.detail
+		} catch {
+			/* use raw */
+		}
+		throw new Error(message)
+	}
+	return res.json() as Promise<Pharmacy>
+}
+
+export async function reviewPharmacyCertificate(
+	pharmacyId: string,
+	status: "approved" | "rejected",
+	reviewNote?: string
+): Promise<Pharmacy> {
+	const base = getBaseUrl().replace(/\/$/, "")
+	const res = await fetch(`${base}/v1/pharmacies/${pharmacyId}/certificate/review/`, {
+		method: "POST",
+		credentials: "include",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ status, reviewNote }),
+	})
+	if (!res.ok) {
+		const text = await res.text()
+		let message = text || res.statusText
+		try {
+			const j = JSON.parse(text) as { detail?: string }
+			if (j.detail) message = j.detail
+		} catch {
+			/* use raw */
+		}
+		throw new Error(message)
+	}
+	return res.json() as Promise<Pharmacy>
+}
+
 export type Pharmacy = {
 	id: string
 	ownerId: string
@@ -69,6 +125,13 @@ export type Pharmacy = {
 	operatingHours?: string | null
 	logo?: string | null
 	ownerImage?: string | null
+	certificateFileUrl?: string | null
+	certificateNumber?: string | null
+	certificateStatus?: "pending" | "approved" | "rejected" | null
+	certificateSubmittedAt?: string | null
+	certificateReviewedAt?: string | null
+	certificateReviewedBy?: string | null
+	certificateReviewNote?: string | null
 	googleMapEmbed?: string | null
 	socialLinks?: string | null
 	isActive: boolean
@@ -80,6 +143,14 @@ export function useMyPharmaciesQuery() {
 	return useQuery({
 		queryKey: ["pharmacies", "mine"],
 		queryFn: () => apiFetch<Pharmacy[]>("/v1/pharmacies/my-pharmacies/"),
+	})
+}
+
+export function useAdminPharmaciesQuery(status?: "pending" | "approved" | "rejected") {
+	const query = status ? `?verificationStatus=${encodeURIComponent(status)}` : ""
+	return useQuery({
+		queryKey: ["pharmacies", "admin", status ?? "all"],
+		queryFn: () => apiFetch<Pharmacy[]>(`/v1/pharmacies/${query}`),
 	})
 }
 
@@ -114,6 +185,22 @@ export function usePharmacyDeleteMutation() {
 			apiFetch<{ success: boolean; id: string }>(`/v1/pharmacies/${id}/`, {
 				method: "DELETE",
 			}),
+		onSuccess: () => qc.invalidateQueries({ queryKey: ["pharmacies"] }),
+	})
+}
+
+export function usePharmacyCertificateReviewMutation() {
+	const qc = useQueryClient()
+	return useMutation({
+		mutationFn: ({
+			id,
+			status,
+			reviewNote,
+		}: {
+			id: string
+			status: "approved" | "rejected"
+			reviewNote?: string
+		}) => reviewPharmacyCertificate(id, status, reviewNote),
 		onSuccess: () => qc.invalidateQueries({ queryKey: ["pharmacies"] }),
 	})
 }

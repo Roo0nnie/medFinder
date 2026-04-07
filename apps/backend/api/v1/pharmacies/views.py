@@ -12,6 +12,8 @@ from api.v1.users.permissions import IsOwner
 from .models import Pharmacy
 from . import services
 from .serializers import (
+    PharmacyCertificateReviewSerializer,
+    PharmacyCertificateUploadSerializer,
     PharmacyCreateInputSerializer,
     PharmacyDetailSerializer,
     PharmacyListSerializer,
@@ -21,6 +23,24 @@ from .serializers import (
 
 def user_can_view_inactive_pharmacy(request, pharmacy: Pharmacy) -> bool:
     """Owners, admins, and staff of the owning business may view inactive pharmacies."""
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return False
+    role = getattr(user, "role", None)
+    if role == "admin":
+        return True
+    if role == "owner" and pharmacy.owner_id == str(user.id):
+        return True
+    if role == "staff":
+        try:
+            staff_profile = Staff.objects.get(user_id=str(user.id))
+        except Staff.DoesNotExist:
+            return False
+        return staff_profile.owner_id == pharmacy.owner_id
+    return False
+
+
+def user_can_view_unverified_pharmacy(request, pharmacy: Pharmacy) -> bool:
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         return False
@@ -56,12 +76,24 @@ class PharmacyListView(APIView):
         if is_active_param is not None:
             is_active = is_active_param.lower() != "false"
 
+        verification_status = request.query_params.get("verificationStatus")
+        if verification_status == "":
+            verification_status = None
+
         pharmacies = services.get_all_pharmacies(
             is_active=is_active,
             search_query=search_query,
             city=city,
             state=state,
         )
+
+        role = getattr(request.user, "role", None) if getattr(request.user, "is_authenticated", False) else None
+        if role == "admin":
+            if verification_status:
+                pharmacies = pharmacies.filter(certificate_status=verification_status)
+        else:
+            pharmacies = pharmacies.filter(certificate_status="approved", is_active=True)
+
         serializer = PharmacyListSerializer(pharmacies, many=True)
         return Response(serializer.data)
 
@@ -75,14 +107,6 @@ class PharmacyCreateView(APIView):
     permission_classes = [IsAuthenticated, IsOwner]
 
     def post(self, request):
-        # Owners are limited to a single pharmacy record.
-        existing_count = services.get_pharmacies_by_owner(str(request.user.id)).count()
-        if existing_count >= 1 and getattr(request.user, "role", None) == "owner":
-            return Response(
-                {"detail": "Owners may only create one pharmacy. Edit your existing pharmacy instead."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         in_serializer = PharmacyCreateInputSerializer(data=request.data)
         in_serializer.is_valid(raise_exception=True)
         data = in_serializer.validated_data
@@ -135,6 +159,14 @@ class PharmacyDetailView(APIView):
             )
 
         if not pharmacy.is_active and not user_can_view_inactive_pharmacy(request, pharmacy):
+            return Response(
+                {"detail": "Pharmacy not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if pharmacy.certificate_status != "approved" and not user_can_view_unverified_pharmacy(
+            request, pharmacy
+        ):
             return Response(
                 {"detail": "Pharmacy not found"},
                 status=status.HTTP_404_NOT_FOUND,
@@ -249,6 +281,86 @@ class PharmacyImageUploadView(APIView):
                 kind=kind,
                 uploaded_file=upload,
                 build_absolute_uri=lambda path: request.build_absolute_uri(path),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        out_serializer = PharmacyDetailSerializer(pharmacy)
+        return Response(out_serializer.data, status=status.HTTP_200_OK)
+
+
+class PharmacyCertificateUploadView(APIView):
+    """
+    POST multipart/form-data with fields `file` and `certificateNumber`.
+    Owner of the pharmacy or admin only.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            pharmacy = services.get_pharmacy_by_id(pk)
+        except Pharmacy.DoesNotExist:
+            return Response({"detail": "Pharmacy not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user.role != "admin" and pharmacy.owner_id != str(request.user.id):
+            return Response(
+                {"detail": "You do not have permission to upload this certificate."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        in_serializer = PharmacyCertificateUploadSerializer(data=request.data)
+        in_serializer.is_valid(raise_exception=True)
+        certificate_number = in_serializer.validated_data["certificateNumber"]
+
+        upload = request.FILES.get("file")
+        if not upload:
+            return Response({"detail": "Missing file field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pharmacy = services.save_pharmacy_certificate_upload(
+                pharmacy_id=pk,
+                certificate_number=certificate_number,
+                uploaded_file=upload,
+                build_absolute_uri=lambda path: request.build_absolute_uri(path),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        out_serializer = PharmacyDetailSerializer(pharmacy)
+        return Response(out_serializer.data, status=status.HTTP_200_OK)
+
+
+class PharmacyCertificateReviewView(APIView):
+    """
+    POST admin review action for certificate with status approved/rejected.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if getattr(request.user, "role", None) != "admin":
+            return Response(
+                {"detail": "Only admins can review certificates."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            services.get_pharmacy_by_id(pk)
+        except Pharmacy.DoesNotExist:
+            return Response({"detail": "Pharmacy not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        in_serializer = PharmacyCertificateReviewSerializer(data=request.data)
+        in_serializer.is_valid(raise_exception=True)
+        status_value = in_serializer.validated_data["status"]
+        review_note = in_serializer.validated_data.get("reviewNote")
+
+        try:
+            pharmacy = services.review_pharmacy_certificate(
+                pharmacy_id=pk,
+                reviewer_id=str(request.user.id),
+                status=status_value,
+                review_note=review_note,
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

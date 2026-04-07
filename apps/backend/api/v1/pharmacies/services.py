@@ -20,6 +20,13 @@ ALLOWED_IMAGE_TYPES = {
     "image/gif": ".gif",
 }
 MAX_PHARMACY_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_CERTIFICATE_FILE_BYTES = 10 * 1024 * 1024
+ALLOWED_CERTIFICATE_TYPES = {
+    "application/pdf": ".pdf",
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
 
 
 def get_all_pharmacies(
@@ -129,6 +136,13 @@ def update_pharmacy(
     is_active: Optional[bool] = None,
     logo: Optional[str] = None,
     owner_image: Optional[str] = None,
+    certificate_file_url: Optional[str] = None,
+    certificate_number: Optional[str] = None,
+    certificate_status: Optional[str] = None,
+    certificate_submitted_at=None,
+    certificate_reviewed_at=None,
+    certificate_reviewed_by: Optional[str] = None,
+    certificate_review_note: Optional[str] = None,
     google_map_embed: Optional[str] = None,
     social_links: Optional[str] = None,
 ) -> Pharmacy:
@@ -183,6 +197,27 @@ def update_pharmacy(
     if owner_image is not None:
         pharmacy.owner_image = owner_image
         update_fields.append("owner_image")
+    if certificate_file_url is not None:
+        pharmacy.certificate_file_url = certificate_file_url
+        update_fields.append("certificate_file_url")
+    if certificate_number is not None:
+        pharmacy.certificate_number = certificate_number
+        update_fields.append("certificate_number")
+    if certificate_status is not None:
+        pharmacy.certificate_status = certificate_status
+        update_fields.append("certificate_status")
+    if certificate_submitted_at is not None:
+        pharmacy.certificate_submitted_at = certificate_submitted_at
+        update_fields.append("certificate_submitted_at")
+    if certificate_reviewed_at is not None:
+        pharmacy.certificate_reviewed_at = certificate_reviewed_at
+        update_fields.append("certificate_reviewed_at")
+    if certificate_reviewed_by is not None:
+        pharmacy.certificate_reviewed_by = certificate_reviewed_by
+        update_fields.append("certificate_reviewed_by")
+    if certificate_review_note is not None:
+        pharmacy.certificate_review_note = certificate_review_note
+        update_fields.append("certificate_review_note")
     if google_map_embed is not None:
         pharmacy.google_map_embed = google_map_embed
         update_fields.append("google_map_embed")
@@ -269,6 +304,99 @@ def save_pharmacy_image_upload(
     if kind == "logo":
         return update_pharmacy(pharmacy_id, logo=absolute_url)
     return update_pharmacy(pharmacy_id, owner_image=absolute_url)
+
+
+def _remove_old_certificate_file_if_ours(old_url: Optional[str], pharmacy_id: str) -> None:
+    if not old_url:
+        return
+    marker = "/media/"
+    if marker not in old_url:
+        return
+    rel = old_url.split(marker, 1)[1].split("?", 1)[0].strip()
+    prefix = f"pharmacies/{pharmacy_id}/certificate"
+    if not rel.startswith(prefix):
+        return
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel.replace("/", os.sep))
+    if os.path.isfile(abs_path):
+        try:
+            os.remove(abs_path)
+        except OSError:
+            pass
+
+
+def save_pharmacy_certificate_upload(
+    *,
+    pharmacy_id: str,
+    certificate_number: str,
+    uploaded_file: UploadedFile,
+    build_absolute_uri: Callable[[str], str],
+) -> Pharmacy:
+    content_type = (uploaded_file.content_type or "").split(";")[0].strip().lower()
+    ext = ALLOWED_CERTIFICATE_TYPES.get(content_type)
+    if not ext and uploaded_file.name:
+        guessed, _ = mimetypes.guess_type(uploaded_file.name)
+        if guessed:
+            ext = ALLOWED_CERTIFICATE_TYPES.get(guessed.lower())
+    if not ext:
+        raise ValueError("Unsupported certificate type. Use PDF, JPEG, PNG, or WebP.")
+
+    size = getattr(uploaded_file, "size", None) or 0
+    if size > MAX_CERTIFICATE_FILE_BYTES:
+        raise ValueError("Certificate file must be 10 MB or smaller.")
+
+    pharmacy = get_pharmacy_by_id(pharmacy_id)
+    _remove_old_certificate_file_if_ours(pharmacy.certificate_file_url or None, pharmacy_id)
+
+    rel_path = f"pharmacies/{pharmacy_id}/certificate{ext}"
+    abs_fs = os.path.join(settings.MEDIA_ROOT, rel_path.replace("/", os.sep))
+    os.makedirs(os.path.dirname(abs_fs), exist_ok=True)
+
+    with open(abs_fs, "wb") as dest:
+        for chunk in uploaded_file.chunks():
+            dest.write(chunk)
+
+    url_path = f"{settings.MEDIA_URL.rstrip('/')}/{rel_path}"
+    absolute_url = build_absolute_uri(url_path)
+
+    pharmacy.certificate_file_url = absolute_url
+    pharmacy.certificate_number = certificate_number.strip()
+    pharmacy.certificate_status = "pending"
+    pharmacy.certificate_submitted_at = timezone.now()
+    pharmacy.certificate_reviewed_at = None
+    pharmacy.certificate_reviewed_by = None
+    pharmacy.certificate_review_note = None
+    pharmacy.updated_at = timezone.now()
+    pharmacy.save(
+        update_fields=[
+            "certificate_file_url",
+            "certificate_number",
+            "certificate_status",
+            "certificate_submitted_at",
+            "certificate_reviewed_at",
+            "certificate_reviewed_by",
+            "certificate_review_note",
+            "updated_at",
+        ]
+    )
+    return pharmacy
+
+
+def review_pharmacy_certificate(
+    *,
+    pharmacy_id: str,
+    reviewer_id: str,
+    status: str,
+    review_note: Optional[str] = None,
+) -> Pharmacy:
+    if status not in ("approved", "rejected"):
+        raise ValueError("status must be approved or rejected")
+    return update_pharmacy(
+        pharmacy_id,
+        certificate_status=status,
+        certificate_reviewed_at=timezone.now(),
+        certificate_reviewed_by=reviewer_id,
+        certificate_review_note=(review_note or "").strip(),
+    )
 
 
 def search_pharmacies(

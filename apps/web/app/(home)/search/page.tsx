@@ -2,9 +2,11 @@ import type { Route } from "next"
 import Link from "next/link"
 
 import { Button, buttonVariants } from "@/core/components/ui/button"
-import { Card, CardContent } from "@/core/components/ui/card"
 import { cn } from "@/core/lib/utils"
 import { env } from "@/env"
+import { getSession } from "@/services/better-auth/auth-server"
+
+import { SearchResultsClient } from "./search-results-client"
 
 type SearchPageProps = {
 	searchParams: Promise<{
@@ -16,7 +18,7 @@ type SearchPageProps = {
 	}>
 }
 
-type ApiProduct = {
+export type ApiProduct = {
 	id: string
 	name: string
 	brandName?: string | null
@@ -36,6 +38,7 @@ function toInt(value: string | undefined, fallback: number) {
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
+	const session = await getSession()
 	const sp = await searchParams
 	const q = (sp.q ?? "").trim()
 	const categoryId = (sp.categoryId ?? "").trim()
@@ -73,7 +76,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 			<div className="mb-6 space-y-2">
 				<h1 className="text-foreground text-2xl font-bold tracking-tight sm:text-3xl">Search</h1>
 				<p className="text-muted-foreground text-sm sm:text-base">
-					Results are ranked using PostgreSQL Full‑Text Search.
+					Results are ranked using PostgreSQL Full-Text Search.
 				</p>
 			</div>
 
@@ -109,7 +112,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 			{q && (
 				<p className="text-muted-foreground mb-4 text-sm">
 					Showing {products.length} result{products.length === 1 ? "" : "s"} for{" "}
-					<span className="text-foreground font-medium">“{q}”</span>
+					<span className="text-foreground font-medium">"{q}"</span>
 				</p>
 			)}
 
@@ -121,36 +124,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 					</p>
 				</div>
 			) : (
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-					{products.map(p => (
-						<Link key={p.id} href={`/product/${p.id}` as Route} className="block">
-							<Card className="hover:border-primary/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-								<CardContent className="p-4 sm:p-5">
-									<div className="min-w-0">
-										<h3 className="text-foreground line-clamp-2 text-base font-semibold">
-											{p.name}
-										</h3>
-										{(p.brandName || p.genericName) && (
-											<p className="text-muted-foreground mt-0.5 line-clamp-1 text-sm">
-												{p.brandName ?? p.genericName}
-											</p>
-										)}
-										{(p.dosageForm || p.strength) && (
-											<p className="text-muted-foreground mt-2 text-sm">
-												{[p.dosageForm, p.strength].filter(Boolean).join(" • ")}
-											</p>
-										)}
-										{p.description && (
-											<p className="text-muted-foreground mt-2 line-clamp-2 text-sm">
-												{p.description}
-											</p>
-										)}
-									</div>
-								</CardContent>
-							</Card>
-						</Link>
-					))}
-				</div>
+				<SearchResultsClient
+					products={products}
+					isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"}
+				/>
 			)}
 
 			<div className="mt-8 flex items-center justify-between">

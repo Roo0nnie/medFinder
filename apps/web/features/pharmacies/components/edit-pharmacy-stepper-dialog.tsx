@@ -29,6 +29,7 @@ import { Switch } from "@/core/components/ui/switch"
 import { Textarea } from "@/core/components/ui/textarea"
 import { useToast } from "@/core/components/ui/use-toast"
 import {
+	uploadPharmacyCertificate,
 	uploadPharmacyImage,
 	usePharmacyCreateMutation,
 	usePharmacyUpdateMutation,
@@ -41,11 +42,18 @@ type StepValue = (typeof STEP_ORDER)[number]
 const STEPS: { value: StepValue; title: string; description: string }[] = [
 	{ value: "basic", title: "Basic", description: "Name and description" },
 	{ value: "address", title: "Address", description: "Location details" },
-	{ value: "contact", title: "Contact & social media", description: "Hours, map, and links" },
+	{ value: "contact", title: "Contact\u00A0&\u00A0social media", description: "Hours, map, and links" },
 	{ value: "upload", title: "Upload image", description: "Logo and storefront" },
 ]
 
 const IMAGE_ACCEPT = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+
+const CERTIFICATE_ACCEPT = [
+	"application/pdf",
+	"image/jpeg",
+	"image/png",
+	"image/webp",
+]
 
 const emptyForm: Partial<Pharmacy> = {
 	name: "",
@@ -92,12 +100,14 @@ export function EditPharmacyStepperDialog({
 	const [form, setForm] = useState<Partial<Pharmacy>>(emptyForm)
 	const [pendingLogo, setPendingLogo] = useState<File | null>(null)
 	const [pendingOwner, setPendingOwner] = useState<File | null>(null)
+	const [pendingCertificate, setPendingCertificate] = useState<File | null>(null)
 
 	useEffect(() => {
 		if (open) {
 			setStep("basic")
 			setPendingLogo(null)
 			setPendingOwner(null)
+			setPendingCertificate(null)
 			setForm({
 				...emptyForm,
 				...(initial ?? {}),
@@ -202,12 +212,22 @@ export function EditPharmacyStepperDialog({
 
 	const submit = async () => {
 		try {
+			const certNumber = (form.certificateNumber ?? "").trim()
 			if (mode === "create") {
 				if (!validateStepKey("basic") || !validateStepKey("address")) return
+				if (!pendingCertificate || !certNumber) {
+					toast({
+						title: "Certificate required",
+						description: "Upload a business certificate and enter its certificate number.",
+						variant: "destructive",
+					})
+					return
+				}
 				const created = await createMutation.mutateAsync(
 					buildCreateBody() as Partial<Pharmacy>
 				)
 				const id = created.id
+				await uploadPharmacyCertificate(id, pendingCertificate, certNumber)
 				if (pendingLogo) {
 					await uploadPharmacyImage(id, "logo", pendingLogo)
 				}
@@ -217,6 +237,9 @@ export function EditPharmacyStepperDialog({
 			} else {
 				if (!pharmacyId) return
 				await updateMutation.mutateAsync(buildUpdateBody())
+				if (pendingCertificate && certNumber) {
+					await uploadPharmacyCertificate(pharmacyId, pendingCertificate, certNumber)
+				}
 			}
 			onSaved()
 			onOpenChange(false)
@@ -258,6 +281,10 @@ export function EditPharmacyStepperDialog({
 		}
 	}
 
+	const handleCertificateSuccess = (file: File) => {
+		setPendingCertificate(file)
+	}
+
 	const uploadDelay = mode === "create" ? 1800 : 0
 
 	const contentClass =
@@ -266,7 +293,7 @@ export function EditPharmacyStepperDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent
-				className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+				className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
 				showCloseButton
 			>
 				<Stepper
@@ -290,10 +317,12 @@ export function EditPharmacyStepperDialog({
 							<StepperList className="w-full gap-1 sm:gap-2">
 								{STEPS.map(s => (
 									<StepperItem key={s.value} value={s.value}>
-										<StepperTrigger className="flex min-w-0 flex-1 items-start gap-2 sm:gap-3">
+										<StepperTrigger className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
 											<StepperIndicator />
 											<span className="hidden min-w-0 flex-1 flex-col gap-0.5 text-left sm:flex">
-												<StepperTitle className="text-xs sm:text-sm">{s.title}</StepperTitle>
+												<StepperTitle className="text-xs leading-tight sm:text-sm">
+													{s.title}
+												</StepperTitle>
 												<StepperDescription className="line-clamp-2 text-[10px] sm:text-xs">
 													{s.description}
 												</StepperDescription>
@@ -474,6 +503,56 @@ export function EditPharmacyStepperDialog({
 
 						<StepperContent value="upload" className={contentClass}>
 							<div className="space-y-8">
+								<div className="space-y-3">
+									<div>
+										<p className="font-medium text-sm">Business certificate (required)</p>
+										<p className="text-muted-foreground text-xs">
+											Upload PDF/JPG/PNG/WebP (max 10 MB). Status will be reviewed by admin.
+										</p>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="stepper-certificate-number">Certificate number *</Label>
+										<Input
+											id="stepper-certificate-number"
+											value={form.certificateNumber ?? ""}
+											onChange={e =>
+												setForm(f => ({ ...f, certificateNumber: e.target.value }))
+											}
+											placeholder="Enter business certificate number"
+											disabled={busy}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label>Certificate file *</Label>
+										<div
+											className={busy ? "pointer-events-none opacity-60" : undefined}
+											aria-busy={busy}
+										>
+											<FileUpload
+												acceptedFileTypes={[...CERTIFICATE_ACCEPT]}
+												maxFileSize={10 * 1024 * 1024}
+												uploadDelay={0}
+												onUploadSuccess={handleCertificateSuccess}
+												className="max-w-none"
+											/>
+										</div>
+										{form.certificateStatus && (
+											<p className="text-muted-foreground text-xs">
+												Current status:{" "}
+												<span className="font-medium uppercase">{form.certificateStatus}</span>
+												{form.certificateReviewNote
+													? ` - ${form.certificateReviewNote}`
+													: ""}
+											</p>
+										)}
+										{pendingCertificate && (
+											<p className="text-muted-foreground text-xs">
+												Selected: {pendingCertificate.name}
+											</p>
+										)}
+									</div>
+								</div>
+
 								<div className="space-y-3">
 									<div>
 										<p className="font-medium text-sm">Logo</p>

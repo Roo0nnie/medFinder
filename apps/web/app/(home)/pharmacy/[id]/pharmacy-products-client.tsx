@@ -1,13 +1,19 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import type { Route } from "next"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { Card, CardContent } from "@/core/components/ui/card"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/core/components/ui/dialog"
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
 import type { LandingProduct } from "@/features/landing/data/types"
+import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
 	{ value: "name-asc", label: "Name A–Z" },
@@ -43,6 +49,10 @@ function filterProducts(products: LandingProduct[], query: string, category: str
 			p =>
 				p.name.toLowerCase().includes(q) ||
 				p.brand.toLowerCase().includes(q) ||
+				(p.genericName ?? "").toLowerCase().includes(q) ||
+				(p.brandName ?? "").toLowerCase().includes(q) ||
+				(p.strength ?? "").toLowerCase().includes(q) ||
+				(p.dosageForm ?? "").toLowerCase().includes(q) ||
 				p.category.toLowerCase().includes(q)
 		)
 	}
@@ -56,10 +66,12 @@ function ProductCard({
 	product,
 	storeName,
 	onSelectClick,
+	highlighted,
 }: {
 	product: LandingProduct
 	storeName: string
 	onSelectClick?: (e: React.MouseEvent) => void
+	highlighted?: boolean
 }) {
 	const hasVariants = product.variants && product.variants.length > 0
 	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
@@ -89,11 +101,20 @@ function ProductCard({
 					lowStockThreshold: product.lowStockThreshold ?? 0,
 				}
 
-	const isLow = display.quantity <= display.lowStockThreshold
-	const stockLabel = display.quantity === 0 ? "Out of stock" : isLow ? "Low stock" : "In stock"
+	const stock = getStockStatus({
+		quantity: display.quantity,
+		isAvailable: product.isAvailable !== false,
+		lowStockThreshold: display.lowStockThreshold,
+	})
+	const stockLabel = stock.label
 
 	return (
-		<Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+		<Card
+			className={cn(
+				"flex min-h-0 min-w-0 flex-col overflow-hidden border-border/50 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg",
+				highlighted && "ring-primary ring-2 ring-offset-2 ring-offset-background"
+			)}
+		>
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
@@ -105,9 +126,10 @@ function ProductCard({
 					<span
 						className={cn(
 							"shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
-							display.quantity === 0 && "bg-destructive/10 text-destructive",
-							isLow && display.quantity > 0 && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-							!isLow && "bg-primary/10 text-primary"
+							stock.kind === "not_for_sale" && "bg-muted text-muted-foreground",
+							stock.kind === "out_of_stock" && "bg-destructive/10 text-destructive",
+							stock.kind === "low_stock" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+							stock.kind === "in_stock" && "bg-primary/10 text-primary"
 						)}
 					>
 						{stockLabel}
@@ -156,30 +178,129 @@ function ProductCard({
 	)
 }
 
+type ProductDetailResponse = {
+	id: string
+	name: string
+	description?: string | null
+	brandName?: string | null
+	genericName?: string | null
+	dosageForm?: string | null
+	strength?: string | null
+	manufacturer?: string | null
+	variants?: { id: string; label: string; price?: number; quantity?: number }[]
+	availability?: {
+		pharmacyId: string
+		price: number | string
+		quantity: number
+	}[]
+}
+
 export function PharmacyProductsClient({
 	products,
 	pharmacyName,
+	pharmacyId,
+	initialProductId,
+	initialBrandName,
 }: {
 	products: LandingProduct[]
 	pharmacyName: string
+	pharmacyId: string
+	initialProductId?: string
+	initialBrandName?: string
 }) {
-	const router = useRouter()
 	const [query, setQuery] = useState("")
 	const [category, setCategory] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
+	const [modalOpen, setModalOpen] = useState(false)
+	const [activeProduct, setActiveProduct] = useState<ProductDetailResponse | null>(null)
+	const [selectedVariantId, setSelectedVariantId] = useState<string>("")
+	const [deepLinkOnly, setDeepLinkOnly] = useState(() => Boolean(initialProductId))
+	const highlightedRef = useRef<HTMLDivElement>(null)
+	const autoOpenedModal = useRef(false)
 
 	const categories = useMemo(
 		() => Array.from(new Set(products.map(p => p.category))).sort(),
 		[products]
 	)
 
+	const baseProducts = useMemo(() => {
+		if (deepLinkOnly && initialProductId) {
+			return products.filter(p => p.id === initialProductId)
+		}
+		return products
+	}, [products, deepLinkOnly, initialProductId])
+
 	const filtered = useMemo(
-		() => sortProducts(filterProducts(products, query, category), sort),
-		[products, query, category, sort]
+		() => sortProducts(filterProducts(baseProducts, query, category), sort),
+		[baseProducts, query, category, sort]
 	)
+
+	const openProductModal = useCallback(async (productId: string) => {
+		const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "")
+		if (!apiBase) return
+		try {
+			const res = await fetch(`${apiBase}/v1/products/${productId}/`, {
+				credentials: "include",
+				cache: "no-store",
+			})
+			if (!res.ok) return
+			const detail = (await res.json()) as ProductDetailResponse
+			setActiveProduct(detail)
+			setSelectedVariantId(detail.variants?.[0]?.id ?? "")
+			setModalOpen(true)
+		} catch {
+			// no-op
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!initialProductId) return
+		const t = window.setTimeout(() => {
+			highlightedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+		}, 300)
+		return () => window.clearTimeout(t)
+	}, [initialProductId])
+
+	useEffect(() => {
+		if (!initialProductId || autoOpenedModal.current) return
+		autoOpenedModal.current = true
+		void openProductModal(initialProductId)
+	}, [initialProductId, openProductModal])
+
+	const currentAvailability = useMemo(() => {
+		if (!activeProduct) return null
+		return (
+			activeProduct.availability?.find(row => row.pharmacyId === pharmacyId) ?? null
+		)
+	}, [activeProduct, pharmacyId])
 
 	return (
 		<div className="space-y-4">
+			{initialProductId && deepLinkOnly && (
+				<div className="bg-muted/50 flex flex-col gap-2 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+					<p className="text-sm">
+						Showing selected product
+						{initialBrandName ? (
+							<>
+								{" "}
+								<span className="font-medium">({initialBrandName})</span>
+							</>
+						) : null}
+						.
+					</p>
+					<button
+						type="button"
+						className="text-primary text-sm font-medium hover:underline"
+						onClick={() => {
+							setDeepLinkOnly(false)
+							setQuery("")
+							setCategory("")
+						}}
+					>
+						Show all products
+					</button>
+				</div>
+			)}
 			<div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 				<Input
 					type="search"
@@ -251,17 +372,18 @@ export function PharmacyProductsClient({
 					{filtered.map((product, i) => (
 						<div
 							key={product.id}
+							ref={initialProductId === product.id ? highlightedRef : undefined}
 							role="button"
 							tabIndex={0}
 							className="animate-in fade-in slide-in-from-bottom-4 focus-visible:ring-ring cursor-pointer rounded-xl outline-none focus-visible:ring-2"
 							style={{ animationDelay: `${Math.min(i * 50, 500)}ms`, animationFillMode: "both" }}
 							onClick={() => {
-								router.push(`/product/${product.id}` as Route)
+								void openProductModal(product.id)
 							}}
 							onKeyDown={e => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault()
-									router.push(`/product/${product.id}` as Route)
+									void openProductModal(product.id)
 								}
 							}}
 						>
@@ -269,11 +391,65 @@ export function PharmacyProductsClient({
 								product={product}
 								storeName={pharmacyName}
 								onSelectClick={e => e.stopPropagation()}
+								highlighted={initialProductId === product.id}
 							/>
 						</div>
 					))}
 				</div>
 			)}
+
+			<Dialog open={modalOpen} onOpenChange={setModalOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>{activeProduct?.name ?? "Product details"}</DialogTitle>
+						<DialogDescription>
+							View details and variant stock for this pharmacy.
+						</DialogDescription>
+					</DialogHeader>
+					{activeProduct && (
+						<div className="space-y-3 text-sm">
+							<p className="text-muted-foreground">
+								{activeProduct.brandName ?? activeProduct.genericName ?? ""}
+							</p>
+							{(activeProduct.dosageForm || activeProduct.strength) && (
+								<p>
+									{[activeProduct.dosageForm, activeProduct.strength]
+										.filter(Boolean)
+										.join(" • ")}
+								</p>
+							)}
+							{activeProduct.description && (
+								<p className="text-muted-foreground">{activeProduct.description}</p>
+							)}
+							{currentAvailability && (
+								<p className="text-muted-foreground">
+									Price: ₱{Number(currentAvailability.price).toFixed(2)} • Stock:{" "}
+									{currentAvailability.quantity}
+								</p>
+							)}
+							{(activeProduct.variants ?? []).length > 0 && (
+								<div className="space-y-2">
+									<label htmlFor="pharmacy-product-variant" className="font-medium">
+										Variant
+									</label>
+									<select
+										id="pharmacy-product-variant"
+										value={selectedVariantId}
+										onChange={e => setSelectedVariantId(e.target.value)}
+										className="border-input text-foreground focus:ring-ring h-9 w-full rounded-lg border bg-transparent px-3 text-sm focus:ring-2 focus:outline-none"
+									>
+										{activeProduct.variants?.map(v => (
+											<option key={v.id} value={v.id}>
+												{v.label} - ₱{Number(v.price ?? 0).toFixed(2)} ({v.quantity ?? 0} left)
+											</option>
+										))}
+									</select>
+								</div>
+							)}
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

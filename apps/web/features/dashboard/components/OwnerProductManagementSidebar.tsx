@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import type { Route } from "next"
 import { usePathname } from "next/navigation"
 import { Package } from "lucide-react"
 
@@ -12,6 +13,7 @@ const BASE = "/dashboard/owner/products"
 const subLinks = [
 	{ href: `${BASE}/product`, label: "Product" },
 	{ href: `${BASE}/category`, label: "Category" },
+	{ href: `${BASE}/brand`, label: "Brand" },
 	{ href: `${BASE}/inventory`, label: "Inventory" },
 ] as const
 
@@ -27,7 +29,7 @@ export function OwnerProductManagementSidebar({ collapsed }: OwnerProductManagem
 	if (collapsed) {
 		return (
 			<Link
-				href={`${BASE}/product`}
+				href={`${BASE}/product` as Route}
 				className={cn(
 					"group flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-200",
 					isUnderProducts
@@ -54,8 +56,10 @@ export function OwnerProductManagementSidebar({ collapsed }: OwnerProductManagem
 			contentWrapperClassName="border-t-0 bg-transparent"
 			defaultExpandedIds={defaultExpanded}
 			headerButtonClassName={cn(
-				"rounded-lg px-3 py-2.5",
-				isUnderProducts && "bg-primary/10"
+				"group rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+				isUnderProducts
+					? "bg-primary/10 text-primary"
+					: "text-muted-foreground hover:bg-muted hover:text-foreground"
 			)}
 			items={[
 				{
@@ -64,14 +68,14 @@ export function OwnerProductManagementSidebar({ collapsed }: OwnerProductManagem
 						<span className="flex min-w-0 flex-1 items-center gap-3">
 							<Package
 								className={cn(
-									"h-5 w-5 shrink-0",
-									isUnderProducts ? "text-primary" : "text-muted-foreground"
+									"h-5 w-5 shrink-0 transition-colors duration-200",
+									isUnderProducts ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
 								)}
 							/>
 							<span
 								className={cn(
-									"min-w-0 flex-1 leading-snug",
-									isUnderProducts ? "text-primary" : "text-muted-foreground"
+									"min-w-0 flex-1 truncate whitespace-nowrap",
+									isUnderProducts ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
 								)}
 							>
 								Product Management
@@ -85,7 +89,7 @@ export function OwnerProductManagementSidebar({ collapsed }: OwnerProductManagem
 								return (
 									<Link
 										key={link.href}
-										href={link.href}
+										href={link.href as Route}
 										className={cn(
 											"rounded-md px-3 py-2 text-sm font-medium transition-colors",
 											active

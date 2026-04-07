@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "api.v1.users",
     "api.v1.staff",
     "api.v1.pharmacies",
+    "api.v1.brands",
     "api.v1.products",
     "api.v1.inventory",
     "api.v1.reviews",
