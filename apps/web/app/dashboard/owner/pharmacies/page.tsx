@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import type { Route } from "next"
+import Link from "next/link"
 
 import {
 	AlertDialog,
@@ -24,7 +26,6 @@ import { Switch } from "@/core/components/ui/switch"
 import { useToast } from "@/core/components/ui/use-toast"
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { EditPharmacyStepperDialog } from "@/features/pharmacies/components/edit-pharmacy-stepper-dialog"
-import { PharmacyStorefrontHero } from "@/features/pharmacies/components/pharmacy-storefront-hero"
 import { formatPharmacyAddressLine } from "@/features/pharmacies/components/pharmacy-storefront-meta"
 import {
 	useMyPharmaciesQuery,
@@ -55,15 +56,6 @@ export default function OwnerPharmaciesPage() {
 		setDialogOpen(true)
 	}
 
-	const mapEmbedUrl =
-		pharmacy?.latitude != null && pharmacy?.longitude != null
-			? `https://www.google.com/maps?q=${pharmacy.latitude},${pharmacy.longitude}&output=embed`
-			: null
-	const mapUrl =
-		pharmacy?.latitude != null && pharmacy?.longitude != null
-			? `https://www.google.com/maps?q=${pharmacy.latitude},${pharmacy.longitude}`
-			: null
-
 	const addressLine = pharmacy
 		? formatPharmacyAddressLine({
 				address: pharmacy.address,
@@ -73,10 +65,6 @@ export default function OwnerPharmaciesPage() {
 				country: pharmacy.country,
 			})
 		: ""
-	const externalMapFromAddress =
-		pharmacy && !mapUrl && addressLine.trim().length > 0
-			? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressLine)}`
-			: null
 
 	const handleActiveChange = async (checked: boolean) => {
 		if (!pharmacy) return
@@ -152,60 +140,187 @@ export default function OwnerPharmaciesPage() {
 							</CardContent>
 						</Card>
 
-						<PharmacyStorefrontHero
-							name={pharmacy.name}
-							description={pharmacy.description}
-							ownerImage={pharmacy.ownerImage}
-							logo={pharmacy.logo}
-							mediaCacheKey={pharmacy.updatedAt}
-							addressLine={addressLine}
-							phone={pharmacy.phone}
-							email={pharmacy.email}
-							website={pharmacy.website}
-							operatingHours={pharmacy.operatingHours}
-							mapEmbedUrl={mapEmbedUrl}
-							externalMapUrl={mapUrl ?? externalMapFromAddress}
-							isActive={pharmacy.isActive}
-							showStatusBadge
-							showEmptyImageHint
-							hideLocationDetails
-							actions={
-								<>
-									<Button className="rounded-full px-8" onClick={openEdit}>
-										Edit pharmacy
-									</Button>
-									<div className="flex items-center gap-2">
-										<Switch
-											id="owner-pharmacy-active"
-											checked={pharmacy.isActive}
-											disabled={updateMutation.isPending}
-											onCheckedChange={v => void handleActiveChange(v)}
-										/>
-										<label
-											htmlFor="owner-pharmacy-active"
-											className="text-muted-foreground cursor-pointer text-sm font-normal"
-										>
-											Visible to customers
-										</label>
-									</div>
-									<DropdownMenu>
-										<DropdownMenuTrigger>
-											<Button variant="outline" size="sm">
-												More
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="start">
-											<DropdownMenuItem
-												className="text-destructive focus:text-destructive"
-												onClick={() => setDeleteOpen(true)}
+						<Card>
+							<CardContent className="p-4 sm:p-5">
+								<div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+									<p className="text-sm font-medium text-foreground">Pharmacy details</p>
+									<div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+										<Button  variant="secondary" className="rounded-full px-6">
+											<Link href={`/pharmacy/${pharmacy.id}` as Route}>View My Pharmacy</Link>
+										</Button>
+										<Button className="rounded-full px-6" onClick={openEdit}>
+											Edit pharmacy
+										</Button>
+										<div className="flex items-center gap-2 rounded-full border border-border px-3 py-2">
+											<Switch
+												id="owner-pharmacy-active"
+												checked={pharmacy.isActive}
+												disabled={updateMutation.isPending}
+												onCheckedChange={v => void handleActiveChange(v)}
+											/>
+											<label
+												htmlFor="owner-pharmacy-active"
+												className="text-muted-foreground cursor-pointer text-sm font-normal"
 											>
-												Delete pharmacy
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</>
-							}
-						/>
+												Visible to customers
+											</label>
+										</div>
+										<DropdownMenu>
+											<DropdownMenuTrigger>
+												<Button variant="outline" size="sm">
+													More
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												<DropdownMenuItem
+													className="text-destructive focus:text-destructive"
+													onClick={() => setDeleteOpen(true)}
+												>
+													Delete pharmacy
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</div>
+								</div>
+								<dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+									<div>
+										<dt className="text-muted-foreground">Name</dt>
+										<dd className="text-foreground font-medium">{pharmacy.name}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Pharmacy ID</dt>
+										<dd className="text-foreground font-medium">{pharmacy.id}</dd>
+									</div>
+									<div className="sm:col-span-2">
+										<dt className="text-muted-foreground">Description</dt>
+										<dd className="text-foreground font-medium whitespace-pre-line">
+											{pharmacy.description?.trim() ? pharmacy.description : "—"}
+										</dd>
+									</div>
+									<div className="sm:col-span-2">
+										<dt className="text-muted-foreground">Address</dt>
+										<dd className="text-foreground font-medium">
+											{addressLine.trim().length > 0 ? addressLine : "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Street</dt>
+										<dd className="text-foreground font-medium">{pharmacy.address ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">City</dt>
+										<dd className="text-foreground font-medium">{pharmacy.city ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">State</dt>
+										<dd className="text-foreground font-medium">{pharmacy.state ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Zip code</dt>
+										<dd className="text-foreground font-medium">{pharmacy.zipCode ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Country</dt>
+										<dd className="text-foreground font-medium">{pharmacy.country ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Phone</dt>
+										<dd className="text-foreground font-medium">{pharmacy.phone ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Email</dt>
+										<dd className="text-foreground font-medium">{pharmacy.email ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Website</dt>
+										<dd className="text-foreground font-medium">{pharmacy.website ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Operating hours</dt>
+										<dd className="text-foreground font-medium whitespace-pre-line">
+											{pharmacy.operatingHours?.trim() ? pharmacy.operatingHours : "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Owner ID</dt>
+										<dd className="text-foreground font-medium">{pharmacy.ownerId ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Certificate number</dt>
+										<dd className="text-foreground font-medium">{pharmacy.certificateNumber ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Certificate status</dt>
+										<dd className="text-foreground font-medium uppercase">
+											{pharmacy.certificateStatus ?? "—"}
+										</dd>
+									</div>
+									<div className="sm:col-span-2">
+										<dt className="text-muted-foreground">Certificate file</dt>
+										<dd className="text-foreground font-medium">
+											{pharmacy.certificateFileUrl ? (
+												<a
+													href={pharmacy.certificateFileUrl}
+													target="_blank"
+													rel="noreferrer"
+													className="text-primary underline-offset-4 hover:underline"
+												>
+													View uploaded certificate
+												</a>
+											) : (
+												"—"
+											)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Latitude</dt>
+										<dd className="text-foreground font-medium">
+											{pharmacy.latitude != null ? String(pharmacy.latitude) : "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Longitude</dt>
+										<dd className="text-foreground font-medium">
+											{pharmacy.longitude != null ? String(pharmacy.longitude) : "—"}
+										</dd>
+									</div>
+									<div className="sm:col-span-2">
+										<dt className="text-muted-foreground">Google map embed</dt>
+										<dd className="text-foreground font-medium break-all">
+											{pharmacy.googleMapEmbed?.trim() ? pharmacy.googleMapEmbed : "—"}
+										</dd>
+									</div>
+									<div className="sm:col-span-2">
+										<dt className="text-muted-foreground">Social links</dt>
+										<dd className="text-foreground font-medium break-all">
+											{pharmacy.socialLinks?.trim() ? pharmacy.socialLinks : "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Logo</dt>
+										<dd className="text-foreground font-medium break-all">{pharmacy.logo ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Owner image</dt>
+										<dd className="text-foreground font-medium break-all">
+											{pharmacy.ownerImage ?? "—"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Created at</dt>
+										<dd className="text-foreground font-medium">{pharmacy.createdAt ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Updated at</dt>
+										<dd className="text-foreground font-medium">{pharmacy.updatedAt ?? "—"}</dd>
+									</div>
+									<div>
+										<dt className="text-muted-foreground">Visible to customers</dt>
+										<dd className="text-foreground font-medium">{pharmacy.isActive ? "Yes" : "No"}</dd>
+									</div>
+								</dl>
+							</CardContent>
+						</Card>
 					</div>
 				)}
 

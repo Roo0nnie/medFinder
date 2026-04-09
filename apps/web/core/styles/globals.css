@@ -228,3 +228,8 @@
 	opacity: 1;
 	transform: translateY(0);
 }
+
+/* Hide landing navigation during owner storefront preview. */
+body.owner-storefront-preview nav[data-site-nav] {
+	display: none;
+}

@@ -13,7 +13,9 @@ import { mapApiProductToLandingProduct } from "@/features/landing/api/catalog.ho
 
 import { getPharmacyReviews } from "./actions"
 import { PharmacyDetailClient } from "./pharmacy-detail-client"
+import { PharmacyPermitClient } from "./pharmacy-permit-client"
 import { PharmacyProductsClient } from "./pharmacy-products-client"
+import { OwnerStorefrontPreview } from "./owner-storefront-preview"
 
 export default async function PharmacyPage({
 	params,
@@ -23,7 +25,12 @@ export default async function PharmacyPage({
 	searchParams: Promise<{ product?: string; brand?: string }>
 }) {
 	const session = await getSession()
-	if (!session || (session.user as { role?: string })?.role !== "customer") {
+	if (!session) {
+		redirect("/login")
+	}
+	const role = (session.user as { role?: string })?.role
+	const userId = (session.user as { id?: string })?.id
+	if (role !== "customer" && role !== "owner") {
 		redirect("/login")
 	}
 
@@ -86,6 +93,11 @@ export default async function PharmacyPage({
 		)
 	}
 
+	if (role === "owner") {
+		const ownerId = (pharmacy as { ownerId?: string | null })?.ownerId ?? null
+		if (!ownerId || !userId || ownerId !== userId) notFound()
+	}
+
 	const hasCoordinates = pharmacy.latitude != null && pharmacy.longitude != null
 	const mapUrl = hasCoordinates
 		? `https://www.google.com/maps?q=${pharmacy.latitude},${pharmacy.longitude}`
@@ -114,14 +126,16 @@ export default async function PharmacyPage({
 	const ratingForHero =
 		headerAverageRating != null ? { value: headerAverageRating, reviewCount } : null
 	const showNoReviewsYet = ratingForHero == null && reviewCount === 0
+	const isOwnerPreview = role === "owner"
 
 	return (
 		<div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-8">
+			{isOwnerPreview ? <OwnerStorefrontPreview /> : null}
 			<Link
-				href={"/" as Route}
+				href={(isOwnerPreview ? "/dashboard/owner/pharmacies" : "/") as Route}
 				className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm font-medium"
 			>
-				← Back to home
+				← Back {isOwnerPreview ? "to My pharmacy" : "to home"}
 			</Link>
 
 			<div className="space-y-10">
@@ -144,6 +158,23 @@ export default async function PharmacyPage({
 					hideLocationDetails
 					productCount={productsAtPharmacy.length}
 				/>
+
+				{pharmacy.certificateFileUrl && pharmacy.certificateStatus === "approved" ? (
+					<Card className="animate-in fade-in slide-in-from-bottom-4 border-border/50 bg-card/50 fill-mode-both overflow-hidden shadow-sm backdrop-blur-sm transition-all delay-100 duration-300 hover:shadow-md">
+						<CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+							<div className="space-y-1">
+								<h2 className="text-base font-semibold tracking-tight">Business permit</h2>
+								<p className="text-muted-foreground text-sm">
+									Verify this pharmacy’s business certificate.
+								</p>
+							</div>
+							<PharmacyPermitClient
+								pharmacyName={pharmacy.name}
+								certificateFileUrl={pharmacy.certificateFileUrl}
+							/>
+						</CardContent>
+					</Card>
+				) : null}
 
 				<Card
 					id="pharmacy-products"

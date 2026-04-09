@@ -198,6 +198,7 @@ export const productCategories = createTable(
 		name: t.text("name").notNull(),
 		description: t.text("description"),
 		parentCategoryId: t.text("parent_category_id"),
+		requiresPrescription: t.boolean("requires_prescription").notNull().default(false),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
 		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 	}),

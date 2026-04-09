@@ -4,7 +4,11 @@ Product business logic and read-only operations.
 import uuid
 from typing import Iterable, Optional
 
+import mimetypes
+import os
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
 from django.utils import timezone
 
@@ -12,6 +16,14 @@ from api.v1.brands.models import Brand, OwnerBrand
 from api.v1.inventory.models import PharmacyInventory
 
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory, ProductSearch
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+MAX_PRODUCT_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 def resolve_brand_for_product_create(
@@ -151,6 +163,7 @@ def create_category(
     name: str,
     description: Optional[str] = None,
     parent_category_id: Optional[str] = None,
+    requires_prescription: Optional[bool] = False,
 ) -> ProductCategory:
     now = timezone.now()
     return ProductCategory.objects.create(
@@ -159,6 +172,7 @@ def create_category(
         name=name,
         description=description or "",
         parent_category_id=parent_category_id or None,
+        requires_prescription=requires_prescription or False,
         created_at=now,
         updated_at=now,
     )
@@ -170,6 +184,7 @@ def update_category(
     name: Optional[str] = None,
     description: Optional[str] = None,
     parent_category_id: Optional[str] = None,
+    requires_prescription: Optional[bool] = None,
 ) -> ProductCategory:
     category = ProductCategory.objects.get(pk=category_id)
     update_fields: list[str] = []
@@ -183,6 +198,9 @@ def update_category(
     if parent_category_id is not None:
         category.parent_category_id = parent_category_id or None
         update_fields.append("parent_category_id")
+    if requires_prescription is not None:
+        category.requires_prescription = requires_prescription
+        update_fields.append("requires_prescription")
 
     category.updated_at = timezone.now()
     update_fields.append("updated_at")
@@ -194,6 +212,67 @@ def delete_category(category_id: str) -> dict:
     category = ProductCategory.objects.get(pk=category_id)
     category.delete()
     return {"success": True, "id": category_id}
+
+
+def _remove_old_media_file_if_ours(old_url: Optional[str], product_id: str) -> None:
+    if not old_url:
+        return
+    marker = "/media/"
+    if marker not in old_url:
+        return
+    rel = old_url.split(marker, 1)[1].split("?", 1)[0].strip()
+    prefix = f"products/{product_id}/"
+    if not rel.startswith(prefix):
+        return
+    abs_path = os.path.join(settings.MEDIA_ROOT, rel.replace("/", os.sep))
+    if os.path.isfile(abs_path):
+        try:
+            os.remove(abs_path)
+        except OSError:
+            pass
+
+
+def save_product_image_upload(
+    *,
+    product_id: str,
+    uploaded_file: UploadedFile,
+    build_absolute_uri,
+) -> MedicalProduct:
+    """
+    Persist an image to MEDIA_ROOT, update product image_url, return updated product.
+    `build_absolute_uri` is typically request.build_absolute_uri bound to a path starting with /.
+    """
+    content_type = (uploaded_file.content_type or "").split(";")[0].strip().lower()
+    ext = ALLOWED_IMAGE_TYPES.get(content_type)
+    if not ext and uploaded_file.name:
+        guessed, _ = mimetypes.guess_type(uploaded_file.name)
+        if guessed:
+            ext = ALLOWED_IMAGE_TYPES.get(guessed.lower())
+    if not ext:
+        raise ValueError("Unsupported image type. Use JPEG, PNG, WebP, or GIF.")
+
+    size = getattr(uploaded_file, "size", None) or 0
+    if size > MAX_PRODUCT_IMAGE_BYTES:
+        raise ValueError("Image must be 5 MB or smaller.")
+
+    product = get_product_by_id(product_id)
+    _remove_old_media_file_if_ours(product.image_url or None, product_id)
+
+    rel_path = f"products/{product_id}/image{ext}"
+    abs_fs = os.path.join(settings.MEDIA_ROOT, rel_path.replace("/", os.sep))
+    os.makedirs(os.path.dirname(abs_fs), exist_ok=True)
+
+    with open(abs_fs, "wb") as dest:
+        for chunk in uploaded_file.chunks():
+            dest.write(chunk)
+
+    url_path = f"{settings.MEDIA_URL.rstrip('/')}/{rel_path}"
+    absolute_url = build_absolute_uri(url_path)
+
+    product.image_url = absolute_url
+    product.updated_at = timezone.now()
+    product.save(update_fields=["image_url", "updated_at"])
+    return product
 
 
 def log_product_search(*, search_query: str, customer_id: Optional[str], results_count: int):

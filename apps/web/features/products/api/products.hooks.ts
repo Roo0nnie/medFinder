@@ -40,6 +40,30 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 	return res.json() as Promise<T>
 }
 
+/** Multipart upload; do not set Content-Type (browser sets boundary). */
+export async function uploadProductImage(productId: string, file: File): Promise<Product> {
+	const base = getBaseUrl().replace(/\/$/, "")
+	const fd = new FormData()
+	fd.append("file", file)
+	const res = await fetch(`${base}/v1/products/manage/${encodeURIComponent(productId)}/upload-image/`, {
+		method: "POST",
+		body: fd,
+		credentials: "include",
+	})
+	if (!res.ok) {
+		const text = await res.text()
+		let message = text || res.statusText
+		try {
+			const j = JSON.parse(text) as { detail?: string }
+			if (j.detail) message = j.detail
+		} catch {
+			/* use raw */
+		}
+		throw new Error(message)
+	}
+	return res.json() as Promise<Product>
+}
+
 export type ProductVariant = {
 	id: string
 	productId: string
@@ -101,6 +125,7 @@ export type ProductCategory = {
 	name: string
 	description?: string
 	parentCategoryId?: string | null
+	requiresPrescription: boolean
 }
 
 export type InventoryListParams = {

@@ -9,6 +9,7 @@ from .models import MedicalProduct, MedicalProductVariant, ProductCategory
 class ProductCategorySerializer(serializers.ModelSerializer):
     ownerId = serializers.CharField(source="owner_id")
     parentCategoryId = serializers.CharField(source="parent_category_id", allow_null=True)
+    requiresPrescription = serializers.BooleanField(source="requires_prescription")
 
     class Meta:
         model = ProductCategory
@@ -18,6 +19,7 @@ class ProductCategorySerializer(serializers.ModelSerializer):
             "name",
             "description",
             "parentCategoryId",
+            "requiresPrescription",
         ]
 
 
@@ -25,6 +27,7 @@ class ProductCategoryCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True)
     parentCategoryId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    requiresPrescription = serializers.BooleanField(required=False)
     ownerId = serializers.CharField(max_length=255, required=False)  # default from request user when owner
 
 
@@ -32,6 +35,7 @@ class ProductCategoryUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     parentCategoryId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    requiresPrescription = serializers.BooleanField(required=False)
 
 
 class MedicalProductSerializer(serializers.ModelSerializer):

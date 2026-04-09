@@ -30,7 +30,6 @@ export type PharmacyStorefrontHeroProps = {
 	email?: string | null
 	website?: string | null
 	operatingHours?: string | null
-	/** Google Maps embed URL — when set, "View on map" opens a modal with the map. */
 	mapEmbedUrl?: string | null
 	externalMapUrl?: string | null
 	isActive?: boolean
@@ -42,10 +41,6 @@ export type PharmacyStorefrontHeroProps = {
 	hideLocationDetails?: boolean
 	productCount?: number
 	className?: string
-	/**
-	 * Bust browser cache for logo / storefront images when the URL is stable but the file
-	 * was replaced (e.g. same path after re-upload). Use pharmacy `updatedAt` from the API.
-	 */
 	mediaCacheKey?: string | null
 }
 
@@ -189,14 +184,14 @@ function PharmacyInformationCard({
 			<div className="space-y-5">
 				
 				{phone?.trim() || email?.trim() ? (
-					<div className="flex flex-row flex-wrap items-start gap-x-8 gap-y-4 sm:gap-x-10 lg:gap-x-14">
+					<div className="flex flex-row flex-nowrap items-center justify-between gap-6">
 						{phone?.trim() ? (
-							<div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
+							<div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
 								<Phone className="text-primary mt-0.5 size-5 shrink-0" strokeWidth={2} aria-hidden />
 								<div className="min-w-0 space-y-1">
 									<a
 										href={telHref(phone)}
-										className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+										className="text-primary block w-full truncate text-sm font-medium underline-offset-4 hover:underline"
 									>
 										{phone.trim()}
 									</a>
@@ -204,12 +199,12 @@ function PharmacyInformationCard({
 							</div>
 						) : null}
 						{email?.trim() ? (
-							<div className="flex min-w-0 flex-1 gap-3 sm:gap-4">
+							<div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-4">
 								<Mail className="text-primary mt-0.5 size-5 shrink-0" strokeWidth={2} aria-hidden />
 								<div className="min-w-0 space-y-1">
 									<a
 										href={`mailto:${email.trim()}`}
-										className="text-muted-foreground hover:text-foreground text-sm break-all underline-offset-4 hover:underline"
+										className="text-muted-foreground hover:text-foreground block w-full truncate text-sm underline-offset-4 hover:underline"
 									>
 										{email.trim()}
 									</a>
@@ -377,7 +372,7 @@ export function PharmacyStorefrontHero({
 									<img
 										src={logoHeaderSrcForImg}
 										alt={`${name} logo`}
-										className="border-border/40 size-14 rounded-xl border bg-white/95 object-contain p-2 shadow-sm dark:bg-muted/90 sm:size-16"
+										className="size-14 rounded-xl object-contain sm:size-16"
 									/>
 								</div>
 							</div>
@@ -496,18 +491,6 @@ export function PharmacyStorefrontHero({
 											<>
 												{mapCtaHero}
 												<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-													{phone?.trim() ? (
-														<Button
-															variant="outline"
-															size="default"
-															className="h-11 rounded-full border-2 sm:h-10"
-															nativeButton={false}
-															render={<a href={telHref(phone)} />}
-														>
-															<Phone data-icon="inline-start" />
-															Call
-														</Button>
-													) : null}
 													{website?.trim() ? (
 														<Button
 															variant="ghost"
@@ -530,12 +513,6 @@ export function PharmacyStorefrontHero({
 										) : (
 											<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 												{mapCtaCompact}
-												{phone?.trim() ? (
-													<Button size="sm" variant="outline" nativeButton={false} className="w-full sm:w-auto" render={<a href={telHref(phone)} />}>
-														<Phone data-icon="inline-start" />
-														Call
-													</Button>
-												) : null}
 												{website?.trim() ? (
 													<Button size="sm" variant="ghost" nativeButton={false} className="text-muted-foreground hover:text-foreground w-full sm:w-auto" render={<a href={normalizeWebsiteUrl(website)} target="_blank" rel="noopener noreferrer" />}>
 														<ExternalLink data-icon="inline-start" />
@@ -647,7 +624,7 @@ export function PharmacyStorefrontHero({
 										showNoReviewsYet={showNoReviewsYet}
 									/>
 								</div>
-								<div className="pointer-events-auto absolute bottom-8 left-6 z-10">
+								<div className="pointer-events-auto absolute right-6 bottom-8 z-10">
 									<ProductCountFloatingCard count={productCount ?? 0} />
 								</div>
 							</div>

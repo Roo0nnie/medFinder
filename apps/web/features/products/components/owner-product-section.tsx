@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useId, useState } from "react"
+import { ImageIcon } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -24,6 +25,8 @@ import {
 } from "@/core/components/ui/dialog"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
+import FileUpload from "@/core/components/ui/file-upload"
+import { cn } from "@/core/lib/utils"
 import { useToast } from "@/core/components/ui/use-toast"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import {
@@ -36,6 +39,7 @@ import {
 	useVariantCreateMutation,
 	useVariantDeleteMutation,
 	useVariantUpdateMutation,
+	uploadProductImage,
 	type PharmacyInventoryItem,
 	type Product,
 	type ProductVariant,
@@ -244,6 +248,7 @@ function VariantInventoryEditor({
 
 export function OwnerProductSection() {
 	const { toast } = useToast()
+	const imageFieldId = useId()
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: categories } = useProductCategoriesQuery()
 	const [isFormOpen, setIsFormOpen] = useState(false)
@@ -265,10 +270,34 @@ export function OwnerProductSection() {
 	const variantUpdateMutation = useVariantUpdateMutation()
 	const variantDeleteMutation = useVariantDeleteMutation()
 	const [form, setForm] = useState<Partial<Product> & { variantId?: string | null }>(emptyForm)
+	const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
+	const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
+	const [isImageBusy, setIsImageBusy] = useState(false)
+
+	useEffect(() => {
+		const categoryId = (form.categoryId ?? "").trim()
+		if (!categoryId) return
+		const cat = categories?.find(c => c.id === categoryId)
+		if (!cat) return
+		setForm(prev => ({ ...prev, requiresPrescription: !!cat.requiresPrescription }))
+		// Only react to category selection + latest categories list
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [form.categoryId, categories])
+
+	useEffect(() => {
+		if (!pendingImageFile) {
+			setImageBlobUrl(null)
+			return
+		}
+		const u = URL.createObjectURL(pendingImageFile)
+		setImageBlobUrl(u)
+		return () => URL.revokeObjectURL(u)
+	}, [pendingImageFile])
 
 	useEffect(() => {
 		if (!editing) {
 			setForm(emptyForm)
+			setPendingImageFile(null)
 			return
 		}
 		setForm({
@@ -289,7 +318,39 @@ export function OwnerProductSection() {
 			supplier: editing.supplier,
 			lowStockThreshold: editing.lowStockThreshold ?? undefined,
 		})
+		setPendingImageFile(null)
 	}, [editing])
+
+	const displayImageSrc = imageBlobUrl || (form.imageUrl?.trim() ? form.imageUrl.trim() : null)
+
+	const clearImageAll = () => {
+		setPendingImageFile(null)
+		setForm(prev => ({ ...prev, imageUrl: "" }))
+	}
+
+	const handleProductImageFile = async (f: File) => {
+		const canUploadNow = !!editing?.id
+		if (!canUploadNow) {
+			setPendingImageFile(f)
+			return
+		}
+
+		setIsImageBusy(true)
+		try {
+			const updated = await uploadProductImage(editing.id, f)
+			setForm(prev => ({ ...prev, imageUrl: updated.imageUrl ?? "" }))
+			setPendingImageFile(null)
+			toast({ title: "Image uploaded" })
+		} catch (err) {
+			toast({
+				title: "Upload failed",
+				description: err instanceof Error ? err.message : "Unknown error",
+				variant: "destructive",
+			})
+		} finally {
+			setIsImageBusy(false)
+		}
+	}
 
 	const submit = async () => {
 		const name = (form.name ?? "").trim()
@@ -385,7 +446,26 @@ export function OwnerProductSection() {
 					isAvailable: form.isAvailable ?? true,
 					variantId: null,
 				}
-				await createMutation.mutateAsync(payload)
+				const created = await createMutation.mutateAsync(payload)
+				if (pendingImageFile && created?.id) {
+					try {
+						setIsImageBusy(true)
+						const updated = await uploadProductImage(created.id, pendingImageFile)
+						setForm(prev => ({ ...prev, imageUrl: updated.imageUrl ?? prev.imageUrl }))
+						setPendingImageFile(null)
+					} catch (err) {
+						toast({
+							title: "Image upload failed",
+							description:
+								err instanceof Error
+									? err.message
+									: "Product was created, but the image could not be uploaded.",
+							variant: "destructive",
+						})
+					} finally {
+						setIsImageBusy(false)
+					}
+				}
 				toast({ title: "Product created" })
 			}
 			setEditing(null)
@@ -504,15 +584,19 @@ export function OwnerProductSection() {
 							</select>
 						</div>
 						<div className="space-y-1">
-							<Label htmlFor="unit">Unit *</Label>
-							<Input
-								id="unit"
-								value={form.unit ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, unit: e.target.value }))}
-								placeholder="e.g. tablet, bottle, box"
-							/>
+							<Label htmlFor="requiresPrescription">Requires prescription</Label>
+							<select
+								id="requiresPrescription"
+								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+								value={form.requiresPrescription ? "true" : "false"}
+								disabled
+							>
+								<option value="false">No</option>
+								<option value="true">Yes</option>
+							</select>
 						</div>
-						<div className="space-y-1 sm:col-span-2">
+					
+						<div className="space-y-1">
 							<Label>Brand</Label>
 							<ProductBrandCombobox
 								value={{
@@ -528,6 +612,18 @@ export function OwnerProductSection() {
 								}
 							/>
 						</div>
+
+						<div className="space-y-1">
+							<Label htmlFor="unit">Unit *</Label>
+							<Input
+								id="unit"
+								value={form.unit ?? ""}
+								onChange={e => setForm(prev => ({ ...prev, unit: e.target.value }))}
+								placeholder="e.g. tablet, bottle, box"
+							/>
+						</div>
+					
+	
 						<div className="space-y-1">
 							<Label htmlFor="genericName">Generic name</Label>
 							<Input
@@ -584,14 +680,69 @@ export function OwnerProductSection() {
 								}}
 							/>
 						</div>
-						<div className="space-y-1">
-							<Label htmlFor="imageUrl">Image URL</Label>
-							<Input
-								id="imageUrl"
-								value={form.imageUrl ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
-								placeholder="https://..."
-							/>
+						<div className="grid gap-4 sm:col-span-2 md:grid-cols-2 md:items-start mt-4">
+							<div className="space-y-1">
+								<FileUpload
+									acceptedFileTypes={[
+										"image/jpeg",
+										"image/png",
+										"image/webp",
+										"image/gif",
+									]}
+									maxFileSize={5 * 1024 * 1024}
+									uploadDelay={0}
+									onUploadSuccess={file => void handleProductImageFile(file)}
+									onFileRemove={clearImageAll}
+									className={cn(isImageBusy && "pointer-events-none opacity-70")}
+								/>
+								{!editing ? (
+									<p className="text-muted-foreground text-xs">
+										Image uploads after you create the product. You can also paste a URL below.
+									</p>
+								) : null}
+
+								{/* <div className="space-y-1">
+									<Label htmlFor={`${imageFieldId}-imageUrl`} className="text-muted-foreground text-xs font-normal">
+										Or image URL
+									</Label>
+									<Input
+										id={`${imageFieldId}-imageUrl`}
+										type="url"
+										placeholder="https://..."
+										value={form.imageUrl ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+										disabled={isImageBusy}
+									/>
+								</div> */}
+							</div>
+							<div className="space-y-2">
+							
+								<div
+									className={cn(
+										"flex min-h-[260px] w-full items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted/40",
+										displayImageSrc && "border-transparent p-0"
+									)}
+								>
+									{displayImageSrc ? (
+										<img src={displayImageSrc} alt="" className="h-full w-full object-contain" />
+									) : (
+										<ImageIcon className="text-muted-foreground/50 size-12" aria-hidden />
+									)}
+								</div>
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<span className="text-sm font-medium leading-none"></span>
+									{(displayImageSrc || pendingImageFile) && (
+										<button
+											type="button"
+											className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
+											onClick={clearImageAll}
+											disabled={isImageBusy}
+										>
+											Remove
+										</button>
+									)}
+								</div>
+							</div>
 						</div>
 						{editing && (
 							<div className="border-border bg-muted/30 space-y-3 rounded-lg border p-4 sm:col-span-2">
@@ -861,20 +1012,7 @@ export function OwnerProductSection() {
 								</div>
 							</>
 						)}
-						<div className="space-y-1 sm:col-span-2">
-							<Label htmlFor="requiresPrescription">Requires prescription</Label>
-							<select
-								id="requiresPrescription"
-								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-								value={form.requiresPrescription ? "true" : "false"}
-								onChange={e =>
-									setForm(prev => ({ ...prev, requiresPrescription: e.target.value === "true" }))
-								}
-							>
-								<option value="false">No</option>
-								<option value="true">Yes</option>
-							</select>
-						</div>
+					
 						<div className="space-y-1 sm:col-span-2">
 							<Label htmlFor="description">Description</Label>
 							<textarea
@@ -924,3 +1062,4 @@ export function OwnerProductSection() {
 		</div>
 	)
 }
+

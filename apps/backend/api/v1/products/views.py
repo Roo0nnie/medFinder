@@ -458,6 +458,7 @@ class ProductCategoryListView(APIView):
             name=data["name"],
             description=data.get("description"),
             parent_category_id=data.get("parentCategoryId"),
+            requires_prescription=data.get("requiresPrescription"),
         )
         out_serializer = ProductCategorySerializer(category)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -508,6 +509,7 @@ class ProductCategoryDetailView(APIView):
             name=data.get("name"),
             description=data.get("description"),
             parent_category_id=data.get("parentCategoryId"),
+            requires_prescription=data.get("requiresPrescription"),
         )
         out_serializer = ProductCategorySerializer(category)
         return Response(out_serializer.data)
@@ -753,6 +755,44 @@ class ProductManageDetailView(APIView):
             )
         services.delete_product(pk)
         return Response({"success": True, "id": pk})
+
+
+class ProductManageImageUploadView(APIView):
+    """
+    POST multipart/form-data with field `file`.
+    Owner only; product must belong to one of the owner's pharmacies.
+    """
+
+    permission_classes = [IsOwner]
+
+    def post(self, request, pk):
+        try:
+            product = services.get_product_by_id(pk)
+        except MedicalProduct.DoesNotExist:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        allowed_pharmacy_ids = list(_pharmacy_ids_for_user(request.user))
+        if product.pharmacy_id not in allowed_pharmacy_ids:
+            return Response(
+                {"detail": "You do not have permission to modify this product."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        upload = request.FILES.get("file")
+        if not upload:
+            return Response({"detail": "Missing file field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = services.save_product_image_upload(
+                product_id=pk,
+                uploaded_file=upload,
+                build_absolute_uri=lambda path: request.build_absolute_uri(path),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        out_serializer = MedicalProductSerializer(product)
+        return Response(out_serializer.data, status=status.HTTP_200_OK)
 
 
 def _pharmacy_ids_for_user(user):

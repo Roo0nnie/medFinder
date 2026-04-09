@@ -11,6 +11,7 @@ class ProductCategory(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     parent_category_id = models.CharField(max_length=255, blank=True, null=True)
+    requires_prescription = models.BooleanField(default=False)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 

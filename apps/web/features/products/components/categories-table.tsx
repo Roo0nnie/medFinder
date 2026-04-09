@@ -52,6 +52,7 @@ export function CategoriesTable() {
 	const [name, setName] = useState("")
 	const [description, setDescription] = useState("")
 	const [parentCategoryId, setParentCategoryId] = useState<string>("")
+	const [requiresPrescription, setRequiresPrescription] = useState(false)
 
 	const parentMap = useMemo(() => {
 		const list = categoriesQuery.data ?? []
@@ -70,6 +71,7 @@ export function CategoriesTable() {
 		setName("")
 		setDescription("")
 		setParentCategoryId("")
+		setRequiresPrescription(false)
 		setIsCreateOpen(true)
 	}
 
@@ -78,6 +80,7 @@ export function CategoriesTable() {
 		setName(cat.name ?? "")
 		setDescription(cat.description ?? "")
 		setParentCategoryId(cat.parentCategoryId ?? "")
+		setRequiresPrescription(!!cat.requiresPrescription)
 		setIsEditOpen(true)
 	}
 
@@ -92,6 +95,7 @@ export function CategoriesTable() {
 				name: trimmed,
 				description: description.trim() || undefined,
 				parentCategoryId: parentCategoryId || undefined,
+				requiresPrescription,
 			})
 			toast({ title: "Category created" })
 			setIsCreateOpen(false)
@@ -117,6 +121,7 @@ export function CategoriesTable() {
 				name: trimmed,
 				description: description.trim() || undefined,
 				parentCategoryId: parentCategoryId || null,
+				requiresPrescription,
 			})
 			toast({ title: "Category updated" })
 			setIsEditOpen(false)
@@ -183,6 +188,13 @@ export function CategoriesTable() {
 					<span className="text-muted-foreground inline-block max-w-[320px] truncate">
 						{row.original.description || "—"}
 					</span>
+				),
+			},
+			{
+				accessorKey: "requiresPrescription",
+				header: "Requires Rx",
+				cell: ({ row }) => (
+					<span className="text-muted-foreground">{row.original.requiresPrescription ? "Yes" : "No"}</span>
 				),
 			},
 			{
@@ -272,6 +284,18 @@ export function CategoriesTable() {
 								rows={3}
 							/>
 						</div>
+						<div className="space-y-1">
+							<Label htmlFor="cat-requiresPrescription">Requires prescription</Label>
+							<select
+								id="cat-requiresPrescription"
+								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+								value={requiresPrescription ? "true" : "false"}
+								onChange={e => setRequiresPrescription(e.target.value === "true")}
+							>
+								<option value="false">No</option>
+								<option value="true">Yes</option>
+							</select>
+						</div>
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -327,6 +351,18 @@ export function CategoriesTable() {
 								onChange={e => setDescription(e.target.value)}
 								rows={3}
 							/>
+						</div>
+						<div className="space-y-1">
+							<Label htmlFor="cat-requiresPrescription-edit">Requires prescription</Label>
+							<select
+								id="cat-requiresPrescription-edit"
+								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
+								value={requiresPrescription ? "true" : "false"}
+								onChange={e => setRequiresPrescription(e.target.value === "true")}
+							>
+								<option value="false">No</option>
+								<option value="true">Yes</option>
+							</select>
 						</div>
 					</div>
 					<DialogFooter>
