@@ -71,21 +71,29 @@ export function mapApiProductToLandingProduct(
 				strength?: string
 				dosageForm?: string
 				imageUrl?: string
+				imageUrls?: string[]
 		  }[]
 		| undefined
 	const variants =
 		Array.isArray(variantsRaw) && variantsRaw.length > 0
-			? variantsRaw.map(v => ({
-					id: v.id,
-					label: v.label,
-					unit: typeof v.unit === "string" && v.unit.trim() ? v.unit.trim() : undefined,
-					price: Number(v.price) ?? 0,
-					quantity: Number(v.quantity) ?? 0,
-					lowStockThreshold: Number(v.lowStockThreshold) ?? 5,
-					strength: typeof v.strength === "string" ? v.strength : undefined,
-					dosageForm: typeof v.dosageForm === "string" ? v.dosageForm : undefined,
-					imageUrl: typeof v.imageUrl === "string" ? v.imageUrl : undefined,
-				}))
+			? variantsRaw.map(v => {
+					const imageUrls = Array.isArray(v.imageUrls)
+						? v.imageUrls.filter((u): u is string => typeof u === "string" && u.trim().length > 0)
+						: undefined
+					const imageUrl = typeof v.imageUrl === "string" && v.imageUrl.trim() ? v.imageUrl.trim() : undefined
+					return {
+						id: v.id,
+						label: v.label,
+						unit: typeof v.unit === "string" && v.unit.trim() ? v.unit.trim() : undefined,
+						price: Number(v.price) ?? 0,
+						quantity: Number(v.quantity) ?? 0,
+						lowStockThreshold: Number(v.lowStockThreshold) ?? 5,
+						strength: typeof v.strength === "string" ? v.strength : undefined,
+						dosageForm: typeof v.dosageForm === "string" ? v.dosageForm : undefined,
+						imageUrl,
+						imageUrls: imageUrls && imageUrls.length > 0 ? imageUrls : undefined,
+					}
+				})
 			: undefined
 
 	const brandNameRaw =

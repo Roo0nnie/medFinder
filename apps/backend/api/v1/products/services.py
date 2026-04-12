@@ -439,11 +439,8 @@ def save_variant_image_upload(
     if str(variant.product_id) != str(product_id):
         raise ValueError("Variant does not belong to this product.")
 
-    _remove_old_media_file_if_ours(
-        variant.image_url or None, product_id, variant_id=variant_id
-    )
-
-    rel_path = f"products/{product_id}/variants/{variant_id}/image{ext}"
+    # Gallery uploads use unique filenames so we append without deleting prior images.
+    rel_path = f"products/{product_id}/variants/{variant_id}/{uuid.uuid4().hex}{ext}"
     abs_fs = os.path.join(settings.MEDIA_ROOT, rel_path.replace("/", os.sep))
     os.makedirs(os.path.dirname(abs_fs), exist_ok=True)
 
@@ -454,9 +451,17 @@ def save_variant_image_upload(
     url_path = f"{settings.MEDIA_URL.rstrip('/')}/{rel_path}"
     absolute_url = build_absolute_uri(url_path)
 
+    existing = getattr(variant, "image_urls", None)
+    if not isinstance(existing, list):
+        existing = []
+    gallery = [str(u).strip() for u in existing if u and str(u).strip()]
+    if absolute_url not in gallery:
+        gallery.append(absolute_url)
+
     variant.image_url = absolute_url
+    variant.image_urls = gallery if gallery else None
     variant.updated_at = timezone.now()
-    variant.save(update_fields=["image_url", "updated_at"])
+    variant.save(update_fields=["image_url", "image_urls", "updated_at"])
     return variant
 
 
@@ -582,6 +587,33 @@ def get_variant_by_id(variant_id: str) -> MedicalProductVariant:
     return MedicalProductVariant.objects.get(pk=variant_id)
 
 
+def variant_image_urls_for_api(variant: MedicalProductVariant) -> list[str]:
+    """
+    Gallery URLs for API/landing: use image_urls when non-empty; else single image_url.
+    """
+    raw = getattr(variant, "image_urls", None)
+    if isinstance(raw, list) and len(raw) > 0:
+        out: list[str] = []
+        for u in raw:
+            s = str(u).strip() if u is not None else ""
+            if s and s not in out:
+                out.append(s)
+        return out
+    single = (getattr(variant, "image_url", None) or "").strip()
+    return [single] if single else []
+
+
+def _normalize_image_urls_list(urls: Optional[list]) -> Optional[list[str]]:
+    if urls is None:
+        return None
+    out: list[str] = []
+    for u in urls:
+        s = str(u).strip() if u is not None else ""
+        if s and s not in out:
+            out.append(s)
+    return out
+
+
 def create_variant(
     *,
     product_id: str,
@@ -591,9 +623,16 @@ def create_variant(
     strength: Optional[str] = None,
     dosage_form: Optional[str] = None,
     image_url: Optional[str] = None,
+    image_urls: Optional[list[str]] = None,
 ) -> MedicalProductVariant:
     now = timezone.now()
     u = (unit or "piece").strip() or "piece"
+    img = (image_url or "").strip() or ""
+    urls_norm = _normalize_image_urls_list(image_urls)
+    if urls_norm is not None and len(urls_norm) == 0:
+        urls_norm = None
+    if urls_norm is None and img:
+        urls_norm = [img]
     return MedicalProductVariant.objects.create(
         id=str(uuid.uuid4()),
         product_id=product_id,
@@ -602,7 +641,8 @@ def create_variant(
         sort_order=sort_order,
         strength=(strength or "").strip() or "",
         dosage_form=(dosage_form or "").strip() or "",
-        image_url=(image_url or "").strip() or "",
+        image_url=img,
+        image_urls=urls_norm,
         created_at=now,
         updated_at=now,
     )
@@ -617,6 +657,7 @@ def update_variant(
     strength: Optional[str] = None,
     dosage_form: Optional[str] = None,
     image_url: Optional[str] = None,
+    image_urls: Optional[list[str]] = None,
 ) -> MedicalProductVariant:
     variant = MedicalProductVariant.objects.get(pk=variant_id)
     update_fields: list[str] = []
@@ -638,6 +679,10 @@ def update_variant(
     if image_url is not None:
         variant.image_url = image_url.strip()
         update_fields.append("image_url")
+    if image_urls is not None:
+        norm = _normalize_image_urls_list(image_urls)
+        variant.image_urls = norm if norm else None
+        update_fields.append("image_urls")
     variant.updated_at = timezone.now()
     update_fields.append("updated_at")
     variant.save(update_fields=update_fields)

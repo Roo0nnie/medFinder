@@ -52,6 +52,7 @@ class MedicalProductVariant(models.Model):
     strength = models.CharField(max_length=255, blank=True, null=True)
     dosage_form = models.CharField(max_length=255, blank=True, null=True, db_column="dosage_form")
     image_url = models.TextField(blank=True, null=True, db_column="image_url")
+    image_urls = models.JSONField(blank=True, null=True, db_column="image_urls")
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 

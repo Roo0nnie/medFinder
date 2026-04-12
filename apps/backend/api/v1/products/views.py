@@ -200,6 +200,7 @@ class ProductListView(APIView):
                         "strength": getattr(v, "strength", None) or "",
                         "dosageForm": getattr(v, "dosage_form", None) or "",
                         "imageUrl": getattr(v, "image_url", None) or "",
+                        "imageUrls": services.variant_image_urls_for_api(v),
                     })
                 item["variants"] = vars_out if vars_out else None
 
@@ -373,6 +374,7 @@ class ProductDetailView(APIView):
                 "strength": getattr(v, "strength", None) or "",
                 "dosageForm": getattr(v, "dosage_form", None) or "",
                 "imageUrl": getattr(v, "image_url", None) or "",
+                "imageUrls": services.variant_image_urls_for_api(v),
                 "availability": v_availability,
                 "price": price_qty["price"] if price_qty else None,
                 "quantity": price_qty["quantity"] if price_qty else None,
@@ -437,6 +439,7 @@ class ProductVariantsListView(APIView):
             strength=data.get("strength"),
             dosage_form=data.get("dosageForm"),
             image_url=data.get("imageUrl"),
+            image_urls=data.get("imageUrls"),
         )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -499,6 +502,7 @@ class ProductVariantDetailView(APIView):
             strength=data.get("strength"),
             dosage_form=data.get("dosageForm"),
             image_url=data.get("imageUrl"),
+            image_urls=data.get("imageUrls"),
         )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data)

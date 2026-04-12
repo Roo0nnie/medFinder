@@ -1,5 +1,5 @@
 import { defineRelations } from "drizzle-orm"
-import { index, primaryKey, uniqueIndex } from "drizzle-orm/pg-core"
+import { index, jsonb, primaryKey, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { createTable } from "./utils/table.js"
 
@@ -286,6 +286,8 @@ export const medicalProductVariants = createTable(
 		strength: t.text("strength"),
 		dosageForm: t.text("dosage_form"),
 		imageUrl: t.text("image_url"),
+		/** Gallery image URLs; when non-empty, used for carousel (fallback: imageUrl). */
+		imageUrls: jsonb("image_urls").$type<string[] | null>(),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
 		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 	}),

@@ -76,6 +76,8 @@ export type ProductVariant = {
 	strength?: string | null
 	dosageForm?: string | null
 	imageUrl?: string | null
+	/** Gallery URLs; when empty server may fall back to imageUrl in API responses. */
+	imageUrls?: string[] | null
 }
 
 export type PharmacyInventoryItem = {
@@ -202,6 +204,7 @@ export type ProductDetailVariant = {
 	strength?: string | null
 	dosageForm?: string | null
 	imageUrl?: string | null
+	imageUrls?: string[] | null
 	availability?: ProductDetailAvailabilityItem[]
 	price?: number | null
 	quantity?: number | null
@@ -325,6 +328,14 @@ export function useProductVariantsQuery(productId: string | undefined) {
 	})
 }
 
+function invalidateVariantRelatedQueries(qc: ReturnType<typeof useQueryClient>, productId: string) {
+	qc.invalidateQueries({ queryKey: ["product-variants", productId] })
+	qc.invalidateQueries({ queryKey: ["product-detail", productId] })
+	qc.invalidateQueries({ queryKey: ["products"] })
+	qc.invalidateQueries({ queryKey: ["inventory"] })
+	qc.invalidateQueries({ queryKey: ["landing", "catalog"] })
+}
+
 export function useVariantCreateMutation() {
 	const qc = useQueryClient()
 	return useMutation({
@@ -336,6 +347,7 @@ export function useVariantCreateMutation() {
 			strength,
 			dosageForm,
 			imageUrl,
+			imageUrls,
 		}: {
 			productId: string
 			label: string
@@ -344,15 +356,26 @@ export function useVariantCreateMutation() {
 			strength?: string
 			dosageForm?: string
 			imageUrl?: string
-		}) =>
-			apiFetch<ProductVariant>(`/v1/products/${encodeURIComponent(productId)}/variants/`, {
+			imageUrls?: string[] | null
+		}) => {
+			const body = Object.fromEntries(
+				Object.entries({
+					label,
+					unit,
+					sortOrder,
+					strength,
+					dosageForm,
+					imageUrl,
+					imageUrls,
+				}).filter(([, v]) => v !== undefined)
+			)
+			return apiFetch<ProductVariant>(`/v1/products/${encodeURIComponent(productId)}/variants/`, {
 				method: "POST",
-				body: JSON.stringify({ label, unit, sortOrder, strength, dosageForm, imageUrl }),
-			}),
+				body: JSON.stringify(body),
+			})
+		},
 		onSuccess: (_, { productId }) => {
-			qc.invalidateQueries({ queryKey: ["product-variants", productId] })
-			qc.invalidateQueries({ queryKey: ["products"] })
-			qc.invalidateQueries({ queryKey: ["inventory"] })
+			invalidateVariantRelatedQueries(qc, productId)
 		},
 	})
 }
@@ -369,6 +392,7 @@ export function useVariantUpdateMutation() {
 			strength,
 			dosageForm,
 			imageUrl,
+			imageUrls,
 		}: {
 			productId: string
 			variantId: string
@@ -378,15 +402,29 @@ export function useVariantUpdateMutation() {
 			strength?: string
 			dosageForm?: string
 			imageUrl?: string
-		}) =>
-			apiFetch<ProductVariant>(`/v1/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/`, {
-				method: "PUT",
-				body: JSON.stringify({ label, unit, sortOrder, strength, dosageForm, imageUrl }),
-			}),
+			imageUrls?: string[] | null
+		}) => {
+			const body = Object.fromEntries(
+				Object.entries({
+					label,
+					unit,
+					sortOrder,
+					strength,
+					dosageForm,
+					imageUrl,
+					imageUrls,
+				}).filter(([, v]) => v !== undefined)
+			)
+			return apiFetch<ProductVariant>(
+				`/v1/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/`,
+				{
+					method: "PUT",
+					body: JSON.stringify(body),
+				}
+			)
+		},
 		onSuccess: (_, { productId }) => {
-			qc.invalidateQueries({ queryKey: ["product-variants", productId] })
-			qc.invalidateQueries({ queryKey: ["products"] })
-			qc.invalidateQueries({ queryKey: ["inventory"] })
+			invalidateVariantRelatedQueries(qc, productId)
 		},
 	})
 }
@@ -400,9 +438,7 @@ export function useVariantDeleteMutation() {
 				{ method: "DELETE" }
 			),
 		onSuccess: (_, { productId }) => {
-			qc.invalidateQueries({ queryKey: ["product-variants", productId] })
-			qc.invalidateQueries({ queryKey: ["products"] })
-			qc.invalidateQueries({ queryKey: ["inventory"] })
+			invalidateVariantRelatedQueries(qc, productId)
 		},
 	})
 }

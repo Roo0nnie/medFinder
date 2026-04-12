@@ -46,9 +46,32 @@ import {
 import { ProductBrandCombobox } from "@/features/products/components/product-brand-combobox"
 import { ProductsTable } from "@/features/products/components/products-table"
 import { getStockStatus } from "@/features/products/lib/stock-status"
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react"
 
 /** Stable reference when the variants query has no data yet (avoids useEffect loops). */
 const EMPTY_PRODUCT_VARIANTS: ProductVariant[] = []
+
+/** Display order for owner gallery: explicit list, else single imageUrl. */
+function variantGalleryUrls(v: ProductVariant): string[] {
+	const fromList = (v.imageUrls ?? [])
+		.map(u => (typeof u === "string" ? u.trim() : ""))
+		.filter(Boolean)
+	if (fromList.length > 0) return fromList
+	const one = v.imageUrl?.trim()
+	return one ? [one] : []
+}
+
+function reorderGalleryUrls(urls: string[], index: number, direction: -1 | 1): string[] {
+	const j = index + direction
+	if (j < 0 || j >= urls.length) return urls
+	const next = [...urls]
+	const a = next[index]
+	const b = next[j]
+	if (a === undefined || b === undefined) return urls
+	next[index] = b
+	next[j] = a
+	return next
+}
 
 const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	pharmacyId: "",
@@ -284,6 +307,7 @@ export function OwnerProductSection() {
 	const [variantExtras, setVariantExtras] = useState<
 		Record<string, { strength: string; dosageForm: string; unit: string }>
 	>({})
+	const [addGalleryUrlDraft, setAddGalleryUrlDraft] = useState<Record<string, string>>({})
 	const handleEditProduct = useCallback((p: Product) => {
 		setEditing(p)
 		setIsFormOpen(true)
@@ -392,13 +416,35 @@ export function OwnerProductSection() {
 		setPendingImageFile(null)
 	}
 
+	const persistVariantGallery = async (v: ProductVariant, urls: string[]) => {
+		if (!editing?.id) return
+		const next = urls.map(u => u.trim()).filter(Boolean)
+		try {
+			await variantUpdateMutation.mutateAsync({
+				productId: editing.id,
+				variantId: v.id,
+				imageUrls: next,
+				imageUrl: next[0] ?? "",
+			})
+			toast({ title: "Image gallery updated" })
+		} catch (e) {
+			toast({
+				title: "Update failed",
+				description: e instanceof Error ? e.message : "Unknown error",
+				variant: "destructive",
+			})
+		}
+	}
+
 	const handleVariantImageFile = async (variantId: string, f: File) => {
 		if (!editing?.id) return
 		setIsImageBusy(true)
 		try {
 			await uploadVariantImage(editing.id, variantId, f)
 			void queryClient.invalidateQueries({ queryKey: ["product-variants", editing.id] })
+			void queryClient.invalidateQueries({ queryKey: ["product-detail", editing.id] })
 			void queryClient.invalidateQueries({ queryKey: ["products"] })
+			void queryClient.invalidateQueries({ queryKey: ["landing", "catalog"] })
 			toast({ title: "Image uploaded" })
 		} catch (err) {
 			toast({
@@ -1022,7 +1068,9 @@ export function OwnerProductSection() {
 																isImageBusy && "pointer-events-none opacity-70"
 															)}
 														>
-															<FieldLabel htmlFor={`variant-picture-${v.id}`}>Picture</FieldLabel>
+															<FieldLabel htmlFor={`variant-picture-${v.id}`}>
+																Add picture (upload)
+															</FieldLabel>
 															<Input
 																id={`variant-picture-${v.id}`}
 																type="file"
@@ -1033,7 +1081,10 @@ export function OwnerProductSection() {
 																	e.target.value = ""
 																}}
 															/>
-															<FieldDescription>Uploads immediately.</FieldDescription>
+															<FieldDescription>
+																Uploads immediately and appends to the gallery. First image is the
+																primary thumbnail.
+															</FieldDescription>
 														</Field>
 														<Button
 															size="sm"
@@ -1067,19 +1118,140 @@ export function OwnerProductSection() {
 															Save unit / strength / dosage
 														</Button>
 													</div>
-													{(v.imageUrl ?? "").trim() ? (
-														<p className="text-muted-foreground text-xs">
-															Current image:{" "}
-															<a
-																href={(v.imageUrl ?? "").trim()}
-																target="_blank"
-																rel="noreferrer"
-																className="text-primary underline"
+													<div className="space-y-2 sm:col-span-2">
+														<p className="text-muted-foreground text-xs font-medium">Image gallery</p>
+														{variantGalleryUrls(v).length > 0 ? (
+															<ul className="flex flex-col gap-2">
+																{variantGalleryUrls(v).map((url, idx) => (
+																	<li
+																		key={`${v.id}-gal-${idx}-${url.slice(0, 48)}`}
+																		className="border-border flex flex-wrap items-center gap-2 rounded-md border bg-background/50 p-2"
+																	>
+																		<img
+																			src={url}
+																			alt=""
+																			className="border-border h-14 w-14 shrink-0 rounded border object-cover"
+																		/>
+																		<span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
+																			{url}
+																		</span>
+																		<div className="flex shrink-0 items-center gap-1">
+																			<Button
+																				type="button"
+																				size="icon"
+																				variant="outline"
+																				className="h-8 w-8"
+																				disabled={
+																					idx === 0 || variantUpdateMutation.isPending
+																				}
+																				aria-label="Move image up"
+																				onClick={() =>
+																					void persistVariantGallery(
+																						v,
+																						reorderGalleryUrls(variantGalleryUrls(v), idx, -1)
+																					)
+																				}
+																			>
+																				<ChevronUp className="h-4 w-4" />
+																			</Button>
+																			<Button
+																				type="button"
+																				size="icon"
+																				variant="outline"
+																				className="h-8 w-8"
+																				disabled={
+																					idx >= variantGalleryUrls(v).length - 1 ||
+																					variantUpdateMutation.isPending
+																				}
+																				aria-label="Move image down"
+																				onClick={() =>
+																					void persistVariantGallery(
+																						v,
+																						reorderGalleryUrls(variantGalleryUrls(v), idx, 1)
+																					)
+																				}
+																			>
+																				<ChevronDown className="h-4 w-4" />
+																			</Button>
+																			<Button
+																				type="button"
+																				size="icon"
+																				variant="outline"
+																				className="h-8 w-8 text-destructive"
+																				disabled={variantUpdateMutation.isPending}
+																				aria-label="Remove image"
+																				onClick={() =>
+																					void persistVariantGallery(
+																						v,
+																						variantGalleryUrls(v).filter((_, j) => j !== idx)
+																					)
+																				}
+																			>
+																				<Trash2 className="h-4 w-4" />
+																			</Button>
+																		</div>
+																	</li>
+																))}
+															</ul>
+														) : (
+															<p className="text-muted-foreground text-xs">No images yet.</p>
+														)}
+														<div className="flex max-w-xl flex-wrap items-end gap-2">
+															<div className="min-w-0 flex-1 space-y-1">
+																<Label htmlFor={`add-url-${v.id}`} className="text-xs">
+																	Add image URL
+																</Label>
+																<Input
+																	id={`add-url-${v.id}`}
+																	placeholder="https://…"
+																	value={addGalleryUrlDraft[v.id] ?? ""}
+																	onChange={e =>
+																		setAddGalleryUrlDraft(prev => ({
+																			...prev,
+																			[v.id]: e.target.value,
+																		}))
+																	}
+																/>
+															</div>
+															<Button
+																type="button"
+																size="sm"
+																variant="secondary"
+																disabled={variantUpdateMutation.isPending}
+																onClick={() => {
+																	const raw = (addGalleryUrlDraft[v.id] ?? "").trim()
+																	if (!raw) {
+																		toast({
+																			title: "Enter a URL",
+																			variant: "destructive",
+																		})
+																		return
+																	}
+																	try {
+																		new URL(raw)
+																	} catch {
+																		toast({
+																			title: "Invalid URL",
+																			variant: "destructive",
+																		})
+																		return
+																	}
+																	const cur = variantGalleryUrls(v)
+																	if (cur.includes(raw)) {
+																		toast({
+																			title: "Already in gallery",
+																			variant: "destructive",
+																		})
+																		return
+																	}
+																	void persistVariantGallery(v, [...cur, raw])
+																	setAddGalleryUrlDraft(prev => ({ ...prev, [v.id]: "" }))
+																}}
 															>
-																open
-															</a>
-														</p>
-													) : null}
+																Add URL
+															</Button>
+														</div>
+													</div>
 												</div>
 											) : null}
 										</li>

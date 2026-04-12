@@ -75,11 +75,27 @@ class MedicalProductVariantSerializer(serializers.ModelSerializer):
     sortOrder = serializers.IntegerField(source="sort_order", required=False, default=0)
     dosageForm = serializers.CharField(source="dosage_form", allow_null=True, required=False)
     imageUrl = serializers.CharField(source="image_url", allow_null=True, required=False)
+    imageUrls = serializers.SerializerMethodField()
+
+    def get_imageUrls(self, obj):
+        from . import services
+
+        return services.variant_image_urls_for_api(obj)
 
     class Meta:
         model = MedicalProductVariant
-        fields = ["id", "productId", "label", "unit", "sortOrder", "strength", "dosageForm", "imageUrl"]
-        read_only_fields = ["id", "productId"]
+        fields = [
+            "id",
+            "productId",
+            "label",
+            "unit",
+            "sortOrder",
+            "strength",
+            "dosageForm",
+            "imageUrl",
+            "imageUrls",
+        ]
+        read_only_fields = ["id", "productId", "imageUrls"]
 
 
 class ProductVariantCreateSerializer(serializers.Serializer):
@@ -89,6 +105,7 @@ class ProductVariantCreateSerializer(serializers.Serializer):
     strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
     dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
     imageUrl = serializers.CharField(required=False, allow_blank=True)
+    imageUrls = serializers.ListField(child=serializers.CharField(), required=False, allow_null=True)
 
 
 class ProductVariantUpdateSerializer(serializers.Serializer):
@@ -98,6 +115,7 @@ class ProductVariantUpdateSerializer(serializers.Serializer):
     strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
     dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
     imageUrl = serializers.CharField(required=False, allow_blank=True)
+    imageUrls = serializers.ListField(child=serializers.CharField(), required=False, allow_null=True)
 
 
 class ProductBrandAvailabilitySerializer(serializers.Serializer):

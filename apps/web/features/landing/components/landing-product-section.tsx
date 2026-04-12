@@ -1,16 +1,32 @@
 "use client"
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from "react"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
 
+import {
+	Carousel,
+	CarouselContent,
+	CarouselItem,
+	CarouselNext,
+	CarouselPrevious,
+} from "@/core/components/ui/carousel"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { cn } from "@/core/lib/utils"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
-import type { LandingPharmacy, LandingProduct } from "@/features/landing/data/types"
+import type { LandingPharmacy, LandingProduct, LandingProductVariant } from "@/features/landing/data/types"
+import { Package } from "lucide-react"
+import {
+	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
+	getStoredProductListPageSize,
+	PAGE_SIZE_OPTIONS,
+	PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY,
+	setStoredProductListPageSize,
+	type ProductListPageSize,
+} from "@/features/products/lib/product-list-page-size"
 import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
@@ -98,6 +114,41 @@ function sortProducts(
 	return copy
 }
 
+/** Slides for the card gallery: imageUrls, else [imageUrl], else product image, else []. */
+function landingVariantSlideUrls(
+	product: LandingProduct,
+	selectedVariant: LandingProductVariant | undefined
+): string[] {
+	if (selectedVariant) {
+		const urls = selectedVariant.imageUrls?.filter(
+			(u): u is string => typeof u === "string" && u.trim().length > 0
+		)
+		if (urls && urls.length > 0) return urls.map(u => u.trim())
+		if (selectedVariant.imageUrl?.trim()) return [selectedVariant.imageUrl.trim()]
+	}
+	if (product.imageUrl?.trim()) return [product.imageUrl.trim()]
+	return []
+}
+
+function LandingRatingRow({ rating }: { rating: number }) {
+	const full = Math.min(5, Math.max(0, Math.round(rating)))
+	return (
+		<div
+			className="flex items-center gap-1 text-amber-400"
+			aria-label={`Rating ${rating.toFixed(1)} out of 5`}
+		>
+			{Array.from({ length: 5 }, (_, i) => (
+				<span key={i} className={i < full ? "opacity-100" : "opacity-25"}>
+					★
+				</span>
+			))}
+			<span className="text-zinc-500 ml-1 text-xs tabular-nums dark:text-zinc-400">
+				{rating.toFixed(1)}
+			</span>
+		</div>
+	)
+}
+
 function ProductCard({
 	product,
 	storeName,
@@ -108,7 +159,7 @@ function ProductCard({
 }: {
 	product: LandingProduct
 	storeName: string
-	onSelectClick?: (e: React.MouseEvent) => void
+	onSelectClick?: (e: MouseEvent) => void
 	/** Current variant id when the product has variants; null otherwise */
 	onActivate?: (selectedVariantId: string | null) => void
 	shellClassName?: string
@@ -155,39 +206,87 @@ function ProductCard({
 
 	const activateVariantId = hasVariants ? selectedVariantId : null
 
+	const slides = useMemo(
+		() => landingVariantSlideUrls(product, selectedVariant),
+		[product, selectedVariant]
+	)
+
+	const showRating = typeof product.rating === "number" && product.rating > 0
+
 	const inner = (
-		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0 flex-1">
-						<h3 className="text-foreground text-base leading-tight font-semibold">
-							{product.name}
-						</h3>
-						<p className="text-muted-foreground mt-0.5 text-sm">{product.brand}</p>
-						<p className="text-muted-foreground mt-0.5 text-sm">
-							Category: {product.category}
-						</p>
+		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+			<div className="bg-muted relative aspect-4/3 w-full shrink-0">
+				{slides.length === 0 ? (
+					<div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2 text-sm">
+						<Package className="h-10 w-10 opacity-40" aria-hidden />
+						<span>No image</span>
 					</div>
-					<span
-						className={cn(
-							"shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
-							stock.kind === "not_for_sale" && "bg-muted text-muted-foreground",
-							stock.kind === "out_of_stock" && "bg-destructive/10 text-destructive",
-							stock.kind === "low_stock" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-							stock.kind === "in_stock" && "bg-primary/10 text-primary"
-						)}
+				) : slides.length === 1 ? (
+					<img
+						src={slides[0]}
+						alt=""
+						loading="lazy"
+						decoding="async"
+						className="h-full w-full object-cover"
+					/>
+				) : (
+					<Carousel
+						key={selectedVariantId ?? product.id}
+						className="h-full w-full"
+						opts={{ loop: true }}
 					>
-						{stockLabel}
-					</span>
+						<CarouselContent className="ml-0 h-full">
+							{slides.map((url, i) => (
+								<CarouselItem key={`${url}-${i}`} className="basis-full pl-0">
+									<img
+										src={url}
+										alt=""
+										loading="lazy"
+										decoding="async"
+										className="aspect-4/3 h-full w-full object-cover"
+									/>
+								</CarouselItem>
+							))}
+						</CarouselContent>
+						<CarouselPrevious
+							type="button"
+							className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
+							onClick={e => e.stopPropagation()}
+						/>
+						<CarouselNext
+							type="button"
+							className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
+							onClick={e => e.stopPropagation()}
+						/>
+					</Carousel>
+				)}
+				<span
+					className={cn(
+						"absolute top-2 right-2 rounded-md px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
+						stock.kind === "not_for_sale" && "bg-background/90 text-muted-foreground",
+						stock.kind === "out_of_stock" && "bg-destructive/90 text-destructive-foreground",
+						stock.kind === "low_stock" && "bg-amber-500/90 text-amber-950",
+						stock.kind === "in_stock" && "bg-primary/90 text-primary-foreground"
+					)}
+				>
+					{stockLabel}
+				</span>
+			</div>
+			<CardContent className="bg-zinc-950 text-zinc-50 dark:bg-zinc-900 flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+				<div className="min-w-0 space-y-1">
+					<h3 className="text-base leading-tight font-semibold text-zinc-50">{product.name}</h3>
+					<p className="text-zinc-400 text-sm">{product.brand}</p>
+					<p className="text-zinc-500 text-sm">Category: {product.category}</p>
 				</div>
+				{showRating ? <LandingRatingRow rating={product.rating!} /> : null}
 				{dosageDisplay && (
-					<p className="text-muted-foreground mt-2 text-sm">Dosage: {dosageDisplay}</p>
+					<p className="text-zinc-400 text-sm">Dosage: {dosageDisplay}</p>
 				)}
 				{product.description && (
-					<p className="text-muted-foreground mt-1.5 line-clamp-2 text-sm">{product.description}</p>
+					<p className="text-zinc-500 line-clamp-2 text-sm">{product.description}</p>
 				)}
 				{hasVariants && (
-					<div className="mt-3" onClick={onSelectClick}>
+					<div className="mt-1" onClick={onSelectClick}>
 						<label htmlFor={`variant-${product.id}`} className="sr-only">
 							Select size / variant
 						</label>
@@ -196,7 +295,7 @@ function ProductCard({
 							value={selectedVariantId ?? ""}
 							onChange={e => setSelectedVariantId(e.target.value || null)}
 							onClick={e => e.stopPropagation()}
-							className="border-input text-foreground focus:ring-ring w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							className="border-zinc-700 bg-zinc-900/80 text-zinc-50 focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
@@ -206,9 +305,19 @@ function ProductCard({
 						</select>
 					</div>
 				)}
-				<div className="border-border mt-4 flex items-center justify-between gap-2 border-t pt-3">
-					<span className="text-foreground text-lg font-semibold">₱{display.price.toFixed(2)}</span>
-					<span className="text-muted-foreground truncate text-sm">{storeName}</span>
+				<div className="border-zinc-800 mt-auto flex flex-col gap-2 border-t pt-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<span className="text-lg font-semibold tabular-nums text-zinc-50">
+							₱{display.price.toFixed(2)}
+						</span>
+						<span
+							className="bg-zinc-50 text-zinc-950 pointer-events-none inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium"
+							aria-hidden
+						>
+							View availability
+						</span>
+					</div>
+					<p className="text-zinc-500 truncate text-xs">{storeName}</p>
 				</div>
 			</CardContent>
 		</Card>
@@ -243,12 +352,9 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const [city, setCity] = useState("")
 	const [storeId, setStoreId] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
-	const [selectedProduct, setSelectedProduct] = useState<LandingProduct | null>(null)
-	const [branchModalVariantId, setBranchModalVariantId] = useState<string | null>(null)
-	const [branchModalOpen, setBranchModalOpen] = useState(false)
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 	const [page, setPage] = useState(1)
-	const pageSize = 9
+	const [pageSize, setPageSize] = useState<ProductListPageSize>(DEFAULT_PRODUCT_LIST_PAGE_SIZE)
 
 	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
@@ -315,11 +421,32 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const paged = useMemo(() => {
 		const start = (safePage - 1) * pageSize
 		return filtered.slice(start, start + pageSize)
-	}, [filtered, safePage])
+	}, [filtered, safePage, pageSize])
 
 	useEffect(() => {
 		setPage(1)
 	}, [query, category, brandKey, city, storeId, sort])
+
+	useEffect(() => {
+		setPage(1)
+	}, [pageSize])
+
+	useEffect(() => {
+		setPage(p => Math.min(p, totalPages))
+	}, [totalPages])
+
+	useEffect(() => {
+		setPageSize(getStoredProductListPageSize())
+		const onStorage = (e: StorageEvent) => {
+			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue == null) return
+			const n = Number.parseInt(e.newValue, 10)
+			if (Number.isFinite(n) && (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)) {
+				setPageSize(n as ProductListPageSize)
+			}
+		}
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
+	}, [])
 
 	useEffect(() => {
 		if (!brandKey) return
@@ -360,17 +487,39 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					className="w-full sm:max-w-md"
 					aria-label="Search products"
 				/>
-				<select
-					value={sort}
-					onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
-					className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-				>
-					{SORT_OPTIONS.map(o => (
-						<option key={o.value} value={o.value}>
-							{o.label}
-						</option>
-					))}
-				</select>
+				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+					<select
+						value={sort}
+						onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
+						className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+						aria-label="Sort products"
+					>
+						{SORT_OPTIONS.map(o => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</select>
+					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
+						<span>Per page</span>
+						<select
+							value={String(pageSize)}
+							onChange={e => {
+								const v = Number(e.target.value) as ProductListPageSize
+								setPageSize(v)
+								setStoredProductListPageSize(v)
+							}}
+							className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+							aria-label="Products per page"
+						>
+							{PAGE_SIZE_OPTIONS.map(n => (
+								<option key={n} value={n}>
+									{n}
+								</option>
+							))}
+						</select>
+					</label>
+				</div>
 			</div>
 
 			<div className="flex flex-wrap items-center gap-3 sm:gap-4">

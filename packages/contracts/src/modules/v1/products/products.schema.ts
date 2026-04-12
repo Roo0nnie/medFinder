@@ -36,6 +36,7 @@ export const medicalProductVariantCoreSchema = z.object({
 	dosageForm: z.string().nullable().optional(),
 	strength: z.string().nullable().optional(),
 	imageUrl: z.string().nullable().optional(),
+	imageUrls: z.array(z.string()).optional(),
 })
 
 export const CreateProductSchema = z.object({

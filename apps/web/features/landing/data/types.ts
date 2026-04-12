@@ -8,6 +8,8 @@ export interface LandingProductVariant {
 	strength?: string
 	dosageForm?: string
 	imageUrl?: string
+	/** Gallery URLs from API; when set, drives carousel. */
+	imageUrls?: string[]
 }
 
 export interface LandingProduct {
