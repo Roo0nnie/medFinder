@@ -41,15 +41,18 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 /** Multipart upload; do not set Content-Type (browser sets boundary). */
-export async function uploadProductImage(productId: string, file: File): Promise<Product> {
+export async function uploadVariantImage(productId: string, variantId: string, file: File): Promise<ProductVariant> {
 	const base = getBaseUrl().replace(/\/$/, "")
 	const fd = new FormData()
 	fd.append("file", file)
-	const res = await fetch(`${base}/v1/products/manage/${encodeURIComponent(productId)}/upload-image/`, {
-		method: "POST",
-		body: fd,
-		credentials: "include",
-	})
+	const res = await fetch(
+		`${base}/v1/products/manage/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/upload-image/`,
+		{
+			method: "POST",
+			body: fd,
+			credentials: "include",
+		}
+	)
 	if (!res.ok) {
 		const text = await res.text()
 		let message = text || res.statusText
@@ -61,14 +64,18 @@ export async function uploadProductImage(productId: string, file: File): Promise
 		}
 		throw new Error(message)
 	}
-	return res.json() as Promise<Product>
+	return res.json() as Promise<ProductVariant>
 }
 
 export type ProductVariant = {
 	id: string
 	productId: string
 	label: string
+	unit: string
 	sortOrder: number
+	strength?: string | null
+	dosageForm?: string | null
+	imageUrl?: string | null
 }
 
 export type PharmacyInventoryItem = {
@@ -96,13 +103,17 @@ export type Product = {
 	brandName?: string
 	genericName?: string
 	categoryId: string
-	unit: string
 	manufacturer?: string
 	requiresPrescription: boolean
 	description?: string
+	/** Create payload: first variant display label (separate from strength). */
+	variantLabel?: string
+	/** Present on create payload only; stored on the first variant server-side. */
 	dosageForm?: string
+	/** Present on create payload only; stored on the first variant server-side. */
 	strength?: string
-	imageUrl?: string
+	/** Present on create payload only; sell unit for the first variant. */
+	unit?: string
 	supplier?: string
 	lowStockThreshold?: number | null
 	quantity?: number
@@ -187,13 +198,17 @@ export type ProductDetailAvailabilityItem = {
 export type ProductDetailVariant = {
 	id: string
 	label: string
+	unit?: string | null
+	strength?: string | null
+	dosageForm?: string | null
+	imageUrl?: string | null
 	availability?: ProductDetailAvailabilityItem[]
 	price?: number | null
 	quantity?: number | null
 	lowStockThreshold?: number | null
 }
 
-export type ProductDetail = Product & {
+export type ProductDetail = Omit<Product, "variants"> & {
 	category?: string | null
 	availability?: ProductDetailAvailabilityItem[]
 	priceFrom?: number | null
@@ -206,6 +221,63 @@ export function useProductDetailQuery(productId: string | undefined) {
 		queryFn: () =>
 			apiFetch<ProductDetail>(`/v1/products/${encodeURIComponent(productId ?? "")}/`),
 		enabled: !!productId,
+	})
+}
+
+export type ProductBrandAvailableRow = {
+	brandId?: string | null
+	brandName: string
+	productId: string
+	pharmacyCount: number
+}
+
+export function useProductBrandsAvailableQuery(
+	productId: string | undefined,
+	options?: { variantId?: string | null }
+) {
+	const variantId = options?.variantId?.trim() || undefined
+	return useQuery({
+		queryKey: ["product-brands-available", productId, variantId ?? null],
+		queryFn: () => {
+			const sp = new URLSearchParams()
+			if (variantId) sp.set("variantId", variantId)
+			const q = sp.toString()
+			const basePath = `/v1/products/${encodeURIComponent(productId ?? "")}/brands-available/`
+			return apiFetch<ProductBrandAvailableRow[]>(q ? `${basePath}?${q}` : basePath)
+		},
+		enabled: !!productId,
+	})
+}
+
+export type ProductPharmacyForBrandRow = {
+	pharmacyId: string
+	pharmacyName: string
+	address: string
+	city: string
+	latitude?: number | null
+	longitude?: number | null
+	price: number | string
+	quantity: number
+	productId: string
+}
+
+export function useProductPharmaciesForBrandQuery(
+	productId: string | undefined,
+	params: { brandId?: string | null; brandName?: string | null } | undefined
+) {
+	const brandId = params?.brandId?.trim() || undefined
+	const brandName = params?.brandName?.trim() || undefined
+	return useQuery({
+		queryKey: ["product-pharmacies-for-brand", productId, brandId, brandName],
+		queryFn: () => {
+			const sp = new URLSearchParams()
+			if (brandId) sp.set("brandId", brandId)
+			else if (brandName) sp.set("brandName", brandName)
+			return apiFetch<ProductPharmacyForBrandRow[]>(
+				`/v1/products/${encodeURIComponent(productId ?? "")}/pharmacies-for-brand/?${sp.toString()}`
+			)
+		},
+		enabled: !!productId && (!!brandId || !!brandName),
 	})
 }
 
@@ -256,10 +328,26 @@ export function useProductVariantsQuery(productId: string | undefined) {
 export function useVariantCreateMutation() {
 	const qc = useQueryClient()
 	return useMutation({
-		mutationFn: ({ productId, label, sortOrder }: { productId: string; label: string; sortOrder?: number }) =>
+		mutationFn: ({
+			productId,
+			label,
+			unit,
+			sortOrder,
+			strength,
+			dosageForm,
+			imageUrl,
+		}: {
+			productId: string
+			label: string
+			unit?: string
+			sortOrder?: number
+			strength?: string
+			dosageForm?: string
+			imageUrl?: string
+		}) =>
 			apiFetch<ProductVariant>(`/v1/products/${encodeURIComponent(productId)}/variants/`, {
 				method: "POST",
-				body: JSON.stringify({ label, sortOrder: sortOrder ?? 0 }),
+				body: JSON.stringify({ label, unit, sortOrder, strength, dosageForm, imageUrl }),
 			}),
 		onSuccess: (_, { productId }) => {
 			qc.invalidateQueries({ queryKey: ["product-variants", productId] })
@@ -276,16 +364,24 @@ export function useVariantUpdateMutation() {
 			productId,
 			variantId,
 			label,
+			unit,
 			sortOrder,
+			strength,
+			dosageForm,
+			imageUrl,
 		}: {
 			productId: string
 			variantId: string
 			label?: string
+			unit?: string
 			sortOrder?: number
+			strength?: string
+			dosageForm?: string
+			imageUrl?: string
 		}) =>
 			apiFetch<ProductVariant>(`/v1/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/`, {
 				method: "PUT",
-				body: JSON.stringify({ label, sortOrder }),
+				body: JSON.stringify({ label, unit, sortOrder, strength, dosageForm, imageUrl }),
 			}),
 		onSuccess: (_, { productId }) => {
 			qc.invalidateQueries({ queryKey: ["product-variants", productId] })

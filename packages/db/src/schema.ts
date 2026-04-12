@@ -257,11 +257,7 @@ export const medicalProducts = createTable(
 			.text("category_id")
 			.notNull()
 			.references(() => productCategories.id, { onDelete: "restrict" }),
-		dosageForm: t.text("dosage_form"), // e.g., tablet, capsule, liquid
-		strength: t.text("strength"), // e.g., 500mg
-		unit: t.text("unit").notNull(), // e.g., tablet, ml, piece
 		requiresPrescription: t.boolean("requires_prescription").notNull().default(false),
-		imageUrl: t.text("image_url"),
 		supplier: t.text("supplier"),
 		lowStockThreshold: t.integer("low_stock_threshold"),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
@@ -285,7 +281,11 @@ export const medicalProductVariants = createTable(
 			.notNull()
 			.references(() => medicalProducts.id, { onDelete: "cascade" }),
 		label: t.text("label").notNull(),
+		unit: t.text("unit").notNull().default("piece"),
 		sortOrder: t.integer("sort_order").notNull().default(0),
+		strength: t.text("strength"),
+		dosageForm: t.text("dosage_form"),
+		imageUrl: t.text("image_url"),
 		createdAt: t.timestamp("created_at").notNull().defaultNow(),
 		updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
 	}),

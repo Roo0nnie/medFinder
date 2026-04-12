@@ -32,15 +32,17 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 	return (
 		<div className="bg-background flex h-screen overflow-hidden font-sans">
 			<Sidebar role={role} collapsed={isSidebarCollapsed} />
-			<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+			<div className="relative z-0 flex min-w-0 flex-1 flex-col overflow-hidden">
 				<DashboardShellHeader
 					rootLabel={rootLabel}
 					rootHref={rootHref}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleSidebar={() => setIsSidebarCollapsed(prev => !prev)}
 				/>
-				<main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
-					<div className="animate-in fade-in zoom-in-95 duration-500">{children}</div>
+				<main className="min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+					<div className="animate-in fade-in zoom-in-95 isolate overflow-hidden duration-500">
+						{children}
+					</div>
 				</main>
 			</div>
 		</div>

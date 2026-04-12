@@ -33,17 +33,7 @@ import {
 
 import type { Product, ProductCategory } from "../api/products.hooks"
 
-type ProductWithVariantStock = Product & {
-	variants?: Array<{
-		id: string
-		label: string
-		price?: number
-		quantity?: number
-		lowStockThreshold?: number | null
-	}>
-}
-
-function isLowStock(product: ProductWithVariantStock): boolean {
+function isLowStock(product: Product): boolean {
 	const threshold = product.lowStockThreshold ?? 5
 	if (product.variants && product.variants.length > 0) {
 		return product.variants.some(
@@ -56,16 +46,6 @@ function isLowStock(product: ProductWithVariantStock): boolean {
 	return typeof q === "number" && q <= threshold
 }
 
-export interface StaffProductTableProps {
-	products: ProductWithVariantStock[]
-	categories: ProductCategory[] | undefined
-	pharmacyMap: Map<string, string>
-	onView: (product: ProductWithVariantStock) => void
-	isLoading?: boolean
-	isError?: boolean
-	errorMessage?: string
-}
-
 export function StaffProductTable({
 	products,
 	categories,
@@ -74,7 +54,15 @@ export function StaffProductTable({
 	isLoading,
 	isError,
 	errorMessage,
-}: StaffProductTableProps) {
+}: {
+	products: Product[]
+	categories: ProductCategory[] | undefined
+	pharmacyMap: Map<string, string>
+	onView: (product: Product) => void
+	isLoading?: boolean
+	isError?: boolean
+	errorMessage?: string
+}) {
 	const [sorting, setSorting] = useState<SortingState>([])
 	const [searchInput, setSearchInput] = useState("")
 	const [globalFilter, setGlobalFilter] = useState("")
@@ -93,16 +81,16 @@ export function StaffProductTable({
 
 		// Stock filter
 		if (stockFilter === "low") {
-			list = list.filter(p => isLowStock(p as ProductWithVariantStock))
+			list = list.filter(p => isLowStock(p))
 		} else if (stockFilter === "high") {
-			list = list.filter(p => !isLowStock(p as ProductWithVariantStock))
+			list = list.filter(p => !isLowStock(p))
 		}
 
 		// Search (global filter) - applied in table via globalFilterFn
 		return list
 	}, [products, categoryFilter, stockFilter])
 
-	const columns = useMemo<ColumnDef<ProductWithVariantStock>[]>(
+	const columns = useMemo<ColumnDef<Product>[]>(
 		() => [
 			{
 				accessorKey: "name",
@@ -139,8 +127,10 @@ export function StaffProductTable({
 				},
 			},
 			{
-				accessorKey: "unit",
+				id: "unit",
 				header: "Unit",
+				accessorFn: row => row.variants?.[0]?.unit ?? "",
+				cell: ({ row }) => row.original.variants?.[0]?.unit ?? "—",
 			},
 			{
 				id: "variants",
@@ -152,9 +142,10 @@ export function StaffProductTable({
 				},
 			},
 			{
-				accessorKey: "strength",
+				id: "strength",
 				header: "Strength",
-				cell: ({ row }) => row.original.strength || "—",
+				accessorFn: row => row.variants?.[0]?.strength ?? "",
+				cell: ({ row }) => (row.original.variants?.[0]?.strength ?? "").trim() || "—",
 			},
 			{
 				accessorKey: "supplier",

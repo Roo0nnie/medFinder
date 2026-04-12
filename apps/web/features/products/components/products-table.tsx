@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Tag, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { Button } from "@/core/components/ui/button"
@@ -26,12 +26,28 @@ type ProductRow = Product & {
 export type ProductsTableProps = {
 	onEdit?: (product: Product) => void
 	onDelete?: (product: Product) => void
+	onAddBrand?: (product: Product) => void
 }
 
-export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
+export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTableProps) {
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: categories } = useProductCategoriesQuery()
 	const productsQuery = useProductsQuery()
+	const onEditRef = useRef(onEdit)
+	const onDeleteRef = useRef(onDelete)
+	const onAddBrandRef = useRef(onAddBrand)
+
+	useEffect(() => {
+		onEditRef.current = onEdit
+	}, [onEdit])
+
+	useEffect(() => {
+		onDeleteRef.current = onDelete
+	}, [onDelete])
+
+	useEffect(() => {
+		onAddBrandRef.current = onAddBrand
+	}, [onAddBrand])
 
 	const pharmacyMap = useMemo(() => new Map((pharmacies ?? []).map(p => [p.id, p.name])), [pharmacies])
 	const categoryMap = useMemo(() => new Map((categories ?? []).map(c => [c.id, c.name])), [categories])
@@ -73,11 +89,6 @@ export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
 				cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>,
 			},
 			{
-				accessorKey: "pharmacyName",
-				header: "Pharmacy",
-				cell: ({ row }) => <span className="text-muted-foreground">{row.original.pharmacyName ?? "—"}</span>,
-			},
-			{
 				id: "brandGeneric",
 				header: "Brand / Generic",
 				cell: ({ row }) => row.original.brandName || row.original.genericName || "—",
@@ -86,10 +97,7 @@ export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
 				accessorKey: "categoryName",
 				header: "Category",
 			},
-			{
-				accessorKey: "unit",
-				header: "Unit",
-			},
+		
 			{
 				id: "variants",
 				header: "Variants",
@@ -98,11 +106,7 @@ export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
 					return <span className="text-muted-foreground text-sm">{count > 0 ? `${count} variant${count !== 1 ? "s" : ""}` : "—"}</span>
 				},
 			},
-			{
-				accessorKey: "strength",
-				header: "Strength",
-				cell: ({ row }) => row.original.strength || "—",
-			},
+		
 			{
 				accessorKey: "supplier",
 				header: "Supplier",
@@ -127,16 +131,22 @@ export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									{onEdit ? (
-										<DropdownMenuItem onClick={() => onEdit(product)}>
+									{onEditRef.current ? (
+										<DropdownMenuItem onClick={() => onEditRef.current?.(product)}>
 											<Pencil className="mr-2 h-4 w-4" />
 											Edit
 										</DropdownMenuItem>
 									) : null}
-									{onDelete ? (
+									{onAddBrandRef.current ? (
+										<DropdownMenuItem onClick={() => onAddBrandRef.current?.(product)}>
+											<Tag className="mr-2 h-4 w-4" />
+											Add new brand
+										</DropdownMenuItem>
+									) : null}
+									{onDeleteRef.current ? (
 										<>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem onClick={() => onDelete(product)} className="text-destructive">
+											<DropdownMenuItem onClick={() => onDeleteRef.current?.(product)} className="text-destructive">
 												<Trash2 className="mr-2 h-4 w-4" />
 												Delete
 											</DropdownMenuItem>
@@ -149,7 +159,7 @@ export function ProductsTable({ onEdit, onDelete }: ProductsTableProps) {
 				},
 			},
 		],
-		[onEdit, onDelete]
+		[]
 	)
 
 	return (

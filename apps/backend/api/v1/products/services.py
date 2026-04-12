@@ -9,11 +9,13 @@ import os
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
-from django.db.models import QuerySet
+from collections import defaultdict
+from django.db.models import Max, Q, QuerySet
 from django.utils import timezone
 
 from api.v1.brands.models import Brand, OwnerBrand
 from api.v1.inventory.models import PharmacyInventory
+from api.v1.pharmacies.models import Pharmacy
 
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory, ProductSearch
 
@@ -120,15 +122,21 @@ def list_products(
             + SearchVector("brand_name", weight="B", config="english")
             + SearchVector("generic_name", weight="B", config="english")
             + SearchVector("manufacturer", weight="C", config="english")
-            + SearchVector("dosage_form", weight="C", config="english")
-            + SearchVector("strength", weight="C", config="english")
             + SearchVector("description", weight="D", config="english")
+        )
+
+        variant_text_filter = (
+            Q(medicalproductvariant__label__icontains=query)
+            | Q(medicalproductvariant__unit__icontains=query)
+            | Q(medicalproductvariant__strength__icontains=query)
+            | Q(medicalproductvariant__dosage_form__icontains=query)
         )
 
         if search_query is not None:
             qs = (
                 qs.annotate(rank=SearchRank(vector, search_query))
-                .filter(rank__gt=0)
+                .filter(Q(rank__gt=0) | variant_text_filter)
+                .distinct()
                 .order_by("-rank", "name")
             )
     else:
@@ -144,6 +152,172 @@ def list_products(
 
 def get_product_by_id(product_id: str) -> MedicalProduct:
     return MedicalProduct.objects.get(pk=product_id)
+
+
+def _product_group_queryset(product: MedicalProduct) -> QuerySet[MedicalProduct]:
+    """Products sharing the same medicine: generic_name (case-insensitive), or name when generic is empty."""
+    gn = (product.generic_name or "").strip()
+    if gn:
+        return MedicalProduct.objects.filter(generic_name__iexact=gn)
+    nm = (product.name or "").strip()
+    return MedicalProduct.objects.filter(name__iexact=nm)
+
+
+def list_brands_for_product_group(
+    product: MedicalProduct,
+    *,
+    pharmacy_ids: Optional[list[str]] = None,
+    variant_id: Optional[str] = None,
+) -> list[dict]:
+    """
+    Distinct brands in the same generic/name group with at least one in-stock, available
+    inventory row in an allowed pharmacy. pharmacy_ids=None means no pharmacy filter.
+    When variant_id is set, only inventory rows for that variant are considered.
+    """
+    group_qs = _product_group_queryset(product)
+    products = list(group_qs.only("id", "brand_id", "brand_name", "name"))
+    if not products:
+        return []
+
+    product_ids = [p.id for p in products]
+    inv_qs = PharmacyInventory.objects.filter(
+        product_id__in=product_ids,
+        is_available=True,
+        quantity__gt=0,
+    )
+    if pharmacy_ids is not None:
+        inv_qs = inv_qs.filter(pharmacy_id__in=pharmacy_ids)
+    vid = (variant_id or "").strip()
+    if vid:
+        inv_qs = inv_qs.filter(variant_id=vid)
+
+    inv_rows = list(inv_qs.values("product_id", "pharmacy_id"))
+    prod_by_id = {p.id: p for p in products}
+
+    pharmacies_by_brand: dict[tuple, set[str]] = defaultdict(set)
+    rep_product_by_brand: dict[tuple, str] = {}
+
+    for row in inv_rows:
+        pid = row["product_id"]
+        ph_id = row["pharmacy_id"]
+        p = prod_by_id.get(pid)
+        if not p:
+            continue
+        bid = (p.brand_id or "").strip() or None
+        bname = (p.brand_name or "").strip() or ""
+        if bid:
+            key = (bid, "")
+        else:
+            key = (None, (bname or (p.name or "").strip()).lower())
+        pharmacies_by_brand[key].add(ph_id)
+        rep_product_by_brand.setdefault(key, pid)
+
+    out: list[dict] = []
+    for key, ph_set in pharmacies_by_brand.items():
+        rep_pid = rep_product_by_brand[key]
+        rep = prod_by_id[rep_pid]
+        bid_key, _name_key = key
+        brand_id_out = bid_key if bid_key else None
+        brand_name_out = (rep.brand_name or "").strip() or rep.name
+        out.append(
+            {
+                "brandId": brand_id_out,
+                "brandName": brand_name_out,
+                "productId": rep_pid,
+                "pharmacyCount": len(ph_set),
+            }
+        )
+
+    out.sort(key=lambda x: (x["brandName"] or "").lower())
+    return out
+
+
+def list_pharmacies_for_product_brand(
+    seed_product: MedicalProduct,
+    *,
+    brand_id: Optional[str] = None,
+    brand_name: Optional[str] = None,
+    pharmacy_ids: Optional[list[str]] = None,
+) -> list[dict]:
+    """
+    Pharmacies carrying the given brand within the seed product's generic/name group.
+    One row per pharmacy: minimum price, summed quantity, representative product_id for that price.
+    """
+    bid = (brand_id or "").strip() or None
+    bn = (brand_name or "").strip() or None
+    if not bid and not bn:
+        return []
+
+    group_qs = _product_group_queryset(seed_product)
+    if bid:
+        group_qs = group_qs.filter(brand_id=bid)
+    else:
+        group_qs = group_qs.filter(brand_name__iexact=bn)
+
+    product_ids = list(group_qs.values_list("id", flat=True))
+    if not product_ids:
+        return []
+
+    inv_qs = PharmacyInventory.objects.filter(
+        product_id__in=product_ids,
+        is_available=True,
+        quantity__gt=0,
+    )
+    if pharmacy_ids is not None:
+        inv_qs = inv_qs.filter(pharmacy_id__in=pharmacy_ids)
+
+    inv_list = list(inv_qs)
+    if not inv_list:
+        return []
+
+    by_pharmacy: dict[str, dict] = {}
+    for inv in inv_list:
+        ph_id = inv.pharmacy_id
+        price = inv.price
+        cur = by_pharmacy.get(ph_id)
+        if cur is None:
+            by_pharmacy[ph_id] = {
+                "min_price": price,
+                "quantity_sum": inv.quantity,
+                "product_id": inv.product_id,
+            }
+        else:
+            cur["quantity_sum"] += inv.quantity
+            if price < cur["min_price"]:
+                cur["min_price"] = price
+                cur["product_id"] = inv.product_id
+
+    ph_ids = list(by_pharmacy.keys())
+    ph_qs = Pharmacy.objects.filter(
+        id__in=ph_ids,
+        is_active=True,
+        certificate_status="approved",
+    )
+    if pharmacy_ids is not None:
+        ph_qs = ph_qs.filter(id__in=pharmacy_ids)
+    pharmacies = {p.id: p for p in ph_qs}
+
+    rows: list[dict] = []
+    for ph_id, agg in by_pharmacy.items():
+        ph = pharmacies.get(ph_id)
+        if not ph:
+            continue
+        rows.append(
+            {
+                "pharmacyId": str(ph_id),
+                "pharmacyName": ph.name,
+                "address": ph.address or "",
+                "city": ph.city or "",
+                "latitude": ph.latitude,
+                "longitude": ph.longitude,
+                "price": agg["min_price"],
+                "quantity": agg["quantity_sum"],
+                "productId": str(agg["product_id"]),
+            }
+        )
+
+    rows.sort(key=lambda r: (r["pharmacyName"] or "").lower())
+    return rows
 
 
 def list_categories(*, owner_id: Optional[str] = None) -> Iterable[ProductCategory]:
@@ -214,15 +388,21 @@ def delete_category(category_id: str) -> dict:
     return {"success": True, "id": category_id}
 
 
-def _remove_old_media_file_if_ours(old_url: Optional[str], product_id: str) -> None:
+def _remove_old_media_file_if_ours(
+    old_url: Optional[str], product_id: str, *, variant_id: Optional[str] = None
+) -> None:
     if not old_url:
         return
     marker = "/media/"
     if marker not in old_url:
         return
     rel = old_url.split(marker, 1)[1].split("?", 1)[0].strip()
-    prefix = f"products/{product_id}/"
-    if not rel.startswith(prefix):
+    base = f"products/{product_id}/"
+    if variant_id:
+        allowed_prefix = f"{base}variants/{variant_id}/"
+    else:
+        allowed_prefix = base
+    if not rel.startswith(allowed_prefix):
         return
     abs_path = os.path.join(settings.MEDIA_ROOT, rel.replace("/", os.sep))
     if os.path.isfile(abs_path):
@@ -232,15 +412,15 @@ def _remove_old_media_file_if_ours(old_url: Optional[str], product_id: str) -> N
             pass
 
 
-def save_product_image_upload(
+def save_variant_image_upload(
     *,
     product_id: str,
+    variant_id: str,
     uploaded_file: UploadedFile,
     build_absolute_uri,
-) -> MedicalProduct:
+) -> MedicalProductVariant:
     """
-    Persist an image to MEDIA_ROOT, update product image_url, return updated product.
-    `build_absolute_uri` is typically request.build_absolute_uri bound to a path starting with /.
+    Persist an image to MEDIA_ROOT, update variant image_url, return updated variant.
     """
     content_type = (uploaded_file.content_type or "").split(";")[0].strip().lower()
     ext = ALLOWED_IMAGE_TYPES.get(content_type)
@@ -255,10 +435,15 @@ def save_product_image_upload(
     if size > MAX_PRODUCT_IMAGE_BYTES:
         raise ValueError("Image must be 5 MB or smaller.")
 
-    product = get_product_by_id(product_id)
-    _remove_old_media_file_if_ours(product.image_url or None, product_id)
+    variant = get_variant_by_id(variant_id)
+    if str(variant.product_id) != str(product_id):
+        raise ValueError("Variant does not belong to this product.")
 
-    rel_path = f"products/{product_id}/image{ext}"
+    _remove_old_media_file_if_ours(
+        variant.image_url or None, product_id, variant_id=variant_id
+    )
+
+    rel_path = f"products/{product_id}/variants/{variant_id}/image{ext}"
     abs_fs = os.path.join(settings.MEDIA_ROOT, rel_path.replace("/", os.sep))
     os.makedirs(os.path.dirname(abs_fs), exist_ok=True)
 
@@ -269,10 +454,10 @@ def save_product_image_upload(
     url_path = f"{settings.MEDIA_URL.rstrip('/')}/{rel_path}"
     absolute_url = build_absolute_uri(url_path)
 
-    product.image_url = absolute_url
-    product.updated_at = timezone.now()
-    product.save(update_fields=["image_url", "updated_at"])
-    return product
+    variant.image_url = absolute_url
+    variant.updated_at = timezone.now()
+    variant.save(update_fields=["image_url", "updated_at"])
+    return variant
 
 
 def log_product_search(*, search_query: str, customer_id: Optional[str], results_count: int):
@@ -290,17 +475,13 @@ def create_product(
     *,
     name: str,
     category_id: str,
-    unit: str,
     pharmacy_id: Optional[str] = None,
     generic_name: Optional[str] = None,
     brand_id: Optional[str] = None,
     brand_name: Optional[str] = None,
     description: Optional[str] = None,
     manufacturer: Optional[str] = None,
-    dosage_form: Optional[str] = None,
-    strength: Optional[str] = None,
     requires_prescription: Optional[bool] = False,
-    image_url: Optional[str] = None,
     supplier: Optional[str] = None,
     low_stock_threshold: Optional[int] = None,
 ) -> MedicalProduct:
@@ -315,11 +496,7 @@ def create_product(
         description=description or "",
         manufacturer=manufacturer or "",
         category_id=category_id,
-        dosage_form=dosage_form or "",
-        strength=strength or "",
-        unit=unit,
         requires_prescription=requires_prescription or False,
-        image_url=image_url or "",
         supplier=supplier or "",
         low_stock_threshold=low_stock_threshold,
         created_at=now,
@@ -337,11 +514,7 @@ def update_product(
     description: Optional[str] = None,
     manufacturer: Optional[str] = None,
     category_id: Optional[str] = None,
-    dosage_form: Optional[str] = None,
-    strength: Optional[str] = None,
-    unit: Optional[str] = None,
     requires_prescription: Optional[bool] = None,
-    image_url: Optional[str] = None,
     supplier: Optional[str] = None,
     low_stock_threshold: Optional[int] = None,
 ) -> MedicalProduct:
@@ -371,21 +544,9 @@ def update_product(
     if category_id is not None:
         product.category_id = category_id
         update_fields.append("category_id")
-    if dosage_form is not None:
-        product.dosage_form = dosage_form
-        update_fields.append("dosage_form")
-    if strength is not None:
-        product.strength = strength
-        update_fields.append("strength")
-    if unit is not None:
-        product.unit = unit
-        update_fields.append("unit")
     if requires_prescription is not None:
         product.requires_prescription = requires_prescription
         update_fields.append("requires_prescription")
-    if image_url is not None:
-        product.image_url = image_url
-        update_fields.append("image_url")
     if supplier is not None:
         product.supplier = supplier
         update_fields.append("supplier")
@@ -411,6 +572,12 @@ def list_variants_by_product(product_id: str):
     return list(MedicalProductVariant.objects.filter(product_id=product_id).order_by("sort_order", "label"))
 
 
+def next_variant_sort_order(product_id: str) -> int:
+    agg = MedicalProductVariant.objects.filter(product_id=product_id).aggregate(m=Max("sort_order"))
+    m = agg.get("m")
+    return (m if m is not None else -1) + 1
+
+
 def get_variant_by_id(variant_id: str) -> MedicalProductVariant:
     return MedicalProductVariant.objects.get(pk=variant_id)
 
@@ -420,13 +587,22 @@ def create_variant(
     product_id: str,
     label: str,
     sort_order: int = 0,
+    unit: Optional[str] = None,
+    strength: Optional[str] = None,
+    dosage_form: Optional[str] = None,
+    image_url: Optional[str] = None,
 ) -> MedicalProductVariant:
     now = timezone.now()
+    u = (unit or "piece").strip() or "piece"
     return MedicalProductVariant.objects.create(
         id=str(uuid.uuid4()),
         product_id=product_id,
         label=label.strip(),
+        unit=u,
         sort_order=sort_order,
+        strength=(strength or "").strip() or "",
+        dosage_form=(dosage_form or "").strip() or "",
+        image_url=(image_url or "").strip() or "",
         created_at=now,
         updated_at=now,
     )
@@ -436,16 +612,32 @@ def update_variant(
     variant_id: str,
     *,
     label: Optional[str] = None,
+    unit: Optional[str] = None,
     sort_order: Optional[int] = None,
+    strength: Optional[str] = None,
+    dosage_form: Optional[str] = None,
+    image_url: Optional[str] = None,
 ) -> MedicalProductVariant:
     variant = MedicalProductVariant.objects.get(pk=variant_id)
     update_fields: list[str] = []
     if label is not None:
         variant.label = label.strip()
         update_fields.append("label")
+    if unit is not None:
+        variant.unit = unit.strip() or "piece"
+        update_fields.append("unit")
     if sort_order is not None:
         variant.sort_order = sort_order
         update_fields.append("sort_order")
+    if strength is not None:
+        variant.strength = strength.strip()
+        update_fields.append("strength")
+    if dosage_form is not None:
+        variant.dosage_form = dosage_form.strip()
+        update_fields.append("dosage_form")
+    if image_url is not None:
+        variant.image_url = image_url.strip()
+        update_fields.append("image_url")
     variant.updated_at = timezone.now()
     update_fields.append("updated_at")
     variant.save(update_fields=update_fields)
@@ -454,5 +646,8 @@ def update_variant(
 
 def delete_variant(variant_id: str) -> dict:
     variant = MedicalProductVariant.objects.get(pk=variant_id)
+    product_id = variant.product_id
+    if MedicalProductVariant.objects.filter(product_id=product_id).count() <= 1:
+        raise ValueError("Cannot delete the last variant for a product.")
     variant.delete()
     return {"success": True, "id": variant_id}

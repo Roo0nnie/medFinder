@@ -26,6 +26,7 @@ import { Switch } from "@/core/components/ui/switch"
 import { useToast } from "@/core/components/ui/use-toast"
 import { DashboardLayout } from "@/features/dashboard/components/DashboardLayout"
 import { EditPharmacyStepperDialog } from "@/features/pharmacies/components/edit-pharmacy-stepper-dialog"
+import { OwnerPharmacyVerificationNoticeDialog } from "@/features/pharmacies/components/owner-pharmacy-verification-notice-dialog"
 import { formatPharmacyAddressLine } from "@/features/pharmacies/components/pharmacy-storefront-meta"
 import {
 	useMyPharmaciesQuery,
@@ -45,6 +46,7 @@ export default function OwnerPharmaciesPage() {
 	const [deleteOpen, setDeleteOpen] = useState(false)
 
 	const pharmacy = pharmacies?.length ? pharmacies[0]! : null
+	const isCertificateApproved = pharmacy?.certificateStatus === "approved"
 
 	const openCreate = () => {
 		setDialogMode("create")
@@ -358,6 +360,15 @@ export default function OwnerPharmaciesPage() {
 						</AlertDialogFooter>
 					</AlertDialogContent>
 				</AlertDialog>
+
+				{pharmacy && !isCertificateApproved && (
+					<OwnerPharmacyVerificationNoticeDialog
+						pharmacyId={pharmacy.id}
+						certificateStatus={pharmacy.certificateStatus}
+						continueLabel="Continue to my pharmacy"
+						dismissalScope="dashboard"
+					/>
+				)}
 			</div>
 		</DashboardLayout>
 	)

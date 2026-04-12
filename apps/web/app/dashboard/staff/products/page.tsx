@@ -5,6 +5,7 @@ import {
 	useProductCategoriesQuery,
 	useProductDetailQuery,
 	useProductsQuery,
+	type Product,
 } from "@/features/products/api/products.hooks"
 import { StaffProductTable } from "@/features/products/components/staff-product-table"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
@@ -25,7 +26,7 @@ export default function StaffProductsPage() {
 	const { data: productDetail, isLoading: detailLoading } =
 		useProductDetailQuery(selectedProductId ?? undefined)
 
-	const productList = products ?? []
+	const productList: Product[] = products ?? []
 	const pharmacyMap = new Map((pharmacies ?? []).map(p => [p.id, p.name]))
 
 	return (
@@ -83,17 +84,29 @@ export default function StaffProductsPage() {
 									<span className="text-muted-foreground font-medium">Generic name</span>
 									<p>{productDetail.genericName || "—"}</p>
 								</div>
-								<div>
-									<span className="text-muted-foreground font-medium">Strength</span>
-									<p>{productDetail.strength || "—"}</p>
-								</div>
-								<div>
-									<span className="text-muted-foreground font-medium">Dosage form</span>
-									<p>{productDetail.dosageForm || "—"}</p>
-								</div>
-								<div>
-									<span className="text-muted-foreground font-medium">Unit</span>
-									<p>{productDetail.unit}</p>
+								<div className="sm:col-span-2">
+									<span className="text-muted-foreground font-medium">Variants</span>
+									{(productDetail.variants ?? []).length === 0 ? (
+										<p>—</p>
+									) : (
+										<ul className="mt-1 list-inside list-disc space-y-1 text-sm">
+											{(productDetail.variants ?? []).map(v => (
+												<li key={v.id}>
+													<span className="font-medium">{v.label}</span>
+													{v.unit ? ` · ${v.unit}` : ""}
+													{v.strength ? ` · ${v.strength}` : ""}
+													{v.dosageForm ? ` · ${v.dosageForm}` : ""}
+													{v.price != null && (
+														<span className="text-muted-foreground">
+															{" "}
+															— ${Number(v.price).toFixed(2)}
+															{v.quantity != null && ` (qty: ${v.quantity})`}
+														</span>
+													)}
+												</li>
+											))}
+										</ul>
+									)}
 								</div>
 								<div>
 									<span className="text-muted-foreground font-medium">Manufacturer</span>
@@ -118,25 +131,6 @@ export default function StaffProductsPage() {
 								<div>
 									<span className="text-muted-foreground font-medium">Description</span>
 									<p className="mt-1">{productDetail.description}</p>
-								</div>
-							)}
-							{productDetail.variants && productDetail.variants.length > 0 && (
-								<div>
-									<span className="text-muted-foreground font-medium">Variants</span>
-									<ul className="mt-1 list-disc space-y-0.5 pl-4">
-										{productDetail.variants.map(v => (
-											<li key={v.id}>
-												{v.label}
-												{v.price != null && (
-													<span className="text-muted-foreground">
-														{" "}
-														— ${Number(v.price).toFixed(2)}
-														{v.quantity != null && ` (qty: ${v.quantity})`}
-													</span>
-												)}
-											</li>
-										))}
-									</ul>
 								</div>
 							)}
 							{productDetail.availability && productDetail.availability.length > 0 && (

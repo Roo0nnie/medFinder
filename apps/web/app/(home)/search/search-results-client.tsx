@@ -11,14 +11,16 @@ import { ProductLocationFlowModal } from "@/features/products/components/product
 import type { ApiProduct } from "./page"
 
 function apiProductToLanding(p: ApiProduct): LandingProduct {
+	const firstVar = p.variants?.[0]
 	return {
 		id: p.id,
 		name: p.name,
 		brand: (p.brandName ?? p.genericName ?? p.name) as string,
+		brandId: p.brandId ?? undefined,
 		brandName: p.brandName ?? undefined,
 		genericName: p.genericName ?? undefined,
-		strength: p.strength ?? undefined,
-		dosageForm: p.dosageForm ?? undefined,
+		strength: p.strength ?? firstVar?.strength ?? undefined,
+		dosageForm: p.dosageForm ?? firstVar?.dosageForm ?? undefined,
 		category: "",
 		description: p.description ?? "",
 		price: 0,

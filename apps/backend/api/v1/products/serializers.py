@@ -45,8 +45,6 @@ class MedicalProductSerializer(serializers.ModelSerializer):
     brandName = serializers.CharField(source="brand_name", allow_null=True)
     manufacturer = serializers.CharField(allow_null=True)
     categoryId = serializers.CharField(source="category_id")
-    dosageForm = serializers.CharField(source="dosage_form", allow_null=True)
-    imageUrl = serializers.CharField(source="image_url", allow_null=True)
     requiresPrescription = serializers.BooleanField(source="requires_prescription")
     lowStockThreshold = serializers.IntegerField(source="low_stock_threshold", allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
@@ -64,12 +62,8 @@ class MedicalProductSerializer(serializers.ModelSerializer):
             "description",
             "manufacturer",
             "categoryId",
-            "dosageForm",
-            "strength",
-            "unit",
             "requiresPrescription",
             "lowStockThreshold",
-            "imageUrl",
             "supplier",
             "createdAt",
             "updatedAt",
@@ -79,21 +73,50 @@ class MedicalProductSerializer(serializers.ModelSerializer):
 class MedicalProductVariantSerializer(serializers.ModelSerializer):
     productId = serializers.CharField(source="product_id", read_only=True)
     sortOrder = serializers.IntegerField(source="sort_order", required=False, default=0)
+    dosageForm = serializers.CharField(source="dosage_form", allow_null=True, required=False)
+    imageUrl = serializers.CharField(source="image_url", allow_null=True, required=False)
 
     class Meta:
         model = MedicalProductVariant
-        fields = ["id", "productId", "label", "sortOrder"]
+        fields = ["id", "productId", "label", "unit", "sortOrder", "strength", "dosageForm", "imageUrl"]
         read_only_fields = ["id", "productId"]
 
 
 class ProductVariantCreateSerializer(serializers.Serializer):
     label = serializers.CharField(max_length=255)
-    sortOrder = serializers.IntegerField(required=False, default=0)
+    unit = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    sortOrder = serializers.IntegerField(required=False, allow_null=True)
+    strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    imageUrl = serializers.CharField(required=False, allow_blank=True)
 
 
 class ProductVariantUpdateSerializer(serializers.Serializer):
     label = serializers.CharField(max_length=255, required=False)
+    unit = serializers.CharField(max_length=50, required=False, allow_blank=True)
     sortOrder = serializers.IntegerField(required=False)
+    strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    imageUrl = serializers.CharField(required=False, allow_blank=True)
+
+
+class ProductBrandAvailabilitySerializer(serializers.Serializer):
+    brandId = serializers.CharField(allow_null=True, required=False)
+    brandName = serializers.CharField()
+    productId = serializers.CharField()
+    pharmacyCount = serializers.IntegerField()
+
+
+class ProductPharmacyForBrandSerializer(serializers.Serializer):
+    pharmacyId = serializers.CharField()
+    pharmacyName = serializers.CharField()
+    address = serializers.CharField()
+    city = serializers.CharField()
+    latitude = serializers.FloatField(allow_null=True, required=False)
+    longitude = serializers.FloatField(allow_null=True, required=False)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    quantity = serializers.IntegerField()
+    productId = serializers.CharField()
 
 
 class ProductAvailabilityItemSerializer(serializers.Serializer):
@@ -120,6 +143,7 @@ class MedicalProductCreateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     categoryId = serializers.CharField(max_length=255)
+    variantLabel = serializers.CharField(max_length=255)
     dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
     strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
     unit = serializers.CharField(max_length=50)
@@ -147,11 +171,7 @@ class MedicalProductUpdateSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     categoryId = serializers.CharField(max_length=255, required=False)
-    dosageForm = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    strength = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    unit = serializers.CharField(max_length=50, required=False)
     requiresPrescription = serializers.BooleanField(required=False)
-    imageUrl = serializers.CharField(required=False, allow_blank=True)
     supplier = serializers.CharField(max_length=255, required=False, allow_blank=True)
     lowStockThreshold = serializers.IntegerField(required=False, allow_null=True)
     # Pharmacy inventory fields (update or create pharmacy_inventory row)

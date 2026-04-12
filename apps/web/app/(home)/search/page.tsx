@@ -21,6 +21,7 @@ type SearchPageProps = {
 export type ApiProduct = {
 	id: string
 	name: string
+	brandId?: string | null
 	brandName?: string | null
 	genericName?: string | null
 	description?: string | null
@@ -28,7 +29,14 @@ export type ApiProduct = {
 	strength?: string | null
 	unit?: string | null
 	categoryId: string
-	variants?: { id: string; label: string; price?: number; quantity?: number }[] | null
+	variants?: {
+		id: string
+		label: string
+		price?: number
+		quantity?: number
+		strength?: string | null
+		dosageForm?: string | null
+	}[] | null
 }
 
 function toInt(value: string | undefined, fallback: number) {

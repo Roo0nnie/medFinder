@@ -4,7 +4,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"seed": "tsx seed.ts"
+		"seed": "tsx seed.ts",
+		"backfill-default-variants": "tsx backfill-default-variants.ts"
 	},
 	"dependencies": {
 		"@repo/auth": "workspace:*",

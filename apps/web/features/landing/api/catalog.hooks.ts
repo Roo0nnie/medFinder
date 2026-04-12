@@ -61,16 +61,30 @@ export function mapApiProductToLandingProduct(
 		: ((product.pharmacyId ?? product.pharmacy_id) as string) ?? ""
 
 	const variantsRaw = product.variants as
-		| { id: string; label: string; price: number; quantity: number; lowStockThreshold: number }[]
+		| {
+				id: string
+				label: string
+				unit?: string
+				price: number
+				quantity: number
+				lowStockThreshold: number
+				strength?: string
+				dosageForm?: string
+				imageUrl?: string
+		  }[]
 		| undefined
 	const variants =
 		Array.isArray(variantsRaw) && variantsRaw.length > 0
 			? variantsRaw.map(v => ({
 					id: v.id,
 					label: v.label,
+					unit: typeof v.unit === "string" && v.unit.trim() ? v.unit.trim() : undefined,
 					price: Number(v.price) ?? 0,
 					quantity: Number(v.quantity) ?? 0,
 					lowStockThreshold: Number(v.lowStockThreshold) ?? 5,
+					strength: typeof v.strength === "string" ? v.strength : undefined,
+					dosageForm: typeof v.dosageForm === "string" ? v.dosageForm : undefined,
+					imageUrl: typeof v.imageUrl === "string" ? v.imageUrl : undefined,
 				}))
 			: undefined
 
@@ -82,13 +96,14 @@ export function mapApiProductToLandingProduct(
 		typeof product.genericName === "string" && product.genericName.trim()
 			? product.genericName.trim()
 			: undefined
+	const firstVar = variants?.[0]
 	const strengthRaw =
-		typeof product.strength === "string" && product.strength.trim()
-			? product.strength.trim()
+		typeof firstVar?.strength === "string" && firstVar.strength.trim()
+			? firstVar.strength.trim()
 			: undefined
 	const dosageFormRaw =
-		typeof product.dosageForm === "string" && product.dosageForm.trim()
-			? product.dosageForm.trim()
+		typeof firstVar?.dosageForm === "string" && firstVar.dosageForm.trim()
+			? firstVar.dosageForm.trim()
 			: undefined
 
 	const categoryId = product.categoryId as string | undefined
@@ -106,15 +121,21 @@ export function mapApiProductToLandingProduct(
 		strength: strengthRaw,
 		dosageForm: dosageFormRaw,
 		category: (categoryId && categoryMap.get(categoryId)) ?? "Uncategorized",
-		dosage: (product.dosageForm as string | undefined) ?? (product.strength as string | undefined) ?? undefined,
+		dosage: dosageFormRaw ?? strengthRaw ?? undefined,
 		description: (product.description as string) ?? "",
 		price: Number.isFinite(priceNumber) ? priceNumber : 0,
 		quantity: totalQuantity,
 		supplier: (product.manufacturer as string) ?? "Unknown",
 		storeId,
 		lowStockThreshold: (product.lowStockThreshold as number) ?? 5,
-		unit: (product.unit as string) ?? "piece",
-		imageUrl: product.imageUrl as string | undefined,
+		unit:
+			typeof firstVar?.unit === "string" && firstVar.unit.trim()
+				? firstVar.unit.trim()
+				: "piece",
+		imageUrl:
+			(typeof firstVar?.imageUrl === "string" && firstVar.imageUrl.trim()
+				? firstVar.imageUrl.trim()
+				: undefined) ?? (product.imageUrl as string | undefined),
 		manufacturer: product.manufacturer as string | undefined,
 		availableAtStoreIds: availableAtStoreIds.length ? availableAtStoreIds : undefined,
 		isAvailable: anyInventoryAvailable,

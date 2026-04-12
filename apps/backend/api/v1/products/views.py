@@ -1,6 +1,7 @@
 """
 Product API views.
 """
+from django.core.cache import cache
 from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -15,14 +16,31 @@ from api.v1.users.permissions import IsOwner
 
 from . import services
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory
+
+_APPROVED_PHARMACY_IDS_CACHE_KEY = "v1:approved_active_pharmacy_ids"
+_APPROVED_PHARMACY_IDS_CACHE_TTL = 60
+
+
+def _get_cached_approved_pharmacy_ids():
+    """Approved, active pharmacy ids for public scopes; short TTL to limit query load."""
+    cached = cache.get(_APPROVED_PHARMACY_IDS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    ids = list(
+        Pharmacy.objects.filter(is_active=True, certificate_status="approved").values_list("id", flat=True)
+    )
+    cache.set(_APPROVED_PHARMACY_IDS_CACHE_KEY, ids, _APPROVED_PHARMACY_IDS_CACHE_TTL)
+    return ids
 from .serializers import (
     MedicalProductCreateSerializer,
     MedicalProductSerializer,
     MedicalProductUpdateSerializer,
     MedicalProductVariantSerializer,
+    ProductBrandAvailabilitySerializer,
     ProductCategoryCreateSerializer,
     ProductCategorySerializer,
     ProductCategoryUpdateSerializer,
+    ProductPharmacyForBrandSerializer,
     ProductVariantCreateSerializer,
     ProductVariantUpdateSerializer,
 )
@@ -32,6 +50,31 @@ def _is_public_request(request) -> bool:
     if not request.user or not request.user.is_authenticated:
         return True
     return getattr(request.user, "role", None) not in ("admin", "owner", "staff")
+
+
+def _pharmacy_ids_scope_for_request(request):
+    """
+    Inventory/pharmacy visibility for product-finder endpoints.
+    None = no extra filter (admin). Empty list = no access.
+    """
+    if _is_public_request(request):
+        return _get_cached_approved_pharmacy_ids()
+    user_role = getattr(request.user, "role", None)
+    if user_role == "admin" and request.user.is_authenticated:
+        return None
+    if user_role == "owner" and request.user.is_authenticated:
+        return list(_pharmacy_ids_for_user(request.user))
+    if user_role == "staff" and request.user.is_authenticated:
+        try:
+            staff_profile = Staff.objects.get(user_id=str(request.user.id))
+            return list(
+                Pharmacy.objects.filter(owner_id=staff_profile.owner_id).values_list("id", flat=True)
+            )
+        except Staff.DoesNotExist:
+            return []
+    return list(
+        Pharmacy.objects.filter(is_active=True, certificate_status="approved").values_list("id", flat=True)
+    )
 
 
 class ProductListView(APIView):
@@ -90,9 +133,7 @@ class ProductListView(APIView):
             search_type=search_type,
         )
         if _is_public_request(request):
-            approved_pharmacy_ids = Pharmacy.objects.filter(
-                is_active=True, certificate_status="approved"
-            ).values_list("id", flat=True)
+            approved_pharmacy_ids = _get_cached_approved_pharmacy_ids()
             products = products.filter(pharmacy_id__in=approved_pharmacy_ids)
 
         # Owner: only show products for their pharmacies. Staff: show all products of their owner's pharmacies.
@@ -149,17 +190,75 @@ class ProductListView(APIView):
                 vars_out = []
                 for v in variants_by_product.get(pid, []):
                     pv = inv_by_pv.get((pid, v.id), inv_by_pv.get((pid, "")))
-                    if pv:
-                        vars_out.append({
-                            "id": v.id,
-                            "label": v.label,
-                            "price": float(pv["price"]),
-                            "quantity": pv["quantity"],
-                            "lowStockThreshold": low,
-                        })
+                    vars_out.append({
+                        "id": v.id,
+                        "label": v.label,
+                        "unit": getattr(v, "unit", None) or "piece",
+                        "price": float(pv["price"]) if pv else 0.0,
+                        "quantity": pv["quantity"] if pv else 0,
+                        "lowStockThreshold": low,
+                        "strength": getattr(v, "strength", None) or "",
+                        "dosageForm": getattr(v, "dosage_form", None) or "",
+                        "imageUrl": getattr(v, "image_url", None) or "",
+                    })
                 item["variants"] = vars_out if vars_out else None
 
         return Response(data)
+
+
+class ProductBrandsAcrossPharmaciesView(APIView):
+    """
+    GET distinct brands for the same generic/name group as the given product, with pharmacy counts.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        try:
+            product = services.get_product_by_id(pk)
+        except MedicalProduct.DoesNotExist:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        scope = _pharmacy_ids_scope_for_request(request)
+        variant_id = request.query_params.get("variantId") or request.query_params.get("variant_id")
+        rows = services.list_brands_for_product_group(
+            product, pharmacy_ids=scope, variant_id=variant_id
+        )
+        serializer = ProductBrandAvailabilitySerializer(rows, many=True)
+        return Response(serializer.data)
+
+
+class ProductPharmaciesForBrandView(APIView):
+    """
+    GET pharmacies that stock a brand within the same generic/name group as the seed product.
+    Query: brandId and/or brandName (brandId preferred when present).
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        brand_id = request.query_params.get("brandId") or request.query_params.get("brand_id")
+        brand_name = request.query_params.get("brandName") or request.query_params.get("brand_name")
+        if not (brand_id or "").strip() and not (brand_name or "").strip():
+            return Response(
+                {"detail": "brandId or brandName is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            product = services.get_product_by_id(pk)
+        except MedicalProduct.DoesNotExist:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        scope = _pharmacy_ids_scope_for_request(request)
+        rows = services.list_pharmacies_for_product_brand(
+            product,
+            brand_id=brand_id,
+            brand_name=brand_name,
+            pharmacy_ids=scope,
+        )
+        serializer = ProductPharmacyForBrandSerializer(rows, many=True)
+        return Response(serializer.data)
 
 
 class ProductDetailView(APIView):
@@ -270,6 +369,10 @@ class ProductDetailView(APIView):
             variants_out.append({
                 "id": v.id,
                 "label": v.label,
+                "unit": getattr(v, "unit", None) or "piece",
+                "strength": getattr(v, "strength", None) or "",
+                "dosageForm": getattr(v, "dosage_form", None) or "",
+                "imageUrl": getattr(v, "image_url", None) or "",
                 "availability": v_availability,
                 "price": price_qty["price"] if price_qty else None,
                 "quantity": price_qty["quantity"] if price_qty else None,
@@ -320,10 +423,20 @@ class ProductVariantsListView(APIView):
         in_serializer = ProductVariantCreateSerializer(data=request.data)
         in_serializer.is_valid(raise_exception=True)
         data = in_serializer.validated_data
+        raw = request.data
+        if "sortOrder" in raw and raw["sortOrder"] is not None and raw["sortOrder"] != "":
+            sort_order = data["sortOrder"]
+        else:
+            sort_order = services.next_variant_sort_order(pk)
+        u_raw = (data.get("unit") or "").strip()
         variant = services.create_variant(
             product_id=pk,
             label=data["label"],
-            sort_order=data.get("sortOrder", 0),
+            sort_order=sort_order,
+            unit=u_raw or "piece",
+            strength=data.get("strength"),
+            dosage_form=data.get("dosageForm"),
+            image_url=data.get("imageUrl"),
         )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -381,7 +494,11 @@ class ProductVariantDetailView(APIView):
         variant = services.update_variant(
             variant_pk,
             label=data.get("label"),
+            unit=data.get("unit"),
             sort_order=data.get("sortOrder"),
+            strength=data.get("strength"),
+            dosage_form=data.get("dosageForm"),
+            image_url=data.get("imageUrl"),
         )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data)
@@ -409,7 +526,10 @@ class ProductVariantDetailView(APIView):
                 {"detail": "You do not have permission to delete this variant."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        result = services.delete_variant(variant_pk)
+        try:
+            result = services.delete_variant(variant_pk)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(result)
 
 
@@ -579,24 +699,33 @@ class ProductManageView(APIView):
             product = services.create_product(
                 name=data["name"],
                 category_id=data["categoryId"],
-                unit=data["unit"],
                 pharmacy_id=pharmacy_id,
                 generic_name=data.get("genericName"),
                 brand_id=resolved_brand_id,
                 brand_name=resolved_brand_name,
                 description=data.get("description"),
                 manufacturer=data.get("manufacturer"),
-                dosage_form=data.get("dosageForm"),
-                strength=data.get("strength"),
                 requires_prescription=data.get("requiresPrescription"),
-                image_url=data.get("imageUrl"),
                 supplier=data.get("supplier"),
                 low_stock_threshold=data.get("lowStockThreshold"),
+            )
+            # First sellable option is always a real variant (same model as additional variants).
+            first_variant_label = (data.get("variantLabel") or "").strip()
+            first_variant_unit = (data.get("unit") or "").strip() or "piece"
+            first_variant = services.create_variant(
+                product_id=product.id,
+                label=first_variant_label,
+                sort_order=0,
+                unit=first_variant_unit,
+                strength=data.get("strength"),
+                dosage_form=data.get("dosageForm"),
+                image_url=data.get("imageUrl"),
             )
             # Create pharmacy_inventory row so owner can manage stock/price without staff
             inventory_services.create_inventory(
                 pharmacy_id=pharmacy_id,
                 product_id=product.id,
+                variant_id=first_variant.id,
                 quantity=data.get("quantity", 0),
                 price=data.get("price", 0),
                 discount_price=data.get("discountPrice"),
@@ -609,14 +738,17 @@ class ProductManageView(APIView):
             # Most likely an invalid or non-existent categoryId or missing required field.
             return Response(
                 {
-                    "detail": "Unable to create product. Check that categoryId refers to an existing category and that all required fields (name, categoryId, unit) are valid.",
+                    "detail": "Unable to create product. Check that categoryId refers to an existing category and that all required fields (name, categoryId, variantLabel, unit) are valid.",
                     "error": str(exc),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         out_serializer = MedicalProductSerializer(product)
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+        out_data = dict(out_serializer.data)
+        variants = services.list_variants_by_product(product.id)
+        out_data["variants"] = MedicalProductVariantSerializer(variants, many=True).data
+        return Response(out_data, status=status.HTTP_201_CREATED)
 
 
 class ProductManageDetailView(APIView):
@@ -683,11 +815,7 @@ class ProductManageDetailView(APIView):
                 description=data.get("description"),
                 manufacturer=data.get("manufacturer"),
                 category_id=data.get("categoryId"),
-                dosage_form=data.get("dosageForm"),
-                strength=data.get("strength"),
-                unit=data.get("unit"),
                 requires_prescription=data.get("requiresPrescription"),
-                image_url=data.get("imageUrl"),
                 supplier=data.get("supplier"),
                 low_stock_threshold=data.get("lowStockThreshold"),
             )
@@ -757,15 +885,15 @@ class ProductManageDetailView(APIView):
         return Response({"success": True, "id": pk})
 
 
-class ProductManageImageUploadView(APIView):
+class ProductManageVariantImageUploadView(APIView):
     """
     POST multipart/form-data with field `file`.
-    Owner only; product must belong to one of the owner's pharmacies.
+    Owner only; updates image_url on the given variant.
     """
 
     permission_classes = [IsOwner]
 
-    def post(self, request, pk):
+    def post(self, request, pk, variant_pk):
         try:
             product = services.get_product_by_id(pk)
         except MedicalProduct.DoesNotExist:
@@ -778,20 +906,31 @@ class ProductManageImageUploadView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        try:
+            variant = services.get_variant_by_id(variant_pk)
+        except MedicalProductVariant.DoesNotExist:
+            return Response({"detail": "Variant not found"}, status=status.HTTP_404_NOT_FOUND)
+        if str(variant.product_id) != str(pk):
+            return Response(
+                {"detail": "Variant not found for this product."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         upload = request.FILES.get("file")
         if not upload:
             return Response({"detail": "Missing file field."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            product = services.save_product_image_upload(
+            variant = services.save_variant_image_upload(
                 product_id=pk,
+                variant_id=variant_pk,
                 uploaded_file=upload,
                 build_absolute_uri=lambda path: request.build_absolute_uri(path),
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        out_serializer = MedicalProductSerializer(product)
+        out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data, status=status.HTTP_200_OK)
 
 

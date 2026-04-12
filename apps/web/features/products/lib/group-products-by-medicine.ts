@@ -7,7 +7,7 @@ function norm(s: string | undefined): string {
 export function medicineGroupKey(p: LandingProduct): string {
 	const g = norm(p.genericName)
 	if (g) {
-		return `g:${g}|${norm(p.strength)}|${norm(p.dosageForm)}`
+		return `g:${g}`
 	}
 	return `n:${norm(p.name)}`
 }

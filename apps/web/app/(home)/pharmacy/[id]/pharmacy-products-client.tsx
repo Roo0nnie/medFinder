@@ -67,18 +67,29 @@ function ProductCard({
 	storeName,
 	onSelectClick,
 	highlighted,
+	initialVariantId,
 }: {
 	product: LandingProduct
 	storeName: string
 	onSelectClick?: (e: React.MouseEvent) => void
 	highlighted?: boolean
+	/** When set and valid for this product, pre-select this variant (e.g. deep link). */
+	initialVariantId?: string
 }) {
 	const hasVariants = product.variants && product.variants.length > 0
-	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
-		hasVariants ? product.variants![0]!.id : null
-	)
+	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(() => {
+		const variants = product.variants
+		if (!variants?.length) return null
+		if (initialVariantId && variants.some(v => v.id === initialVariantId)) return initialVariantId
+		return variants[0]!.id
+	})
 
-	const unit = product.unit ?? "piece"
+	const selectedVariant =
+		hasVariants && selectedVariantId
+			? product.variants!.find(x => x.id === selectedVariantId)
+			: null
+	const unit =
+		(selectedVariant?.unit ?? product.unit ?? "piece").trim() || "piece"
 	const display =
 		hasVariants && selectedVariantId
 			? (() => {
@@ -201,12 +212,14 @@ export function PharmacyProductsClient({
 	pharmacyId,
 	initialProductId,
 	initialBrandName,
+	initialVariantId,
 }: {
 	products: LandingProduct[]
 	pharmacyName: string
 	pharmacyId: string
 	initialProductId?: string
 	initialBrandName?: string
+	initialVariantId?: string
 }) {
 	const [query, setQuery] = useState("")
 	const [category, setCategory] = useState("")
@@ -216,7 +229,6 @@ export function PharmacyProductsClient({
 	const [selectedVariantId, setSelectedVariantId] = useState<string>("")
 	const [deepLinkOnly, setDeepLinkOnly] = useState(() => Boolean(initialProductId))
 	const highlightedRef = useRef<HTMLDivElement>(null)
-	const autoOpenedModal = useRef(false)
 
 	const categories = useMemo(
 		() => Array.from(new Set(products.map(p => p.category))).sort(),
@@ -260,12 +272,6 @@ export function PharmacyProductsClient({
 		}, 300)
 		return () => window.clearTimeout(t)
 	}, [initialProductId])
-
-	useEffect(() => {
-		if (!initialProductId || autoOpenedModal.current) return
-		autoOpenedModal.current = true
-		void openProductModal(initialProductId)
-	}, [initialProductId, openProductModal])
 
 	const currentAvailability = useMemo(() => {
 		if (!activeProduct) return null
@@ -392,6 +398,9 @@ export function PharmacyProductsClient({
 								storeName={pharmacyName}
 								onSelectClick={e => e.stopPropagation()}
 								highlighted={initialProductId === product.id}
+								initialVariantId={
+									initialProductId === product.id ? initialVariantId : undefined
+								}
 							/>
 						</div>
 					))}

@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { Button } from "@/core/components/ui/button"
@@ -27,6 +27,7 @@ import {
 	useBrandCreateMutation,
 	useBrandMineUpdateMutation,
 	useBrandUnlinkMutation,
+	useBrandsSearchQuery,
 	useMyBrandsQuery,
 	type Brand,
 } from "@/features/brands/api/brands.hooks"
@@ -43,11 +44,57 @@ export function OwnerBrandsSection() {
 	const [editing, setEditing] = useState<Brand | null>(null)
 	const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
 	const [name, setName] = useState("")
+	const [debouncedName, setDebouncedName] = useState("")
+	const [brandNameInputFocused, setBrandNameInputFocused] = useState(false)
+	const [suggestionPage, setSuggestionPage] = useState(0)
+	const brandCreateFieldRef = useRef<HTMLDivElement>(null)
+
+	const SUGGESTIONS_PAGE_SIZE = 5
 
 	const rows = useMemo(() => mineQuery.data ?? [], [mineQuery.data])
 
+	useEffect(() => {
+		if (!isCreateOpen) return
+		const t = setTimeout(() => setDebouncedName(name), 280)
+		return () => clearTimeout(t)
+	}, [name, isCreateOpen])
+
+	const brandSearch = useBrandsSearchQuery(
+		debouncedName,
+		100,
+		isCreateOpen && debouncedName.trim().length > 0
+	)
+
+	const brandSuggestions = useMemo(() => {
+		const hit = brandSearch.data ?? []
+		const linked = new Set(rows.map(r => r.id))
+		return hit.filter(b => !linked.has(b.id))
+	}, [brandSearch.data, rows])
+
+	const suggestionPageCount = Math.max(1, Math.ceil(brandSuggestions.length / SUGGESTIONS_PAGE_SIZE))
+	const suggestionPageSafe = Math.min(suggestionPage, suggestionPageCount - 1)
+	const pagedBrandSuggestions = useMemo(
+		() =>
+			brandSuggestions.slice(
+				suggestionPageSafe * SUGGESTIONS_PAGE_SIZE,
+				suggestionPageSafe * SUGGESTIONS_PAGE_SIZE + SUGGESTIONS_PAGE_SIZE
+			),
+		[brandSuggestions, suggestionPageSafe]
+	)
+
+	useEffect(() => {
+		setSuggestionPage(0)
+	}, [debouncedName])
+
+	useEffect(() => {
+		setSuggestionPage(p => Math.min(p, Math.max(0, suggestionPageCount - 1)))
+	}, [suggestionPageCount])
+
 	const openCreate = () => {
 		setName("")
+		setDebouncedName("")
+		setSuggestionPage(0)
+		setBrandNameInputFocused(false)
 		setIsCreateOpen(true)
 	}
 
@@ -183,12 +230,102 @@ export function OwnerBrandsSection() {
 					</DialogHeader>
 					<div className="space-y-2">
 						<Label htmlFor="brand-create-name">Name</Label>
-						<Input
-							id="brand-create-name"
-							value={name}
-							onChange={e => setName(e.target.value)}
-							placeholder="e.g. Generic Pharma"
-						/>
+						<div className="relative" ref={brandCreateFieldRef}>
+							<Input
+								id="brand-create-name"
+								value={name}
+								onChange={e => setName(e.target.value)}
+								onFocus={() => setBrandNameInputFocused(true)}
+								onBlur={e => {
+									const next = e.relatedTarget as Node | null
+									if (next && brandCreateFieldRef.current?.contains(next)) return
+									setBrandNameInputFocused(false)
+								}}
+								placeholder="e.g. Generic Pharma"
+								autoComplete="off"
+								aria-autocomplete="list"
+								aria-controls="brand-create-suggestions"
+								aria-expanded={
+									isCreateOpen && brandNameInputFocused && debouncedName.trim().length > 0
+								}
+							/>
+							{isCreateOpen &&
+								brandNameInputFocused &&
+								debouncedName.trim().length > 0 && (
+									<div
+										id="brand-create-suggestions"
+										role="listbox"
+										className="bg-popover text-popover-foreground border-border absolute z-50 mt-1 w-full rounded-md border py-1 shadow-md"
+									>
+										{brandSearch.isFetching && (
+											<p className="text-muted-foreground px-3 py-2 text-sm">Searching catalog…</p>
+										)}
+										{!brandSearch.isFetching && brandSuggestions.length === 0 && (
+											<p className="text-muted-foreground px-3 py-2 text-sm">
+												{(brandSearch.data ?? []).length > 0
+													? "Matching brands are already linked to your account."
+													: "No matching brands in the catalog."}
+											</p>
+										)}
+										{!brandSearch.isFetching && brandSuggestions.length > 0 && (
+											<>
+												<ul className="max-h-50 overflow-auto py-0.5">
+													{pagedBrandSuggestions.map(b => (
+														<li key={b.id} role="option">
+															<button
+																type="button"
+																className="hover:bg-accent focus:bg-accent w-full px-3 py-2 text-left text-sm outline-none"
+																onMouseDown={e => e.preventDefault()}
+																onClick={() => {
+																	setName(b.name)
+																	setSuggestionPage(0)
+																}}
+															>
+																{b.name}
+															</button>
+														</li>
+													))}
+												</ul>
+												{suggestionPageCount > 1 && (
+													<div className="border-border flex items-center justify-between gap-2 border-t px-2 py-1.5">
+														<Button
+															type="button"
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 shrink-0"
+															disabled={suggestionPageSafe <= 0}
+															aria-label="Previous suggestions"
+															onMouseDown={e => e.preventDefault()}
+															onClick={() => setSuggestionPage(p => Math.max(0, p - 1))}
+														>
+															<ChevronLeft className="h-4 w-4" />
+														</Button>
+														<span className="text-muted-foreground text-xs tabular-nums">
+															{suggestionPageSafe + 1} / {suggestionPageCount}
+														</span>
+														<Button
+															type="button"
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 shrink-0"
+															disabled={suggestionPageSafe >= suggestionPageCount - 1}
+															aria-label="Next suggestions"
+															onMouseDown={e => e.preventDefault()}
+															onClick={() =>
+																setSuggestionPage(p =>
+																	Math.min(suggestionPageCount - 1, p + 1)
+																)
+															}
+														>
+															<ChevronRight className="h-4 w-4" />
+														</Button>
+													</div>
+												)}
+											</>
+										)}
+									</div>
+								)}
+						</div>
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setIsCreateOpen(false)}>

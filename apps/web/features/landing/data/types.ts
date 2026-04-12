@@ -1,9 +1,13 @@
 export interface LandingProductVariant {
 	id: string
 	label: string
+	unit?: string
 	price: number
 	quantity: number
 	lowStockThreshold: number
+	strength?: string
+	dosageForm?: string
+	imageUrl?: string
 }
 
 export interface LandingProduct {

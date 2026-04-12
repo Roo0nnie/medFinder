@@ -3,6 +3,8 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
 import { Card, CardContent } from "@/core/components/ui/card"
+import { getCookieHeader } from "@/core/lib/cookie-utils"
+import { OwnerPharmacyVerificationNoticeDialog } from "@/features/pharmacies/components/owner-pharmacy-verification-notice-dialog"
 import { getSession } from "@/services/better-auth/auth-server"
 import { landingPharmacies } from "@/features/landing/data/pharmacies"
 import { landingProducts } from "@/features/landing/data/products"
@@ -22,7 +24,7 @@ export default async function PharmacyPage({
 	searchParams,
 }: {
 	params: Promise<{ id: string }>
-	searchParams: Promise<{ product?: string; brand?: string }>
+	searchParams: Promise<{ product?: string; brand?: string; variant?: string }>
 }) {
 	const session = await getSession()
 	if (!session) {
@@ -38,6 +40,8 @@ export default async function PharmacyPage({
 	const sp = await searchParams
 	const initialProductId = typeof sp.product === "string" && sp.product.trim() ? sp.product.trim() : undefined
 	const initialBrandName = typeof sp.brand === "string" && sp.brand.trim() ? sp.brand.trim() : undefined
+	const initialVariantId =
+		typeof sp.variant === "string" && sp.variant.trim() ? sp.variant.trim() : undefined
 
 	const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "")
 
@@ -46,11 +50,16 @@ export default async function PharmacyPage({
 
 	if (apiBase) {
 		try {
+			const cookieHeader = await getCookieHeader()
+			const fetchOpts: RequestInit = {
+				cache: "no-store",
+				...(cookieHeader.length > 0 ? { headers: { cookie: cookieHeader } } : {}),
+			}
 			const [pharmacyRes, inventoryRes, productsRes, categoriesRes] = await Promise.all([
-				fetch(`${apiBase}/v1/pharmacies/${id}/`, { cache: "no-store" }),
-				fetch(`${apiBase}/v1/inventory/?pharmacyId=${encodeURIComponent(id)}`, { cache: "no-store" }),
-				fetch(`${apiBase}/v1/products/`, { cache: "no-store" }),
-				fetch(`${apiBase}/v1/products/categories/`, { cache: "no-store" }),
+				fetch(`${apiBase}/v1/pharmacies/${id}/`, fetchOpts),
+				fetch(`${apiBase}/v1/inventory/?pharmacyId=${encodeURIComponent(id)}`, fetchOpts),
+				fetch(`${apiBase}/v1/products/`, fetchOpts),
+				fetch(`${apiBase}/v1/products/categories/`, fetchOpts),
 			])
 
 			if (pharmacyRes.ok) {
@@ -98,6 +107,13 @@ export default async function PharmacyPage({
 		if (!ownerId || !userId || ownerId !== userId) notFound()
 	}
 
+	const rawCert =
+		(pharmacy as { certificateStatus?: unknown; certificate_status?: unknown }).certificateStatus ??
+		(pharmacy as { certificate_status?: unknown }).certificate_status
+	const certificateStatusNorm =
+		typeof rawCert === "string" && rawCert.trim() ? rawCert.trim().toLowerCase() : null
+	const isCertificateApproved = certificateStatusNorm === "approved"
+
 	const hasCoordinates = pharmacy.latitude != null && pharmacy.longitude != null
 	const mapUrl = hasCoordinates
 		? `https://www.google.com/maps?q=${pharmacy.latitude},${pharmacy.longitude}`
@@ -130,6 +146,15 @@ export default async function PharmacyPage({
 
 	return (
 		<div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-8">
+			{isOwnerPreview && !isCertificateApproved ? (
+				<OwnerPharmacyVerificationNoticeDialog
+					pharmacyId={pharmacy.id}
+					certificateStatus={certificateStatusNorm ?? undefined}
+					continueLabel="Continue preview"
+					dismissalScope="storefront"
+					persistDismissal={false}
+				/>
+			) : null}
 			{isOwnerPreview ? <OwnerStorefrontPreview /> : null}
 			<Link
 				href={(isOwnerPreview ? "/dashboard/owner/pharmacies" : "/") as Route}
@@ -159,7 +184,7 @@ export default async function PharmacyPage({
 					productCount={productsAtPharmacy.length}
 				/>
 
-				{pharmacy.certificateFileUrl && pharmacy.certificateStatus === "approved" ? (
+				{pharmacy.certificateFileUrl && isCertificateApproved ? (
 					<Card className="animate-in fade-in slide-in-from-bottom-4 border-border/50 bg-card/50 fill-mode-both overflow-hidden shadow-sm backdrop-blur-sm transition-all delay-100 duration-300 hover:shadow-md">
 						<CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
 							<div className="space-y-1">
@@ -191,6 +216,7 @@ export default async function PharmacyPage({
 								pharmacyId={pharmacy.id}
 								initialProductId={initialProductId}
 								initialBrandName={initialBrandName}
+								initialVariantId={initialVariantId}
 							/>
 						)}
 					</CardContent>

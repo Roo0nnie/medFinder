@@ -21,11 +21,7 @@ export const baseMedicalProductSchema = z.object({
 	description: z.string().nullable().optional(),
 	manufacturer: z.string().nullable().optional(),
 	categoryId: z.string(),
-	dosageForm: z.string().nullable().optional(),
-	strength: z.string().nullable().optional(),
-	unit: z.string(),
 	requiresPrescription: z.boolean().default(false),
-	imageUrl: z.string().nullable().optional(),
 	createdAt: z
 		.union([z.date(), z.string()])
 		.transform(val => (typeof val === "string" ? new Date(val) : val)),
@@ -36,6 +32,12 @@ export const baseMedicalProductSchema = z.object({
 
 export const MedicalProductSchema = baseMedicalProductSchema
 
+export const medicalProductVariantCoreSchema = z.object({
+	dosageForm: z.string().nullable().optional(),
+	strength: z.string().nullable().optional(),
+	imageUrl: z.string().nullable().optional(),
+})
+
 export const CreateProductSchema = z.object({
 	name: z.string().min(1),
 	genericName: z.string().optional(),
@@ -43,6 +45,7 @@ export const CreateProductSchema = z.object({
 	description: z.string().optional(),
 	manufacturer: z.string().optional(),
 	categoryId: z.string().min(1),
+	variantLabel: z.string().min(1),
 	dosageForm: z.string().optional(),
 	strength: z.string().optional(),
 	unit: z.string().min(1),
@@ -57,11 +60,7 @@ export const UpdateProductSchema = z.object({
 	description: z.string().optional(),
 	manufacturer: z.string().optional(),
 	categoryId: z.string().optional(),
-	dosageForm: z.string().optional(),
-	strength: z.string().optional(),
-	unit: z.string().optional(),
 	requiresPrescription: z.boolean().optional(),
-	imageUrl: z.string().optional(),
 })
 
 export const ProductSearchSchema = z.object({
@@ -85,6 +84,7 @@ export const ProductIdSchema = z.object({
 
 export type Category = z.infer<typeof CategorySchema>
 export type MedicalProduct = z.infer<typeof MedicalProductSchema>
+export type MedicalProductVariantCore = z.infer<typeof medicalProductVariantCoreSchema>
 export type CreateProductInput = z.infer<typeof CreateProductSchema>
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>
 export type ProductSearch = z.infer<typeof ProductSearchSchema>

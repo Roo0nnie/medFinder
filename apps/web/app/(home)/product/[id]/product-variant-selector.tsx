@@ -16,14 +16,22 @@ type AvailabilityRow = {
 export function ProductVariantSelector({
 	variants,
 	defaultPrice,
-	availability,
+	availability, // reserved for future per-store display
+	selectedId: controlledSelectedId,
+	onSelectedIdChange,
 }: {
 	variants: ProductDetailVariant[]
 	defaultPrice: number | null
 	availability: AvailabilityRow[]
+	/** Controlled selection (e.g. sync with hero image). */
+	selectedId?: string
+	onSelectedIdChange?: (id: string) => void
 }) {
+	void availability
 	const hasMultiple = variants.length > 1
-	const [selectedId, setSelectedId] = useState<string>(variants[0]?.id ?? "")
+	const [internalId, setInternalId] = useState<string>(variants[0]?.id ?? "")
+	const selectedId = controlledSelectedId ?? internalId
+	const setSelectedId = onSelectedIdChange ?? setInternalId
 	const selected = variants.find(v => v.id === selectedId) ?? variants[0]
 	const displayPrice = selected?.price ?? defaultPrice ?? 0
 

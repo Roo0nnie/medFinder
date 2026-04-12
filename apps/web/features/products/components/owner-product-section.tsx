@@ -1,7 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useId, useState } from "react"
-import { ImageIcon } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -23,9 +22,9 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/core/components/ui/dialog"
+import { Field, FieldDescription, FieldLabel } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
-import FileUpload from "@/core/components/ui/file-upload"
 import { cn } from "@/core/lib/utils"
 import { useToast } from "@/core/components/ui/use-toast"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
@@ -39,7 +38,7 @@ import {
 	useVariantCreateMutation,
 	useVariantDeleteMutation,
 	useVariantUpdateMutation,
-	uploadProductImage,
+	uploadVariantImage,
 	type PharmacyInventoryItem,
 	type Product,
 	type ProductVariant,
@@ -48,6 +47,9 @@ import { ProductBrandCombobox } from "@/features/products/components/product-bra
 import { ProductsTable } from "@/features/products/components/products-table"
 import { getStockStatus } from "@/features/products/lib/stock-status"
 
+/** Stable reference when the variants query has no data yet (avoids useEffect loops). */
+const EMPTY_PRODUCT_VARIANTS: ProductVariant[] = []
+
 const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	pharmacyId: "",
 	name: "",
@@ -55,12 +57,12 @@ const emptyForm: Partial<Product> & { variantId?: string | null } = {
 	genericName: "",
 	description: "",
 	categoryId: "",
+	variantLabel: "",
 	unit: "piece",
 	manufacturer: "",
 	dosageForm: "",
 	strength: "",
 	requiresPrescription: false,
-	imageUrl: "",
 	supplier: "",
 	lowStockThreshold: undefined,
 	quantity: 0,
@@ -248,13 +250,16 @@ function VariantInventoryEditor({
 
 export function OwnerProductSection() {
 	const { toast } = useToast()
-	const imageFieldId = useId()
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: categories } = useProductCategoriesQuery()
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [editing, setEditing] = useState<Product | null>(null)
+	const [addBrandSource, setAddBrandSource] = useState<Product | null>(null)
 	const [productToDelete, setProductToDelete] = useState<Product | null>(null)
 	const [newVariantLabel, setNewVariantLabel] = useState("")
+	const [newVariantUnit, setNewVariantUnit] = useState("piece")
+	const [newVariantStrength, setNewVariantStrength] = useState("")
+	const [newVariantDosageForm, setNewVariantDosageForm] = useState("")
 	const queryClient = useQueryClient()
 	const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null)
 	const [editVariantLabel, setEditVariantLabel] = useState("")
@@ -262,7 +267,11 @@ export function OwnerProductSection() {
 	const { data: inventoryList } = useInventoryListQuery(
 		editing?.id ? { productId: editing.id } : undefined
 	)
-	const { data: variants = [] } = useProductVariantsQuery(editing?.id)
+	const { data: variantsData } = useProductVariantsQuery(editing?.id)
+	const { data: addBrandVariantsData } = useProductVariantsQuery(
+		addBrandSource && !editing ? addBrandSource.id : undefined
+	)
+	const variants = variantsData ?? EMPTY_PRODUCT_VARIANTS
 	const createMutation = useProductCreateMutation()
 	const updateMutation = useProductUpdateMutation()
 	const deleteMutation = useProductDeleteMutation()
@@ -271,75 +280,125 @@ export function OwnerProductSection() {
 	const variantDeleteMutation = useVariantDeleteMutation()
 	const [form, setForm] = useState<Partial<Product> & { variantId?: string | null }>(emptyForm)
 	const [pendingImageFile, setPendingImageFile] = useState<File | null>(null)
-	const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null)
 	const [isImageBusy, setIsImageBusy] = useState(false)
+	const [variantExtras, setVariantExtras] = useState<
+		Record<string, { strength: string; dosageForm: string; unit: string }>
+	>({})
+	const handleEditProduct = useCallback((p: Product) => {
+		setEditing(p)
+		setIsFormOpen(true)
+	}, [])
+	const handleDeleteProduct = useCallback((p: Product) => {
+		setProductToDelete(p)
+	}, [])
+	const handleAddBrand = useCallback((p: Product) => {
+		setAddBrandSource(p)
+		setEditing(null)
+		setIsFormOpen(true)
+	}, [])
 
 	useEffect(() => {
 		const categoryId = (form.categoryId ?? "").trim()
 		if (!categoryId) return
 		const cat = categories?.find(c => c.id === categoryId)
 		if (!cat) return
-		setForm(prev => ({ ...prev, requiresPrescription: !!cat.requiresPrescription }))
-		// Only react to category selection + latest categories list
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		setForm(prev =>
+			prev.requiresPrescription === !!cat.requiresPrescription
+				? prev
+				: { ...prev, requiresPrescription: !!cat.requiresPrescription }
+		)
 	}, [form.categoryId, categories])
 
 	useEffect(() => {
-		if (!pendingImageFile) {
-			setImageBlobUrl(null)
+		if (editing) {
+			setForm({
+				...emptyForm,
+				pharmacyId: editing.pharmacyId ?? "",
+				name: editing.name,
+				brandId: editing.brandId ?? undefined,
+				brandName: editing.brandName,
+				genericName: editing.genericName,
+				description: editing.description,
+				categoryId: editing.categoryId,
+				manufacturer: editing.manufacturer,
+				requiresPrescription: editing.requiresPrescription,
+				supplier: editing.supplier,
+				lowStockThreshold: editing.lowStockThreshold ?? undefined,
+			})
+			setPendingImageFile(null)
+			setVariantExtras({})
 			return
 		}
-		const u = URL.createObjectURL(pendingImageFile)
-		setImageBlobUrl(u)
-		return () => URL.revokeObjectURL(u)
-	}, [pendingImageFile])
+		if (addBrandSource) {
+			return
+		}
+		setForm(emptyForm)
+		setPendingImageFile(null)
+		setVariantExtras({})
+	}, [editing, addBrandSource])
 
 	useEffect(() => {
-		if (!editing) {
-			setForm(emptyForm)
-			setPendingImageFile(null)
-			return
-		}
+		if (editing || !addBrandSource) return
+		const v0 = addBrandVariantsData?.[0]
 		setForm({
 			...emptyForm,
-			pharmacyId: editing.pharmacyId ?? "",
-			name: editing.name,
-			brandId: editing.brandId ?? undefined,
-			brandName: editing.brandName,
-			genericName: editing.genericName,
-			description: editing.description,
-			categoryId: editing.categoryId,
-			unit: editing.unit,
-			manufacturer: editing.manufacturer,
-			dosageForm: editing.dosageForm,
-			strength: editing.strength,
-			requiresPrescription: editing.requiresPrescription,
-			imageUrl: editing.imageUrl,
-			supplier: editing.supplier,
-			lowStockThreshold: editing.lowStockThreshold ?? undefined,
+			pharmacyId: "",
+			name: addBrandSource.name,
+			genericName: addBrandSource.genericName,
+			categoryId: addBrandSource.categoryId,
+			requiresPrescription: addBrandSource.requiresPrescription,
+			variantLabel: v0?.label ?? "",
+			unit: (v0?.unit ?? "piece").trim() || "piece",
+			strength: (v0?.strength ?? "").trim(),
+			dosageForm: (v0?.dosageForm ?? "").trim(),
+			quantity: 0,
+			price: "",
+			lowStockThreshold: undefined,
 		})
 		setPendingImageFile(null)
-	}, [editing])
+	}, [editing, addBrandSource, addBrandVariantsData])
 
-	const displayImageSrc = imageBlobUrl || (form.imageUrl?.trim() ? form.imageUrl.trim() : null)
+	useEffect(() => {
+		const next: Record<string, { strength: string; dosageForm: string; unit: string }> = {}
+		for (const v of variants) {
+			next[v.id] = {
+				strength: (v.strength ?? "").trim(),
+				dosageForm: (v.dosageForm ?? "").trim(),
+				unit: (v.unit ?? "").trim() || "piece",
+			}
+		}
+		setVariantExtras(prev => {
+			const prevKeys = Object.keys(prev)
+			const nextKeys = Object.keys(next)
+			if (prevKeys.length !== nextKeys.length) return next
+			for (const key of nextKeys) {
+				const prevValue = prev[key]
+				const nextValue = next[key]
+				if (
+					!nextValue ||
+					!prevValue ||
+					prevValue.strength !== nextValue.strength ||
+					prevValue.dosageForm !== nextValue.dosageForm ||
+					prevValue.unit !== nextValue.unit
+				) {
+					return next
+				}
+			}
+			return prev
+		})
+	}, [variants])
 
 	const clearImageAll = () => {
 		setPendingImageFile(null)
-		setForm(prev => ({ ...prev, imageUrl: "" }))
 	}
 
-	const handleProductImageFile = async (f: File) => {
-		const canUploadNow = !!editing?.id
-		if (!canUploadNow) {
-			setPendingImageFile(f)
-			return
-		}
-
+	const handleVariantImageFile = async (variantId: string, f: File) => {
+		if (!editing?.id) return
 		setIsImageBusy(true)
 		try {
-			const updated = await uploadProductImage(editing.id, f)
-			setForm(prev => ({ ...prev, imageUrl: updated.imageUrl ?? "" }))
-			setPendingImageFile(null)
+			await uploadVariantImage(editing.id, variantId, f)
+			void queryClient.invalidateQueries({ queryKey: ["product-variants", editing.id] })
+			void queryClient.invalidateQueries({ queryKey: ["products"] })
 			toast({ title: "Image uploaded" })
 		} catch (err) {
 			toast({
@@ -352,14 +411,65 @@ export function OwnerProductSection() {
 		}
 	}
 
+	const tryAddNewVariant = useCallback(async () => {
+		if (!editing?.id) return
+		const label = newVariantLabel.trim()
+		const u = newVariantUnit.trim()
+		if (!label || !u) {
+			toast({
+				title: "Validation",
+				description: "Variant label and unit are required.",
+				variant: "destructive",
+			})
+			return
+		}
+		try {
+			await variantCreateMutation.mutateAsync({
+				productId: editing.id,
+				label,
+				unit: u,
+				strength: newVariantStrength.trim() || undefined,
+				dosageForm: newVariantDosageForm.trim() || undefined,
+			})
+			setNewVariantLabel("")
+			setNewVariantUnit("piece")
+			setNewVariantStrength("")
+			setNewVariantDosageForm("")
+			toast({ title: "Variant added" })
+		} catch (e) {
+			toast({
+				title: "Add failed",
+				description: e instanceof Error ? e.message : "Unknown error",
+				variant: "destructive",
+			})
+		}
+	}, [
+		editing?.id,
+		newVariantLabel,
+		newVariantUnit,
+		newVariantStrength,
+		newVariantDosageForm,
+		variantCreateMutation,
+		toast,
+	])
+
 	const submit = async () => {
 		const name = (form.name ?? "").trim()
 		const categoryId = (form.categoryId ?? "").trim()
-		const unit = (form.unit ?? "").trim()
-		if (!name || !categoryId || !unit) {
+		const variantUnit = (form.unit ?? "").trim()
+		const variantLabel = (form.variantLabel ?? "").trim()
+		if (!name || !categoryId) {
 			toast({
 				title: "Validation",
-				description: "Name, Category, and Unit are required.",
+				description: "Name and category are required.",
+				variant: "destructive",
+			})
+			return
+		}
+		if (!editing && (!variantLabel || !variantUnit)) {
+			toast({
+				title: "Validation",
+				description: "Variant label and unit are required for the first sellable option.",
 				variant: "destructive",
 			})
 			return
@@ -397,17 +507,13 @@ export function OwnerProductSection() {
 					id: editing.id,
 					name,
 					categoryId,
-					unit,
 					pharmacyId: (form.pharmacyId ?? editing.pharmacyId) || undefined,
 					brandId: form.brandId ?? null,
 					brandName: form.brandName,
 					genericName: form.genericName,
 					description: form.description,
 					manufacturer: form.manufacturer,
-					dosageForm: form.dosageForm,
-					strength: form.strength,
 					requiresPrescription: form.requiresPrescription,
-					imageUrl: form.imageUrl,
 					supplier: form.supplier,
 					lowStockThreshold: lowStockThreshold ?? null,
 				})
@@ -427,11 +533,20 @@ export function OwnerProductSection() {
 					return
 				}
 				const payload = {
-					...form,
 					name,
 					categoryId,
-					unit,
+					variantLabel,
+					unit: variantUnit,
+					strength: form.strength,
+					dosageForm: form.dosageForm,
 					pharmacyId: pharmacyId || undefined,
+					brandId: form.brandId ?? null,
+					brandName: form.brandName,
+					genericName: form.genericName,
+					description: form.description,
+					manufacturer: form.manufacturer,
+					requiresPrescription: form.requiresPrescription,
+					supplier: form.supplier,
 					lowStockThreshold: lowStockThreshold ?? null,
 					quantity,
 					price: String(priceNum),
@@ -444,14 +559,13 @@ export function OwnerProductSection() {
 					expiryDate: form.expiryDate ?? null,
 					batchNumber: form.batchNumber ?? null,
 					isAvailable: form.isAvailable ?? true,
-					variantId: null,
 				}
 				const created = await createMutation.mutateAsync(payload)
-				if (pendingImageFile && created?.id) {
+				const firstVariantId = (created as Product & { variants?: ProductVariant[] }).variants?.[0]?.id
+				if (pendingImageFile && created?.id && firstVariantId) {
 					try {
 						setIsImageBusy(true)
-						const updated = await uploadProductImage(created.id, pendingImageFile)
-						setForm(prev => ({ ...prev, imageUrl: updated.imageUrl ?? prev.imageUrl }))
+						await uploadVariantImage(created.id, firstVariantId, pendingImageFile)
 						setPendingImageFile(null)
 					} catch (err) {
 						toast({
@@ -469,6 +583,7 @@ export function OwnerProductSection() {
 				toast({ title: "Product created" })
 			}
 			setEditing(null)
+			setAddBrandSource(null)
 			setIsFormOpen(false)
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : "Save failed"
@@ -506,6 +621,7 @@ export function OwnerProductSection() {
 						<Button
 							onClick={() => {
 								setEditing(null)
+								setAddBrandSource(null)
 								setIsFormOpen(true)
 							}}
 						>
@@ -514,11 +630,9 @@ export function OwnerProductSection() {
 					</div>
 					<div className="mt-4">
 						<ProductsTable
-							onEdit={p => {
-								setEditing(p)
-								setIsFormOpen(true)
-							}}
-							onDelete={p => setProductToDelete(p)}
+							onEdit={handleEditProduct}
+							onDelete={handleDeleteProduct}
+							onAddBrand={handleAddBrand}
 						/>
 					</div>
 				</CardContent>
@@ -528,18 +642,35 @@ export function OwnerProductSection() {
 				open={isFormOpen}
 				onOpenChange={open => {
 					setIsFormOpen(open)
-					if (!open) setEditing(null)
+					if (!open) {
+						setEditing(null)
+						setAddBrandSource(null)
+					}
 				}}
 			>
 				<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
 					<DialogHeader>
-						<DialogTitle>{editing ? "Edit product" : "Add product"}</DialogTitle>
+						<DialogTitle>
+							{editing
+								? "Edit product"
+								: addBrandSource
+									? `Add brand for ${addBrandSource.name}`
+									: "Add product"}
+						</DialogTitle>
 					</DialogHeader>
 					<p className="text-muted-foreground text-sm">
 						{editing
-							? "Update product details below, then use Save product. Set stock and price per variant (or default) separately — each has its own Save inventory button."
-							: "Fill in product details and set initial inventory. Name, Category, Unit, and Pharmacy are required. After creating a product, open Edit to add variants (sizes/volumes)."}
+							? "Update product details below, then use Save product. Set stock and price per variant — each option has its own Save inventory button."
+							: addBrandSource
+								? "This creates a new product row for your pharmacy with the same medicine details. Choose or create the new brand, adjust manufacturer and variants as needed, then save."
+								: "Fill in product details and set initial inventory. Name, category, pharmacy, variant label, and unit are required for the first sellable option. Label and strength are separate fields. Open Edit to add more variants."}
 					</p>
+					{addBrandSource && !editing && addBrandVariantsData && addBrandVariantsData.length > 0 ? (
+						<p className="text-muted-foreground text-xs">
+							Variants from original product:{" "}
+							{addBrandVariantsData.map(v => v.label).join(", ")}
+						</p>
+					) : null}
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="space-y-1">
 							<Label htmlFor="pharmacy">Pharmacy *</Label>
@@ -614,17 +745,6 @@ export function OwnerProductSection() {
 						</div>
 
 						<div className="space-y-1">
-							<Label htmlFor="unit">Unit *</Label>
-							<Input
-								id="unit"
-								value={form.unit ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, unit: e.target.value }))}
-								placeholder="e.g. tablet, bottle, box"
-							/>
-						</div>
-					
-	
-						<div className="space-y-1">
 							<Label htmlFor="genericName">Generic name</Label>
 							<Input
 								id="genericName"
@@ -648,22 +768,44 @@ export function OwnerProductSection() {
 								onChange={e => setForm(prev => ({ ...prev, supplier: e.target.value }))}
 							/>
 						</div>
-						<div className="space-y-1">
-							<Label htmlFor="dosageForm">Dosage form</Label>
-							<Input
-								id="dosageForm"
-								value={form.dosageForm ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, dosageForm: e.target.value }))}
-							/>
-						</div>
-						<div className="space-y-1">
-							<Label htmlFor="strength">Strength</Label>
-							<Input
-								id="strength"
-								value={form.strength ?? ""}
-								onChange={e => setForm(prev => ({ ...prev, strength: e.target.value }))}
-							/>
-						</div>
+						{!editing ? (
+							<>
+								<div className="space-y-1">
+									<Label htmlFor="variantLabel">Variant label *</Label>
+									<Input
+										id="variantLabel"
+										value={form.variantLabel ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, variantLabel: e.target.value }))}
+										placeholder="e.g. 500 mg tablets, 100 ml bottle"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="unit">Unit *</Label>
+									<Input
+										id="unit"
+										value={form.unit ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, unit: e.target.value }))}
+										placeholder="e.g. tablet, bottle, box"
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="strength">Strength (first variant)</Label>
+									<Input
+										id="strength"
+										value={form.strength ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, strength: e.target.value }))}
+									/>
+								</div>
+								<div className="space-y-1">
+									<Label htmlFor="dosageForm">Dosage form (first variant)</Label>
+									<Input
+										id="dosageForm"
+										value={form.dosageForm ?? ""}
+										onChange={e => setForm(prev => ({ ...prev, dosageForm: e.target.value }))}
+									/>
+								</div>
+							</>
+						) : null}
 						<div className="space-y-1">
 							<Label htmlFor="lowStockThreshold">Low stock threshold</Label>
 							<Input
@@ -680,227 +822,324 @@ export function OwnerProductSection() {
 								}}
 							/>
 						</div>
-						<div className="grid gap-4 sm:col-span-2 md:grid-cols-2 md:items-start mt-4">
-							<div className="space-y-1">
-								<FileUpload
-									acceptedFileTypes={[
-										"image/jpeg",
-										"image/png",
-										"image/webp",
-										"image/gif",
-									]}
-									maxFileSize={5 * 1024 * 1024}
-									uploadDelay={0}
-									onUploadSuccess={file => void handleProductImageFile(file)}
-									onFileRemove={clearImageAll}
-									className={cn(isImageBusy && "pointer-events-none opacity-70")}
-								/>
-								{!editing ? (
-									<p className="text-muted-foreground text-xs">
-										Image uploads after you create the product. You can also paste a URL below.
-									</p>
-								) : null}
-
-								{/* <div className="space-y-1">
-									<Label htmlFor={`${imageFieldId}-imageUrl`} className="text-muted-foreground text-xs font-normal">
-										Or image URL
-									</Label>
+						<div className="sm:col-span-2">
+							{!editing ? (
+								<Field className={cn(isImageBusy && "pointer-events-none opacity-70")}>
+									<FieldLabel htmlFor="create-first-variant-picture">First variant picture</FieldLabel>
 									<Input
-										id={`${imageFieldId}-imageUrl`}
-										type="url"
-										placeholder="https://..."
-										value={form.imageUrl ?? ""}
-										onChange={e => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
-										disabled={isImageBusy}
+										id="create-first-variant-picture"
+										type="file"
+										accept="image/jpeg,image/png,image/webp,image/gif"
+										onChange={e => {
+											const f = e.target.files?.[0] ?? null
+											setPendingImageFile(f)
+											e.target.value = ""
+										}}
 									/>
-								</div> */}
-							</div>
-							<div className="space-y-2">
-							
-								<div
-									className={cn(
-										"flex min-h-[260px] w-full items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-muted/40",
-										displayImageSrc && "border-transparent p-0"
-									)}
-								>
-									{displayImageSrc ? (
-										<img src={displayImageSrc} alt="" className="h-full w-full object-contain" />
-									) : (
-										<ImageIcon className="text-muted-foreground/50 size-12" aria-hidden />
-									)}
-								</div>
-								<div className="flex flex-wrap items-center justify-between gap-2">
-									<span className="text-sm font-medium leading-none"></span>
-									{(displayImageSrc || pendingImageFile) && (
+									<FieldDescription>
+										Optional. JPEG, PNG, WebP, or GIF, up to 5 MB. Uploads after the product is created.
+									</FieldDescription>
+									{pendingImageFile ? (
 										<button
 											type="button"
-											className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
+											className="text-muted-foreground hover:text-foreground mt-1 text-xs font-medium underline-offset-4 hover:underline"
 											onClick={clearImageAll}
 											disabled={isImageBusy}
 										>
-											Remove
+											Clear selected file
 										</button>
-									)}
-								</div>
-							</div>
+									) : null}
+								</Field>
+							) : (
+								<p className="text-muted-foreground text-xs">
+									Choose a picture file per variant in the list below (no preview).
+								</p>
+							)}
 						</div>
 						{editing && (
 							<div className="border-border bg-muted/30 space-y-3 rounded-lg border p-4 sm:col-span-2">
 								<div>
 									<h3 className="text-foreground text-sm font-semibold">Product variants (sizes / volumes)</h3>
 									<p className="text-muted-foreground mt-0.5 text-xs">
-										Add options like 100ml, 500ml so customers can choose. Set stock and price for each variant in the inventory section below.
+										All sellable options are variants (including the first). Add more labels like 2mg or 100ml; set stock and price for each in the inventory section below.
 									</p>
 								</div>
 								{variants.length === 0 ? (
 									<div className="text-muted-foreground rounded-md border border-dashed bg-background/50 px-3 py-4 text-center text-sm">
-										No variants yet. Add one below (e.g. &quot;100ml bottle&quot;, &quot;500ml&quot;) and click Add variant. Then choose that variant in Initial inventory to set its price and quantity.
+										No extra variants yet. New products already have a first variant from creation. If this is legacy data with stock but no variants, run the one-time backfill script in the repo (packages/scripts/backfill-default-variants.ts). Otherwise add a variant below, then set inventory.
 									</div>
 								) : null}
 								<ul className="space-y-2">
 									{variants.map(v => (
-										<li key={v.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-											{editingVariant?.id === v.id ? (
-												<>
-													<Input
-														className="max-w-[200px]"
-														value={editVariantLabel}
-														onChange={e => setEditVariantLabel(e.target.value)}
-														placeholder="Variant label"
-													/>
-													<Button
-														size="sm"
-														variant="outline"
-														onClick={async () => {
-															if (!editing?.id) return
-															try {
-																await variantUpdateMutation.mutateAsync({
-																	productId: editing.id,
-																	variantId: v.id,
-																	label: editVariantLabel.trim(),
-																})
+										<li key={v.id} className="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm">
+											<div className="flex flex-wrap items-center gap-2">
+												{editingVariant?.id === v.id ? (
+													<>
+														<Input
+															className="max-w-[200px]"
+															value={editVariantLabel}
+															onChange={e => setEditVariantLabel(e.target.value)}
+															placeholder="Variant label"
+														/>
+														<Button
+															size="sm"
+															variant="outline"
+															onClick={async () => {
+																if (!editing?.id) return
+																try {
+																	const ex = variantExtras[v.id] ?? {
+																		strength: "",
+																		dosageForm: "",
+																		unit: "piece",
+																	}
+																	await variantUpdateMutation.mutateAsync({
+																		productId: editing.id,
+																		variantId: v.id,
+																		label: editVariantLabel.trim(),
+																		strength: ex.strength,
+																		dosageForm: ex.dosageForm,
+																		unit: ex.unit,
+																	})
+																	setEditingVariant(null)
+																	setEditVariantLabel("")
+																	toast({ title: "Variant updated" })
+																} catch (e) {
+																	toast({
+																		title: "Update failed",
+																		description: e instanceof Error ? e.message : "Unknown error",
+																		variant: "destructive",
+																	})
+																}
+															}}
+														>
+															Save
+														</Button>
+														<Button
+															size="sm"
+															variant="ghost"
+															onClick={() => {
 																setEditingVariant(null)
 																setEditVariantLabel("")
-																toast({ title: "Variant updated" })
-															} catch (e) {
-																toast({
-																	title: "Update failed",
-																	description: e instanceof Error ? e.message : "Unknown error",
-																	variant: "destructive",
-																})
+															}}
+														>
+															Cancel
+														</Button>
+													</>
+												) : (
+													<>
+														<span className="font-medium">{v.label}</span>
+														<Button
+															size="sm"
+															variant="ghost"
+															className="ml-auto"
+															onClick={() => {
+																setEditingVariant(v)
+																setEditVariantLabel(v.label)
+															}}
+														>
+															Edit label
+														</Button>
+														<Button
+															size="sm"
+															variant="ghost"
+															className="text-destructive"
+															onClick={async () => {
+																if (!editing?.id) return
+																try {
+																	await variantDeleteMutation.mutateAsync({
+																		productId: editing.id,
+																		variantId: v.id,
+																	})
+																	void queryClient.invalidateQueries({ queryKey: ["inventory"] })
+																	toast({ title: "Variant deleted" })
+																} catch (e) {
+																	toast({
+																		title: "Delete failed",
+																		description: e instanceof Error ? e.message : "Unknown error",
+																		variant: "destructive",
+																	})
+																}
+															}}
+														>
+															Delete
+														</Button>
+													</>
+												)}
+											</div>
+											{editingVariant?.id !== v.id && editing?.id ? (
+												<div className="border-muted space-y-2 border-t pt-2">
+													<div className="flex flex-wrap gap-2">
+														<Input
+															className="max-w-[120px]"
+															placeholder="Unit"
+															value={variantExtras[v.id]?.unit ?? ""}
+															onChange={e =>
+																setVariantExtras(prev => ({
+																	...prev,
+																	[v.id]: {
+																		unit: e.target.value,
+																		strength: prev[v.id]?.strength ?? "",
+																		dosageForm: prev[v.id]?.dosageForm ?? "",
+																	},
+																}))
 															}
-														}}
-													>
-														Save
-													</Button>
-													<Button size="sm" variant="ghost" onClick={() => { setEditingVariant(null); setEditVariantLabel("") }}>
-														Cancel
-													</Button>
-												</>
-											) : (
-												<>
-													<span className="font-medium">{v.label}</span>
-													<Button
-														size="sm"
-														variant="ghost"
-														className="ml-auto"
-														onClick={() => {
-															setEditingVariant(v)
-															setEditVariantLabel(v.label)
-														}}
-													>
-														Edit
-													</Button>
-													<Button
-														size="sm"
-														variant="ghost"
-														className="text-destructive"
-														onClick={async () => {
-															if (!editing?.id) return
-															try {
-																await variantDeleteMutation.mutateAsync({ productId: editing.id, variantId: v.id })
-																void queryClient.invalidateQueries({ queryKey: ["inventory"] })
-																toast({ title: "Variant deleted" })
-															} catch (e) {
-																toast({
-																	title: "Delete failed",
-																	description: e instanceof Error ? e.message : "Unknown error",
-																	variant: "destructive",
-																})
+														/>
+														<Input
+															className="max-w-[140px]"
+															placeholder="Strength"
+															value={variantExtras[v.id]?.strength ?? ""}
+															onChange={e =>
+																setVariantExtras(prev => ({
+																	...prev,
+																	[v.id]: {
+																		strength: e.target.value,
+																		unit: prev[v.id]?.unit ?? "piece",
+																		dosageForm: prev[v.id]?.dosageForm ?? "",
+																	},
+																}))
 															}
-														}}
-													>
-														Delete
-													</Button>
-												</>
-											)}
+														/>
+														<Input
+															className="max-w-[180px]"
+															placeholder="Dosage form"
+															value={variantExtras[v.id]?.dosageForm ?? ""}
+															onChange={e =>
+																setVariantExtras(prev => ({
+																	...prev,
+																	[v.id]: {
+																		strength: prev[v.id]?.strength ?? "",
+																		unit: prev[v.id]?.unit ?? "piece",
+																		dosageForm: e.target.value,
+																	},
+																}))
+															}
+														/>
+													</div>
+													<div className="flex flex-wrap items-center gap-2">
+														<Field
+															className={cn(
+																"max-w-xs shrink-0",
+																isImageBusy && "pointer-events-none opacity-70"
+															)}
+														>
+															<FieldLabel htmlFor={`variant-picture-${v.id}`}>Picture</FieldLabel>
+															<Input
+																id={`variant-picture-${v.id}`}
+																type="file"
+																accept="image/jpeg,image/png,image/webp,image/gif"
+																onChange={e => {
+																	const f = e.target.files?.[0]
+																	if (f) void handleVariantImageFile(v.id, f)
+																	e.target.value = ""
+																}}
+															/>
+															<FieldDescription>Uploads immediately.</FieldDescription>
+														</Field>
+														<Button
+															size="sm"
+															variant="outline"
+															disabled={isImageBusy}
+															onClick={async () => {
+																if (!editing?.id) return
+																const ex = variantExtras[v.id] ?? {
+																	strength: "",
+																	dosageForm: "",
+																	unit: "piece",
+																}
+																try {
+																	await variantUpdateMutation.mutateAsync({
+																		productId: editing.id,
+																		variantId: v.id,
+																		strength: ex.strength,
+																		dosageForm: ex.dosageForm,
+																		unit: ex.unit.trim() || "piece",
+																	})
+																	toast({ title: "Variant details saved" })
+																} catch (e) {
+																	toast({
+																		title: "Save failed",
+																		description: e instanceof Error ? e.message : "Unknown error",
+																		variant: "destructive",
+																	})
+																}
+															}}
+														>
+															Save unit / strength / dosage
+														</Button>
+													</div>
+													{(v.imageUrl ?? "").trim() ? (
+														<p className="text-muted-foreground text-xs">
+															Current image:{" "}
+															<a
+																href={(v.imageUrl ?? "").trim()}
+																target="_blank"
+																rel="noreferrer"
+																className="text-primary underline"
+															>
+																open
+															</a>
+														</p>
+													) : null}
+												</div>
+											) : null}
 										</li>
 									))}
 								</ul>
-								<div className="flex flex-wrap items-end gap-2">
-									<div className="min-w-0 flex-1 space-y-1 sm:max-w-[280px]">
-										<Label htmlFor="new-variant-label" className="text-muted-foreground text-xs">
-											Add new variant
-										</Label>
-										<Input
-											id="new-variant-label"
-											className="w-full"
-											value={newVariantLabel}
-											onChange={e => setNewVariantLabel(e.target.value)}
-											placeholder="e.g. 100ml bottle, 500ml, 30ml"
-											onKeyDown={e => {
-												if (e.key === "Enter") {
-													e.preventDefault()
-													if (editing?.id && newVariantLabel.trim()) {
-														variantCreateMutation.mutate(
-															{ productId: editing.id, label: newVariantLabel.trim() },
-															{
-																onSuccess: () => {
-																	setNewVariantLabel("")
-																	toast({ title: "Variant added" })
-																},
-																onError: e =>
-																	toast({
-																		title: "Add failed",
-																		description: e.message,
-																		variant: "destructive",
-																	}),
-															}
-														)
+								<div className="space-y-2 sm:col-span-2">
+									<p className="text-muted-foreground text-xs font-medium">Add new variant</p>
+									<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+										<div className="space-y-1">
+											<Label htmlFor="new-variant-label" className="text-xs">
+												Label *
+											</Label>
+											<Input
+												id="new-variant-label"
+												value={newVariantLabel}
+												onChange={e => setNewVariantLabel(e.target.value)}
+												placeholder="e.g. 100 ml bottle"
+												onKeyDown={e => {
+													if (e.key === "Enter") {
+														e.preventDefault()
+														void tryAddNewVariant()
 													}
-												}
-											}}
-										/>
+												}}
+											/>
+										</div>
+										<div className="space-y-1">
+											<Label htmlFor="new-variant-unit" className="text-xs">
+												Unit *
+											</Label>
+											<Input
+												id="new-variant-unit"
+												value={newVariantUnit}
+												onChange={e => setNewVariantUnit(e.target.value)}
+												placeholder="e.g. bottle"
+											/>
+										</div>
+										<div className="space-y-1">
+											<Label htmlFor="new-variant-strength" className="text-xs">
+												Strength
+											</Label>
+											<Input
+												id="new-variant-strength"
+												value={newVariantStrength}
+												onChange={e => setNewVariantStrength(e.target.value)}
+												placeholder="e.g. 500 mg"
+											/>
+										</div>
+										<div className="space-y-1">
+											<Label htmlFor="new-variant-dosage" className="text-xs">
+												Dosage form
+											</Label>
+											<Input
+												id="new-variant-dosage"
+												value={newVariantDosageForm}
+												onChange={e => setNewVariantDosageForm(e.target.value)}
+												placeholder="e.g. tablet"
+											/>
+										</div>
 									</div>
-									<Button
-										size="sm"
-										onClick={async () => {
-											if (!editing?.id || !newVariantLabel.trim()) {
-												if (!newVariantLabel.trim()) {
-													toast({
-														title: "Enter a variant label",
-														description: "e.g. 100ml bottle, 500ml",
-														variant: "destructive",
-													})
-												}
-												return
-											}
-											try {
-												await variantCreateMutation.mutateAsync({
-													productId: editing.id,
-													label: newVariantLabel.trim(),
-												})
-												setNewVariantLabel("")
-												toast({ title: "Variant added" })
-											} catch (e) {
-												toast({
-													title: "Add failed",
-													description: e instanceof Error ? e.message : "Unknown error",
-													variant: "destructive",
-												})
-											}
-										}}
-									>
+									<Button size="sm" type="button" onClick={() => void tryAddNewVariant()}>
 										Add variant
 									</Button>
 								</div>
@@ -913,26 +1152,23 @@ export function OwnerProductSection() {
 						</div>
 						{editing && editing.id ? (
 							<div className="space-y-4 sm:col-span-2">
-								<VariantInventoryEditor
-									key={`default-${editing.id}`}
-									productId={editing.id}
-									variantId={null}
-									title="Default (no variant)"
-									row={inventoryRowFor(inventoryList, null)}
-									lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
-									onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
-								/>
-								{variants.map(v => (
-									<VariantInventoryEditor
-										key={`${v.id}-${editing.id}`}
-										productId={editing.id}
-										variantId={v.id}
-										title={v.label}
-										row={inventoryRowFor(inventoryList, v.id)}
-										lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
-										onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
-									/>
-								))}
+								{variants.length === 0 ? (
+									<div className="text-muted-foreground rounded-md border border-dashed bg-background/50 px-3 py-4 text-sm">
+										Add at least one variant in the section above to edit inventory. If stock already exists from an older setup, run the backfill script once (see packages/scripts/backfill-default-variants.ts).
+									</div>
+								) : (
+									variants.map(v => (
+										<VariantInventoryEditor
+											key={`${v.id}-${editing.id}`}
+											productId={editing.id}
+											variantId={v.id}
+											title={v.label}
+											row={inventoryRowFor(inventoryList, v.id)}
+											lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
+											onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
+										/>
+									))
+								)}
 							</div>
 						) : (
 							<>

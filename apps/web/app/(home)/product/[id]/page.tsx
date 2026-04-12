@@ -9,7 +9,7 @@ import { landingPharmacies } from "@/features/landing/data/pharmacies"
 import { landingProducts } from "@/features/landing/data/products"
 
 import { ProductDetailClient } from "./product-detail-client"
-import { ProductVariantSelector } from "./product-variant-selector"
+import { ProductMerchColumn } from "./product-merch-column"
 
 type ProductPageParams = Promise<{ id: string }>
 
@@ -26,10 +26,20 @@ type ApiProductDetail = {
 	manufacturer?: string | null
 	imageUrl?: string | null
 	strength?: string | null
-	unit?: string
 	priceFrom?: number | string | null
 	availability?: ApiAvailabilityItem[]
-	variants?: { id: string; label: string; price?: number; quantity?: number; lowStockThreshold?: number; availability?: ApiAvailabilityItem[] }[]
+	variants?: {
+		id: string
+		label: string
+		unit?: string | null
+		strength?: string | null
+		dosageForm?: string | null
+		imageUrl?: string | null
+		price?: number
+		quantity?: number
+		lowStockThreshold?: number
+		availability?: ApiAvailabilityItem[]
+	}[]
 }
 
 type ApiAvailabilityItem = {
@@ -57,6 +67,10 @@ type AvailabilityRow = {
 export type ProductDetailVariant = {
 	id: string
 	label: string
+	unit?: string | null
+	strength?: string | null
+	dosageForm?: string | null
+	imageUrl?: string | null
 	price?: number
 	quantity?: number
 	lowStockThreshold?: number
@@ -100,8 +114,8 @@ export default async function ProductPage({ params }: { params: ProductPageParam
 					description: api.description ?? null,
 					category: api.category ?? null,
 					brand: (api.brandName ?? api.genericName ?? "") || undefined,
-					dosage: api.dosageForm ?? undefined,
-					imageUrl: api.imageUrl ?? null,
+					dosage: undefined,
+					imageUrl: null,
 					manufacturer: api.manufacturer ?? null,
 				}
 				const priceFrom = api.priceFrom
@@ -117,6 +131,10 @@ export default async function ProductPage({ params }: { params: ProductPageParam
 				variants = (api.variants ?? []).map(v => ({
 					id: v.id,
 					label: v.label,
+					unit: v.unit ?? null,
+					strength: v.strength ?? null,
+					dosageForm: v.dosageForm ?? null,
+					imageUrl: v.imageUrl ?? null,
 					price: v.price != null ? Number(v.price) : undefined,
 					quantity: v.quantity,
 					lowStockThreshold: v.lowStockThreshold,
@@ -192,70 +210,76 @@ export default async function ProductPage({ params }: { params: ProductPageParam
 			</Link>
 
 			<div className="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
-				<div className="flex flex-col gap-8 sm:flex-row lg:gap-12">
-					{product.imageUrl && (
-						<div className="bg-muted/30 group relative flex h-56 w-56 shrink-0 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-lg sm:h-72 sm:w-72">
-							{/* eslint-disable-next-line @next/next/no-img-element */}
-							<img
-								src={product.imageUrl}
-								alt={product.name}
-								className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-500 group-hover:scale-105"
-							/>
-						</div>
-					)}
-					<div className="flex min-w-0 flex-1 flex-col py-2">
-						<div className="flex h-full flex-col justify-between gap-6">
-							<div>
-								{brand && (
-									<div className="focus:ring-ring mb-2 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none">
-										{brand}
-									</div>
-								)}
-								<h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-									{product.name}
-								</h1>
-
-								<div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-									{product.category && (
-										<div>
-											<span className="text-muted-foreground">Category: </span>
-											<span className="text-foreground font-medium">{product.category}</span>
-										</div>
-									)}
-									{product.dosage && (
-										<div>
-											<span className="text-muted-foreground">Dosage: </span>
-											<span className="text-foreground font-medium">{product.dosage}</span>
-										</div>
-									)}
-									{(product as any).manufacturer && (
-										<div>
-											<span className="text-muted-foreground">Manufacturer: </span>
-											<span className="text-foreground font-medium">
-												{(product as any).manufacturer}
-											</span>
-										</div>
-									)}
-								</div>
+				{variants.length > 0 ? (
+					<ProductMerchColumn
+						productName={product.name}
+						category={product.category}
+						brand={brand || undefined}
+						manufacturer={(product as { manufacturer?: string | null }).manufacturer}
+						variants={variants}
+						defaultPrice={displayPrice}
+						availability={availability}
+					/>
+				) : (
+					<div className="flex flex-col gap-8 sm:flex-row lg:gap-12">
+						{product.imageUrl && (
+							<div className="bg-muted/30 group relative flex h-56 w-56 shrink-0 items-center justify-center overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-lg sm:h-72 sm:w-72">
+								{/* eslint-disable-next-line @next/next/no-img-element */}
+								<img
+									src={product.imageUrl}
+									alt={product.name}
+									className="max-h-[85%] max-w-[85%] object-contain transition-transform duration-500 group-hover:scale-105"
+								/>
 							</div>
-							<div className="border-t pt-6">
-								{variants.length > 0 ? (
-									<ProductVariantSelector
-										variants={variants}
-										defaultPrice={displayPrice}
-										availability={availability}
-									/>
-								) : displayPrice != null ? (
-									<p className="text-foreground text-3xl font-bold tracking-tight">
-										{availability.length > 1 ? "From " : ""}₱{displayPrice.toFixed(2)}
-									</p>
-								) : availability.length > 0 ? (
-									<p className="text-muted-foreground text-lg">Price varies by pharmacy</p>
-								) : null}
+						)}
+						<div className="flex min-w-0 flex-1 flex-col py-2">
+							<div className="flex h-full flex-col justify-between gap-6">
+								<div>
+									{brand && (
+										<div className="focus:ring-ring mb-2 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none">
+											{brand}
+										</div>
+									)}
+									<h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+										{product.name}
+									</h1>
+
+									<div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+										{product.category && (
+											<div>
+												<span className="text-muted-foreground">Category: </span>
+												<span className="text-foreground font-medium">{product.category}</span>
+											</div>
+										)}
+										{product.dosage && (
+											<div>
+												<span className="text-muted-foreground">Dosage: </span>
+												<span className="text-foreground font-medium">{product.dosage}</span>
+											</div>
+										)}
+										{(product as { manufacturer?: string | null }).manufacturer && (
+											<div>
+												<span className="text-muted-foreground">Manufacturer: </span>
+												<span className="text-foreground font-medium">
+													{(product as { manufacturer?: string | null }).manufacturer}
+												</span>
+											</div>
+										)}
+									</div>
+								</div>
+								<div className="border-t pt-6">
+									{displayPrice != null ? (
+										<p className="text-foreground text-3xl font-bold tracking-tight">
+											{availability.length > 1 ? "From " : ""}₱{displayPrice.toFixed(2)}
+										</p>
+									) : availability.length > 0 ? (
+										<p className="text-muted-foreground text-lg">Price varies by pharmacy</p>
+									) : null}
+								</div>
 							</div>
 						</div>
 					</div>
-				</div>
+				)}
 
 				{product.description && (
 					<Card className="border-border/50 bg-card/50 overflow-hidden shadow-sm backdrop-blur-sm transition-shadow duration-300 hover:shadow-md">

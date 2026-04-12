@@ -100,11 +100,6 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 				cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.variantLabelDisplay}</span>,
 			},
 			{
-				accessorKey: "pharmacyName",
-				header: "Pharmacy",
-				cell: ({ row }) => <span className="text-muted-foreground">{row.original.pharmacyName}</span>,
-			},
-			{
 				accessorKey: "quantity",
 				header: "Qty",
 				cell: ({ row }) => <span className="font-semibold">{row.original.quantity}</span>,

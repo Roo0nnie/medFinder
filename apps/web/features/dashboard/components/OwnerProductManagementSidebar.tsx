@@ -83,7 +83,7 @@ export function OwnerProductManagementSidebar({ collapsed }: OwnerProductManagem
 						</span>
 					),
 					content: (
-						<div className="flex flex-col gap-0.5 pl-2">
+						<div className="relative z-10 flex flex-col gap-0.5 pl-2">
 							{subLinks.map(link => {
 								const active = pathname === link.href
 								return (

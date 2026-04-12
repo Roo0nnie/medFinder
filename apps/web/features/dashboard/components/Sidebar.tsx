@@ -115,7 +115,7 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 	return (
 		<aside
 			className={cn(
-				"border-border bg-card sticky top-0 flex h-screen flex-col border-r shadow-sm transition-all duration-300",
+				"border-border bg-card sticky top-0 z-20 flex h-screen shrink-0 flex-col border-r shadow-sm transition-all duration-300",
 				sidebarWidthClass
 			)}
 		>

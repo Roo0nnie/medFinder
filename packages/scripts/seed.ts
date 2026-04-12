@@ -1,29 +1,24 @@
 /**
- * Seed script: creates one user per supported role + a demo pharmacy catalog
- * (brands, owner–brand links, products, variants, inventory) so customers can try
- * centralized brand flows (e.g. same medicine, two brands).
+ * Seed script: creates users per role plus deterministic pharmacies, brands,
+ * categories, products, variants, and inventory for product-finder QA.
  *
  * Run from repo root: pnpm db:seed
  * Requires: DATABASE_URL (packages/db/.env), BETTER_AUTH_SECRET + BETTER_AUTH_TRUSTED_ORIGINS (apps/web/.env)
- * Prereq: DB migrations applied (brands / owner_brands / medical_products.brand_id).
  */
 import "./load-env"
 
-import { createHash } from "node:crypto"
 import { eq } from "drizzle-orm"
 
 import { getAuth } from "@repo/auth"
 import { createDBClient } from "@repo/db/client"
 import {
 	brands,
-	medicalProductVariants,
 	medicalProducts,
+	medicalProductVariants,
 	ownerBrands,
 	pharmacies,
-	pharmacyStaff,
 	pharmacyInventory,
 	productCategories,
-	staff,
 	users,
 } from "@repo/db/schema"
 
@@ -39,21 +34,8 @@ type SeedUser = {
 	role: Role
 }
 
-function normBrandName(name: string): string {
-	return name.trim().toLowerCase()
-}
-
-function uuidFromKey(key: string): string {
-	const hex = createHash("sha1").update(key).digest("hex").slice(0, 32)
-	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
-}
-
-function stableId(prefix: string, key: string): string {
-	return uuidFromKey(`${prefix}:${key}`)
-}
-
-function pick<T>(list: readonly T[], n: number): T {
-	return list[n % list.length]!
+function normalizedBrandName(name: string): string {
+	return name.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
 async function seedUser(auth: ReturnType<typeof getAuth>, db: ReturnType<typeof createDBClient>, u: SeedUser) {
@@ -106,377 +88,7 @@ async function seedUser(auth: ReturnType<typeof getAuth>, db: ReturnType<typeof 
 	}
 }
 
-async function ensureBrandId(tx: ReturnType<typeof createDBClient>, name: string, now: Date): Promise<string> {
-	const normalizedName = normBrandName(name)
-	const existing = await tx.select().from(brands).where(eq(brands.normalizedName, normalizedName)).limit(1)
-	if (existing.length > 0) return existing[0]!.id
-
-	const brandId = stableId("brand", normalizedName)
-	await tx.insert(brands).values({
-		id: brandId,
-		name,
-		normalizedName,
-		createdAt: now,
-		updatedAt: now,
-	})
-	return brandId
-}
-
-async function ensureOwnerBrandLink(
-	tx: ReturnType<typeof createDBClient>,
-	ownerId: string,
-	brandId: string,
-	now: Date
-): Promise<void> {
-	const linkId = stableId("owner_brand", `${ownerId}:${brandId}`)
-	const existing = await tx.select().from(ownerBrands).where(eq(ownerBrands.id, linkId)).limit(1)
-	if (existing.length > 0) return
-	await tx.insert(ownerBrands).values({
-		id: linkId,
-		ownerId,
-		brandId,
-		createdAt: now,
-		updatedAt: now,
-	})
-}
-
-async function seedOwnerCatalog(opts: {
-	db: ReturnType<typeof createDBClient>
-	owner: { id: string; email: string; index: number }
-	staffUserIds: string[]
-}) {
-	const { db, owner, staffUserIds } = opts
-
-	const now = new Date()
-	const pharmacyId = stableId("pharmacy", owner.id)
-	const categoryPainReliefId = stableId("category", `${owner.id}:pain_relief`)
-	const categoryColdFluId = stableId("category", `${owner.id}:cold_flu`)
-	const categorySkinCareId = stableId("category", `${owner.id}:skin_care`)
-	const categoryPrescriptionMedsId = stableId("category", `${owner.id}:prescription_meds`)
-
-	await db.transaction(async tx => {
-		const existingPharmacy = await tx.select().from(pharmacies).where(eq(pharmacies.id, pharmacyId)).limit(1)
-		if (existingPharmacy.length === 0) {
-			await tx.insert(pharmacies).values({
-				id: pharmacyId,
-				ownerId: owner.id,
-				name: `Owner ${owner.index} Pharmacy`,
-				description: `Seed pharmacy for ${owner.email}.`,
-				address: `${100 + owner.index} Health Street`,
-				city: "Manila",
-				municipality: null,
-				state: "NCR",
-				zipCode: "1000",
-				country: "PH",
-				certificateStatus: "approved",
-				certificateNumber: `SEED-OWNER-${owner.index.toString().padStart(2, "0")}`,
-				isActive: true,
-				latitude: 14.5995 + owner.index * 0.01,
-				longitude: 120.9842 + owner.index * 0.01,
-				phone: `+63-2-0000-00${owner.index}0`,
-				email: `owner${owner.index}-pharmacy@example.com`,
-				createdAt: now,
-				updatedAt: now,
-			})
-		} else {
-			await tx
-				.update(pharmacies)
-				.set({
-					ownerId: owner.id,
-					name: `Owner ${owner.index} Pharmacy`,
-					description: `Seed pharmacy for ${owner.email}.`,
-					updatedAt: now,
-				})
-				.where(eq(pharmacies.id, pharmacyId))
-		}
-
-		const categories = [
-			{
-				id: categoryPainReliefId,
-				name: "Pain relief",
-				description: "OTC pain and fever medicines",
-				requiresPrescription: false,
-			},
-			{
-				id: categoryColdFluId,
-				name: "Cold & flu",
-				description: "Cough, colds, and flu symptom relief",
-				requiresPrescription: false,
-			},
-			{
-				id: categorySkinCareId,
-				name: "Skin care",
-				description: "Creams, ointments, and dermatology items",
-				requiresPrescription: false,
-			},
-			{
-				id: categoryPrescriptionMedsId,
-				name: "Prescription meds",
-				description: "Medicines that require a prescription",
-				requiresPrescription: true,
-			},
-		] as const
-
-		const categoryById = new Map(categories.map(c => [c.id, c]))
-
-		for (const c of categories) {
-			const existingCategory = await tx.select().from(productCategories).where(eq(productCategories.id, c.id)).limit(1)
-			if (existingCategory.length > 0) continue
-			await tx.insert(productCategories).values({
-				id: c.id,
-				ownerId: owner.id,
-				name: c.name,
-				description: c.description,
-				parentCategoryId: null,
-				requiresPrescription: c.requiresPrescription,
-				createdAt: now,
-				updatedAt: now,
-			})
-		}
-
-		const brandNames = ["MediCare Pharma", "WellPlus", "HealFast", "CuraGen", "SunLeaf"] as const
-		const brandIds: string[] = []
-		for (const brandName of brandNames) {
-			const brandId = await ensureBrandId(tx, brandName, now)
-			brandIds.push(brandId)
-			await ensureOwnerBrandLink(tx, owner.id, brandId, now)
-		}
-
-		const staffIds: string[] = []
-		for (const staffUserId of staffUserIds) {
-			const staffId = stableId("staff_profile", staffUserId)
-			staffIds.push(staffId)
-
-			const existingStaff = await tx.select().from(staff).where(eq(staff.id, staffId)).limit(1)
-			if (existingStaff.length === 0) {
-				await tx.insert(staff).values({
-					id: staffId,
-					userId: staffUserId,
-					ownerId: owner.id,
-					department: pick(["Dispensing", "Inventory", "Customer service"] as const, owner.index),
-					position: pick(["Pharmacy assistant", "Pharmacy technician"] as const, staffIds.length),
-					specialization: null,
-					bio: null,
-					phone: null,
-					isActive: true,
-					createdAt: now,
-					updatedAt: now,
-				})
-			} else {
-				await tx
-					.update(staff)
-					.set({
-						ownerId: owner.id,
-						isActive: true,
-						updatedAt: now,
-					})
-					.where(eq(staff.id, staffId))
-			}
-
-			const pharmacyStaffId = stableId("pharmacy_staff", `${pharmacyId}:${staffId}`)
-			const existingAssign = await tx.select().from(pharmacyStaff).where(eq(pharmacyStaff.id, pharmacyStaffId)).limit(1)
-			if (existingAssign.length === 0) {
-				await tx.insert(pharmacyStaff).values({
-					id: pharmacyStaffId,
-					pharmacyId,
-					staffId,
-					assignedAt: now,
-				})
-			}
-		}
-
-		const generics = [
-			"Paracetamol",
-			"Ibuprofen",
-			"Amoxicillin",
-			"Loratadine",
-			"Cetirizine",
-			"Omeprazole",
-			"Salbutamol",
-			"Metformin",
-			"Amlodipine",
-			"Atorvastatin",
-			"Dextromethorphan",
-			"Guaifenesin",
-			"Hydrocortisone",
-			"Mupirocin",
-			"Betadine (Povidone-iodine)",
-			"Oral rehydration salts",
-			"Zinc",
-			"Vitamin C",
-			"Calcium carbonate",
-			"Simethicone",
-		] as const
-
-		const dosageForms = ["tablet", "capsule", "syrup", "cream", "drops"] as const
-		const strengths = ["10mg", "20mg", "250mg", "500mg", "5mg/5mL", "100mg/5mL", "1%", "2%"] as const
-		const units = ["tablet", "capsule", "ml", "gram", "piece"] as const
-		const suppliers = ["Seed Supplier A", "Seed Supplier B", "Seed Supplier C"] as const
-
-		const rxGenerics = new Set<string>(["Amoxicillin", "Metformin", "Amlodipine"])
-
-		for (let i = 0; i < 20; i++) {
-			const productId = stableId("product", `${pharmacyId}:${i}`)
-			const existingProduct = await tx.select().from(medicalProducts).where(eq(medicalProducts.id, productId)).limit(1)
-
-			const genericName = pick(generics, i)
-			const dosageForm = pick(dosageForms, i + owner.index)
-			const strength = pick(strengths, i + owner.index * 2)
-			const unit = pick(units, i + 1)
-
-			const brandIdx = (i + owner.index) % brandIds.length
-			const brandId = brandIds[brandIdx]!
-			const brandName = brandNames[brandIdx]!
-
-			const categoryId = rxGenerics.has(genericName)
-				? categoryPrescriptionMedsId
-				: pick([categoryPainReliefId, categoryColdFluId, categorySkinCareId] as const, i)
-
-			const requiresPrescription = categoryById.get(categoryId)?.requiresPrescription ?? false
-			const lowStockThreshold = 5 + ((i + owner.index) % 6) * 5
-
-			const productName = `${genericName} ${strength} (${dosageForm})`
-			const manufacturer = `${brandName} Labs`
-
-			if (existingProduct.length === 0) {
-				await tx.insert(medicalProducts).values({
-					id: productId,
-					pharmacyId,
-					name: productName,
-					genericName,
-					brandName,
-					brandId,
-					description: `Seed product ${i + 1} for ${owner.email}.`,
-					manufacturer,
-					categoryId,
-					dosageForm,
-					strength,
-					unit,
-					requiresPrescription,
-					imageUrl: null,
-					supplier: pick(suppliers, i),
-					lowStockThreshold,
-					createdAt: now,
-					updatedAt: now,
-				})
-			} else {
-				await tx
-					.update(medicalProducts)
-					.set({
-						pharmacyId,
-						name: productName,
-						genericName,
-						brandName,
-						brandId,
-						manufacturer,
-						categoryId,
-						dosageForm,
-						strength,
-						unit,
-						requiresPrescription,
-						supplier: pick(suppliers, i),
-						lowStockThreshold,
-						updatedAt: now,
-					})
-					.where(eq(medicalProducts.id, productId))
-			}
-
-			for (let v = 0; v < 2; v++) {
-				const variantId = stableId("variant", `${productId}:${v}`)
-				const existingVariant = await tx
-					.select()
-					.from(medicalProductVariants)
-					.where(eq(medicalProductVariants.id, variantId))
-					.limit(1)
-
-				const label =
-					v === 0
-						? pick(["Small pack", "10s blister", "60mL bottle", "15g tube"] as const, i)
-						: pick(["Large pack", "30s blister", "120mL bottle", "30g tube"] as const, i + 1)
-
-				if (existingVariant.length === 0) {
-					await tx.insert(medicalProductVariants).values({
-						id: variantId,
-						productId,
-						label,
-						sortOrder: v,
-						createdAt: now,
-						updatedAt: now,
-					})
-				} else {
-					await tx
-						.update(medicalProductVariants)
-						.set({ label, sortOrder: v, updatedAt: now })
-						.where(eq(medicalProductVariants.id, variantId))
-				}
-
-				const inventoryId = stableId("inventory", variantId)
-				const existingInv = await tx
-					.select()
-					.from(pharmacyInventory)
-					.where(eq(pharmacyInventory.id, inventoryId))
-					.limit(1)
-
-				const quantity = 5 + ((i + v + owner.index) % 50)
-				const priceNum = 25 + i * 3 + v * 10 + owner.index * 5
-				const price = `${priceNum.toFixed(2)}`
-
-				const hasDiscount = (i + v) % 3 === 0
-				const discountPrice = hasDiscount ? `${Math.max(priceNum - 5 - v * 2, 1).toFixed(2)}` : null
-
-				const hasExpiry = (i + v) % 2 === 0
-				const expiryDate = hasExpiry ? new Date(now.getTime() + (30 + i * 7) * 24 * 60 * 60 * 1000) : null
-
-				const batchNumber = `SEED-${owner.index}-${i.toString().padStart(2, "0")}-${v}`
-				const isAvailable = quantity > 0
-
-				if (existingInv.length === 0) {
-					await tx.insert(pharmacyInventory).values({
-						id: inventoryId,
-						pharmacyId,
-						productId,
-						variantId,
-						quantity,
-						price,
-						discountPrice,
-						expiryDate,
-						batchNumber,
-						isAvailable,
-						lastRestocked: now,
-						createdAt: now,
-						updatedAt: now,
-					})
-				} else {
-					await tx
-						.update(pharmacyInventory)
-						.set({
-							quantity,
-							price,
-							discountPrice,
-							expiryDate,
-							batchNumber,
-							isAvailable,
-							lastRestocked: now,
-							updatedAt: now,
-						})
-						.where(eq(pharmacyInventory.id, inventoryId))
-				}
-			}
-		}
-	})
-
-	console.log(`Seeded owner catalog: ${owner.email}`)
-	console.log(`  Pharmacy: ${pharmacyId}`)
-	console.log("  Products: 20 (each with 2 variants + inventory rows)")
-	console.log("  Staff: 2 (assigned to pharmacy)")
-	console.log("")
-}
-
-function buildSeedUsers(): {
-	allUsers: SeedUser[]
-	owners: SeedUser[]
-	staffByOwnerEmail: Record<string, SeedUser[]>
-} {
+function buildSeedUsers(): SeedUser[] {
 	const password = "password123"
 	const admin: SeedUser = {
 		email: "admin@example.com",
@@ -504,60 +116,475 @@ function buildSeedUsers(): {
 		}
 	})
 
-	const staffByOwnerEmail: Record<string, SeedUser[]> = {}
-	for (const owner of owners) {
-		const ownerKey = owner.email
-		const staffUsers: SeedUser[] = Array.from({ length: 2 }, (_, idx) => {
-			const n = idx + 1
-			return {
-				email: `${owner.email.replace("@example.com", "")}.staff${n}@example.com`,
-				password,
-				firstName: "Staff",
-				lastName: `${owner.lastName}${n}`,
-				middleName: `S${owner.middleName}${n}`,
-				role: "staff",
-			}
-		})
-		staffByOwnerEmail[ownerKey] = staffUsers
+	return [admin, ...owners, ...customers]
+}
+
+async function seedPharmacies(db: ReturnType<typeof createDBClient>, ownerIds: Record<string, string>) {
+	const now = new Date()
+	const o1 = ownerIds["owner1@example.com"]
+	const o2 = ownerIds["owner2@example.com"]
+	if (!o1 || !o2) throw new Error("Expected owner1@example.com and owner2@example.com in seed users")
+
+	const rows = [
+		{
+			id: "seed-pharmacy-1",
+			ownerId: o1,
+			name: "HealthPlus Pharmacy",
+			description: "Seed pharmacy (owner1)",
+			address: "123 Rizal Ave, Manila",
+			city: "Manila",
+			municipality: null as string | null,
+			state: "NCR",
+			zipCode: "1000",
+			country: "PH",
+			certificateStatus: "approved" as const,
+			isActive: true,
+			latitude: 14.5995,
+			longitude: 120.9842,
+		},
+		{
+			id: "seed-pharmacy-2",
+			ownerId: o2,
+			name: "MediCare Drugstore",
+			description: "Seed pharmacy (owner2)",
+			address: "456 Commonwealth Ave, QC",
+			city: "Quezon City",
+			municipality: null as string | null,
+			state: "NCR",
+			zipCode: "1100",
+			country: "PH",
+			certificateStatus: "approved" as const,
+			isActive: true,
+			latitude: 14.676,
+			longitude: 121.0437,
+		},
+	]
+
+	for (const r of rows) {
+		await db
+			.insert(pharmacies)
+			.values({
+				...r,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: pharmacies.id,
+				set: {
+					ownerId: r.ownerId,
+					name: r.name,
+					description: r.description,
+					address: r.address,
+					city: r.city,
+					municipality: r.municipality,
+					state: r.state,
+					zipCode: r.zipCode,
+					country: r.country,
+					certificateStatus: r.certificateStatus,
+					isActive: r.isActive,
+					latitude: r.latitude,
+					longitude: r.longitude,
+					updatedAt: now,
+				},
+			})
+	}
+	console.log("Seeded pharmacies (2).")
+}
+
+async function seedBrands(db: ReturnType<typeof createDBClient>, ownerIds: Record<string, string>) {
+	const now = new Date()
+	const o1 = ownerIds["owner1@example.com"]
+	const o2 = ownerIds["owner2@example.com"]
+	if (!o1 || !o2) throw new Error("Expected owners for brand links")
+
+	const brandDefs = [
+		{ id: "seed-brand-biogesic", name: "Biogesic" },
+		{ id: "seed-brand-tempra", name: "Tempra" },
+		{ id: "seed-brand-calpol", name: "Calpol" },
+		{ id: "seed-brand-ritemed", name: "RiteMed" },
+	]
+
+	const nameToId: Record<string, string> = {}
+
+	for (const b of brandDefs) {
+		const nn = normalizedBrandName(b.name)
+		await db
+			.insert(brands)
+			.values({
+				id: b.id,
+				name: b.name,
+				normalizedName: nn,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: brands.id,
+				set: {
+					name: b.name,
+					normalizedName: nn,
+					updatedAt: now,
+				},
+			})
+		nameToId[b.name] = b.id
 	}
 
-	const allUsers = [admin, ...owners, ...Object.values(staffByOwnerEmail).flat(), ...customers]
-	return { allUsers, owners, staffByOwnerEmail }
+	const links: { id: string; ownerId: string; brandId: string }[] = [
+		{ id: "seed-ob-bio-o1", ownerId: o1, brandId: nameToId["Biogesic"]! },
+		{ id: "seed-ob-bio-o2", ownerId: o2, brandId: nameToId["Biogesic"]! },
+		{ id: "seed-ob-tem-o1", ownerId: o1, brandId: nameToId["Tempra"]! },
+		{ id: "seed-ob-cal-o2", ownerId: o2, brandId: nameToId["Calpol"]! },
+		{ id: "seed-ob-rm-o1", ownerId: o1, brandId: nameToId["RiteMed"]! },
+		{ id: "seed-ob-rm-o2", ownerId: o2, brandId: nameToId["RiteMed"]! },
+	]
+
+	for (const l of links) {
+		await db
+			.insert(ownerBrands)
+			.values({
+				...l,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: ownerBrands.id,
+				set: {
+					ownerId: l.ownerId,
+					brandId: l.brandId,
+					updatedAt: now,
+				},
+			})
+	}
+
+	console.log("Seeded brands and owner_brands.")
+	return nameToId
+}
+
+async function seedProductCategories(
+	db: ReturnType<typeof createDBClient>,
+	ownerIds: Record<string, string>
+): Promise<Record<string, string>> {
+	const now = new Date()
+	const o1 = ownerIds["owner1@example.com"]
+	const o2 = ownerIds["owner2@example.com"]
+	if (!o1 || !o2) throw new Error("Expected owners for categories")
+
+	const rows = [
+		{ id: "seed-category-pain-o1", ownerId: o1, name: "Pain Relief" },
+		{ id: "seed-category-pain-o2", ownerId: o2, name: "Pain Relief" },
+	]
+
+	for (const r of rows) {
+		await db
+			.insert(productCategories)
+			.values({
+				id: r.id,
+				ownerId: r.ownerId,
+				name: r.name,
+				description: "",
+				requiresPrescription: false,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: productCategories.id,
+				set: {
+					ownerId: r.ownerId,
+					name: r.name,
+					updatedAt: now,
+				},
+			})
+	}
+
+	console.log("Seeded product categories.")
+	return { [o1]: rows[0]!.id, [o2]: rows[1]!.id }
+}
+
+type ProductSeedRow = {
+	productId: string
+	variantId: string
+	inventoryId: string
+	pharmacyId: string
+	categoryOwnerKey: "o1" | "o2"
+	name: string
+	genericName: string
+	brandName: string
+	brandKey: string
+	strength: string
+	dosageForm: string
+	variantLabel: string
+	unit: string
+	price: string
+	quantity: number
+}
+
+async function seedProducts(
+	db: ReturnType<typeof createDBClient>,
+	ctx: {
+		pharmacyMap: Record<string, string>
+		brandMap: Record<string, string>
+		categoryByOwner: Record<string, string>
+		ownerIds: Record<string, string>
+	}
+) {
+	const now = new Date()
+	const o1 = ctx.ownerIds["owner1@example.com"]!
+	const o2 = ctx.ownerIds["owner2@example.com"]!
+	const cat = (ownerKey: "o1" | "o2") => (ownerKey === "o1" ? ctx.categoryByOwner[o1]! : ctx.categoryByOwner[o2]!)
+	const ph = (key: "hp" | "mc") => (key === "hp" ? ctx.pharmacyMap.hp : ctx.pharmacyMap.mc)
+	const b = (name: string) => ctx.brandMap[name]!
+
+	const defs: ProductSeedRow[] = [
+		{
+			productId: "seed-product-1",
+			variantId: "seed-variant-1",
+			inventoryId: "seed-inv-1",
+			pharmacyId: ph("hp"),
+			categoryOwnerKey: "o1",
+			name: "Biogesic Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "Biogesic",
+			brandKey: "Biogesic",
+			strength: "500mg",
+			dosageForm: "Tablet",
+			variantLabel: "Box of 100",
+			unit: "box",
+			price: "120.00",
+			quantity: 80,
+		},
+		{
+			productId: "seed-product-2",
+			variantId: "seed-variant-2",
+			inventoryId: "seed-inv-2",
+			pharmacyId: ph("hp"),
+			categoryOwnerKey: "o1",
+			name: "Tempra Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "Tempra",
+			brandKey: "Tempra",
+			strength: "500mg",
+			dosageForm: "Tablet",
+			variantLabel: "Box of 50",
+			unit: "box",
+			price: "135.50",
+			quantity: 40,
+		},
+		{
+			productId: "seed-product-3",
+			variantId: "seed-variant-3",
+			inventoryId: "seed-inv-3",
+			pharmacyId: ph("mc"),
+			categoryOwnerKey: "o2",
+			name: "Biogesic Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "Biogesic",
+			brandKey: "Biogesic",
+			strength: "500mg",
+			dosageForm: "Tablet",
+			variantLabel: "Box of 100",
+			unit: "box",
+			price: "118.00",
+			quantity: 60,
+		},
+		{
+			productId: "seed-product-4",
+			variantId: "seed-variant-4",
+			inventoryId: "seed-inv-4",
+			pharmacyId: ph("mc"),
+			categoryOwnerKey: "o2",
+			name: "Calpol Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "Calpol",
+			brandKey: "Calpol",
+			strength: "500mg",
+			dosageForm: "Syrup",
+			variantLabel: "Bottle 60ml",
+			unit: "bottle",
+			price: "95.00",
+			quantity: 35,
+		},
+		{
+			productId: "seed-product-5",
+			variantId: "seed-variant-5",
+			inventoryId: "seed-inv-5",
+			pharmacyId: ph("hp"),
+			categoryOwnerKey: "o1",
+			name: "RiteMed Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "RiteMed",
+			brandKey: "RiteMed",
+			strength: "500mg",
+			dosageForm: "Tablet",
+			variantLabel: "Strip of 10",
+			unit: "strip",
+			price: "45.00",
+			quantity: 200,
+		},
+		{
+			productId: "seed-product-6",
+			variantId: "seed-variant-6",
+			inventoryId: "seed-inv-6",
+			pharmacyId: ph("mc"),
+			categoryOwnerKey: "o2",
+			name: "RiteMed Paracetamol",
+			genericName: "Paracetamol",
+			brandName: "RiteMed",
+			brandKey: "RiteMed",
+			strength: "500mg",
+			dosageForm: "Tablet",
+			variantLabel: "Strip of 10",
+			unit: "strip",
+			price: "44.50",
+			quantity: 150,
+		},
+		{
+			productId: "seed-product-7",
+			variantId: "seed-variant-7",
+			inventoryId: "seed-inv-7",
+			pharmacyId: ph("hp"),
+			categoryOwnerKey: "o1",
+			name: "Biogesic Ibuprofen",
+			genericName: "Ibuprofen",
+			brandName: "Biogesic",
+			brandKey: "Biogesic",
+			strength: "200mg",
+			dosageForm: "Tablet",
+			variantLabel: "Box of 20",
+			unit: "box",
+			price: "210.00",
+			quantity: 25,
+		},
+		{
+			productId: "seed-product-8",
+			variantId: "seed-variant-8",
+			inventoryId: "seed-inv-8",
+			pharmacyId: ph("mc"),
+			categoryOwnerKey: "o2",
+			name: "Advil Ibuprofen",
+			genericName: "Ibuprofen",
+			brandName: "RiteMed",
+			brandKey: "RiteMed",
+			strength: "200mg",
+			dosageForm: "Capsule",
+			variantLabel: "Bottle 30",
+			unit: "bottle",
+			price: "199.99",
+			quantity: 18,
+		},
+	]
+
+	for (const d of defs) {
+		const categoryId = cat(d.categoryOwnerKey)
+		const brandIdVal = b(d.brandKey)
+
+		await db
+			.insert(medicalProducts)
+			.values({
+				id: d.productId,
+				pharmacyId: d.pharmacyId,
+				name: d.name,
+				genericName: d.genericName,
+				brandName: d.brandName,
+				brandId: brandIdVal,
+				description: `Seed ${d.genericName} (${d.brandName})`,
+				manufacturer: "",
+				categoryId,
+				requiresPrescription: false,
+				supplier: "",
+				lowStockThreshold: 5,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: medicalProducts.id,
+				set: {
+					pharmacyId: d.pharmacyId,
+					name: d.name,
+					genericName: d.genericName,
+					brandName: d.brandName,
+					brandId: brandIdVal,
+					description: `Seed ${d.genericName} (${d.brandName})`,
+					categoryId,
+					updatedAt: now,
+				},
+			})
+
+		await db
+			.insert(medicalProductVariants)
+			.values({
+				id: d.variantId,
+				productId: d.productId,
+				label: d.variantLabel,
+				unit: d.unit,
+				sortOrder: 0,
+				strength: d.strength,
+				dosageForm: d.dosageForm,
+				imageUrl: "",
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: medicalProductVariants.id,
+				set: {
+					label: d.variantLabel,
+					unit: d.unit,
+					strength: d.strength,
+					dosageForm: d.dosageForm,
+					updatedAt: now,
+				},
+			})
+
+		await db
+			.insert(pharmacyInventory)
+			.values({
+				id: d.inventoryId,
+				pharmacyId: d.pharmacyId,
+				productId: d.productId,
+				variantId: d.variantId,
+				quantity: d.quantity,
+				price: d.price,
+				isAvailable: true,
+				createdAt: now,
+				updatedAt: now,
+			})
+			.onConflictDoUpdate({
+				target: pharmacyInventory.id,
+				set: {
+					variantId: d.variantId,
+					quantity: d.quantity,
+					price: d.price,
+					isAvailable: true,
+					updatedAt: now,
+				},
+			})
+	}
+
+	console.log("Seeded medical products, variants, and inventory (8).")
 }
 
 async function seed() {
 	const auth = getAuth()
 	const db = createDBClient()
 
-	const { allUsers, owners, staffByOwnerEmail } = buildSeedUsers()
+	const allUsers = buildSeedUsers()
+	const ownerIds: Record<string, string> = {}
 
-	const userIdByEmail = new Map<string, string>()
 	for (const u of allUsers) {
-		const userId = await seedUser(auth, db, u)
-		userIdByEmail.set(u.email, userId)
+		const id = await seedUser(auth, db, u)
+		if (u.role === "owner") ownerIds[u.email] = id
 	}
 
-	for (let idx = 0; idx < owners.length; idx++) {
-		const ownerSeed = owners[idx]!
-		const ownerId = userIdByEmail.get(ownerSeed.email)
-		if (!ownerId) throw new Error(`Owner not created: ${ownerSeed.email}`)
+	await seedPharmacies(db, ownerIds)
+	const brandMap = await seedBrands(db, ownerIds)
+	const categoryByOwner = await seedProductCategories(db, ownerIds)
 
-		const staffSeeds = staffByOwnerEmail[ownerSeed.email] ?? []
-		const staffUserIds = staffSeeds.map(s => userIdByEmail.get(s.email)).filter((v): v is string => Boolean(v))
+	const pharmacyMap = { hp: "seed-pharmacy-1", mc: "seed-pharmacy-2" }
 
-		try {
-			await seedOwnerCatalog({
-				db,
-				owner: { id: ownerId, email: ownerSeed.email, index: idx + 1 },
-				staffUserIds,
-			})
-		} catch (err) {
-			console.error(
-				`Owner catalog seed failed for ${ownerSeed.email} (did you run DB migrations?).`,
-				err instanceof Error ? err.message : err
-			)
-		}
-	}
+	await seedProducts(db, {
+		pharmacyMap,
+		brandMap,
+		categoryByOwner,
+		ownerIds,
+	})
 
 	console.log("Seed complete.")
 	process.exit(0)

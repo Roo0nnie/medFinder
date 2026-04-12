@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
 
@@ -11,7 +11,6 @@ import { cn } from "@/core/lib/utils"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
 import type { LandingPharmacy, LandingProduct } from "@/features/landing/data/types"
-import { ProductLocationFlowModal } from "@/features/products/components/product-branch-selection-modal"
 import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
@@ -21,11 +20,26 @@ const SORT_OPTIONS = [
 	{ value: "price-desc", label: "Price high–low" },
 ] as const
 
+function brandOptionKey(p: LandingProduct): string {
+	if (p.brandId) return `id:${p.brandId}`
+	return `n:${encodeURIComponent(p.brand)}`
+}
+
+function brandOptionLabel(p: LandingProduct): string {
+	const label = (p.brandName?.trim() || p.brand).trim()
+	return label || "—"
+}
+
+function productMatchesBrandKey(p: LandingProduct, brandKey: string): boolean {
+	return brandOptionKey(p) === brandKey
+}
+
 function filterProducts(
 	products: LandingProduct[],
 	pharmacies: LandingPharmacy[],
 	query: string,
 	category: string,
+	brandKey: string,
 	city: string,
 	storeId: string
 ): LandingProduct[] {
@@ -44,6 +58,7 @@ function filterProducts(
 		)
 	}
 	if (category) result = result.filter(p => p.category === category)
+	if (brandKey) result = result.filter(p => productMatchesBrandKey(p, brandKey))
 	if (city) {
 		const storeIdsInCity = new Set(
 			pharmacies.filter(s => s.city === city || s.municipality.includes(city)).map(s => s.id)
@@ -59,6 +74,16 @@ function getSortPrice(p: LandingProduct): number {
 		return Math.min(...p.variants.map(v => v.price))
 	}
 	return p.price
+}
+
+function pharmacyProductRoute(
+	pharmacyId: string,
+	productId: string,
+	variantId: string | null
+): Route {
+	const q = new URLSearchParams({ product: productId })
+	if (variantId) q.set("variant", variantId)
+	return `/pharmacy/${pharmacyId}?${q.toString()}#pharmacy-products` as Route
 }
 
 function sortProducts(
@@ -77,34 +102,49 @@ function ProductCard({
 	product,
 	storeName,
 	onSelectClick,
+	onActivate,
+	shellClassName,
+	shellStyle,
 }: {
 	product: LandingProduct
 	storeName: string
 	onSelectClick?: (e: React.MouseEvent) => void
+	/** Current variant id when the product has variants; null otherwise */
+	onActivate?: (selectedVariantId: string | null) => void
+	shellClassName?: string
+	shellStyle?: CSSProperties
 }) {
 	const hasVariants = product.variants && product.variants.length > 0
 	const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
 		hasVariants ? product.variants![0]!.id : null
 	)
 
-	const unit = product.unit ?? "piece"
-	const display =
+	const selectedVariant =
 		hasVariants && selectedVariantId
-			? (() => {
-					const v = product.variants!.find(x => x.id === selectedVariantId)
-					return v
-						? { price: v.price, quantity: v.quantity, lowStockThreshold: v.lowStockThreshold }
-						: {
-								price: product.price,
-								quantity: product.quantity,
-								lowStockThreshold: product.lowStockThreshold,
-							}
-				})()
-			: {
-					price: product.price,
-					quantity: product.quantity,
-					lowStockThreshold: product.lowStockThreshold,
-				}
+			? product.variants!.find(x => x.id === selectedVariantId)
+			: undefined
+
+	const display = selectedVariant
+		? {
+				price: selectedVariant.price,
+				quantity: selectedVariant.quantity,
+				lowStockThreshold: selectedVariant.lowStockThreshold,
+			}
+		: {
+				price: product.price,
+				quantity: product.quantity,
+				lowStockThreshold: product.lowStockThreshold,
+			}
+
+	const dosageDisplay = (() => {
+		if (selectedVariant) {
+			const strength = selectedVariant.strength?.trim()
+			const form = selectedVariant.dosageForm?.trim()
+			const parts = [strength, form].filter(Boolean)
+			if (parts.length > 0) return parts.join(" · ")
+		}
+		return product.dosage
+	})()
 
 	const stock = getStockStatus({
 		quantity: display.quantity,
@@ -113,7 +153,9 @@ function ProductCard({
 	})
 	const stockLabel = stock.label
 
-	return (
+	const activateVariantId = hasVariants ? selectedVariantId : null
+
+	const inner = (
 		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex items-start justify-between gap-3">
@@ -122,6 +164,9 @@ function ProductCard({
 							{product.name}
 						</h3>
 						<p className="text-muted-foreground mt-0.5 text-sm">{product.brand}</p>
+						<p className="text-muted-foreground mt-0.5 text-sm">
+							Category: {product.category}
+						</p>
 					</div>
 					<span
 						className={cn(
@@ -135,8 +180,8 @@ function ProductCard({
 						{stockLabel}
 					</span>
 				</div>
-				{product.dosage && (
-					<p className="text-muted-foreground mt-2 text-sm">Dosage: {product.dosage}</p>
+				{dosageDisplay && (
+					<p className="text-muted-foreground mt-2 text-sm">Dosage: {dosageDisplay}</p>
 				)}
 				{product.description && (
 					<p className="text-muted-foreground mt-1.5 line-clamp-2 text-sm">{product.description}</p>
@@ -155,16 +200,12 @@ function ProductCard({
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
-									{v.label} — ₱{v.price.toFixed(2)} ({v.quantity} left)
+									{v.label}
 								</option>
 							))}
 						</select>
 					</div>
 				)}
-				<p className="text-muted-foreground mt-1.5 text-sm">
-					{display.quantity} {unit}
-					{display.quantity !== 1 ? "s" : ""} left
-				</p>
 				<div className="border-border mt-4 flex items-center justify-between gap-2 border-t pt-3">
 					<span className="text-foreground text-lg font-semibold">₱{display.price.toFixed(2)}</span>
 					<span className="text-muted-foreground truncate text-sm">{storeName}</span>
@@ -172,16 +213,38 @@ function ProductCard({
 			</CardContent>
 		</Card>
 	)
+
+	if (!onActivate) return inner
+
+	return (
+		<div
+			role="button"
+			tabIndex={0}
+			className={shellClassName}
+			style={shellStyle}
+			onClick={() => onActivate(activateVariantId)}
+			onKeyDown={e => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault()
+					onActivate(activateVariantId)
+				}
+			}}
+		>
+			{inner}
+		</div>
+	)
 }
 
 export function LandingProductSection({ isCustomer = false }: { isCustomer?: boolean }) {
 	const router = useRouter()
 	const [query, setQuery] = useState("")
 	const [category, setCategory] = useState("")
+	const [brandKey, setBrandKey] = useState("")
 	const [city, setCity] = useState("")
 	const [storeId, setStoreId] = useState("")
 	const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>("name-asc")
 	const [selectedProduct, setSelectedProduct] = useState<LandingProduct | null>(null)
+	const [branchModalVariantId, setBranchModalVariantId] = useState<string | null>(null)
 	const [branchModalOpen, setBranchModalOpen] = useState(false)
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 	const [page, setPage] = useState(1)
@@ -215,6 +278,22 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 		}
 		return Array.from(new Set(products.map(p => p.category))).sort()
 	}, [products, storeId, pharmacyById, catalogCategories])
+
+	const brandSourceProducts = useMemo(
+		() => (storeId ? products.filter(p => p.storeId === storeId) : products),
+		[products, storeId]
+	)
+	const brandOptions = useMemo(() => {
+		const map = new Map<string, string>()
+		for (const p of brandSourceProducts) {
+			const key = brandOptionKey(p)
+			if (!map.has(key)) map.set(key, brandOptionLabel(p))
+		}
+		return Array.from(map.entries())
+			.map(([value, label]) => ({ value, label }))
+			.sort((a, b) => a.label.localeCompare(b.label))
+	}, [brandSourceProducts])
+
 	const cities = useMemo(
 		() =>
 			Array.from(new Set(pharmacies.flatMap(s => [s.city, s.municipality].filter(Boolean)))).sort(),
@@ -222,11 +301,15 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	)
 
 	const filtered = useMemo(
-		() => sortProducts(filterProducts(products, pharmacies, query, category, city, storeId), sort),
-		[products, pharmacies, query, category, city, storeId, sort]
+		() =>
+			sortProducts(
+				filterProducts(products, pharmacies, query, category, brandKey, city, storeId),
+				sort
+			),
+		[products, pharmacies, query, category, brandKey, city, storeId, sort]
 	)
 
-	const hasFilters = category || city || storeId
+	const hasFilters = category || brandKey || city || storeId
 	const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
 	const safePage = Math.min(page, totalPages)
 	const paged = useMemo(() => {
@@ -236,7 +319,12 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 
 	useEffect(() => {
 		setPage(1)
-	}, [query, category, city, storeId, sort])
+	}, [query, category, brandKey, city, storeId, sort])
+
+	useEffect(() => {
+		if (!brandKey) return
+		if (!brandOptions.some(o => o.value === brandKey)) setBrandKey("")
+	}, [brandKey, brandOptions])
 
 	return (
 		<div className="w-full space-y-6">
@@ -300,6 +388,18 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					))}
 				</select>
 				<select
+					value={brandKey}
+					onChange={e => setBrandKey(e.target.value)}
+					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
+				>
+					<option value="">All brands</option>
+					{brandOptions.map(o => (
+						<option key={o.value} value={o.value}>
+							{o.label}
+						</option>
+					))}
+				</select>
+				<select
 					value={city}
 					onChange={e => setCity(e.target.value)}
 					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[160px] sm:flex-none md:min-w-[180px]"
@@ -328,6 +428,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 						type="button"
 						onClick={() => {
 							setCategory("")
+							setBrandKey("")
 							setCity("")
 							setStoreId("")
 						}}
@@ -365,40 +466,25 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
 					>
 						{paged.map((product, i) => (
-							<div
+							<ProductCard
 								key={product.id}
-								role="button"
-								tabIndex={0}
-								className={`focus-visible:ring-ring cursor-pointer rounded-xl transition-all duration-500 outline-none focus-visible:ring-2 ${
+								product={product}
+								storeName={pharmacyById.get(product.storeId)?.name ?? "Unknown"}
+								onSelectClick={e => e.stopPropagation()}
+								shellClassName={`focus-visible:ring-ring cursor-pointer rounded-xl transition-all duration-500 outline-none focus-visible:ring-2 ${
 									gridInView ? "translate-y-0 opacity-100" : "translate-y-4 opacity-100"
 								}`}
-								style={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
-								onClick={() => {
-									if (isCustomer) {
-										setSelectedProduct(product)
-										setBranchModalOpen(true)
-									} else {
-										setRegisterModalOpen(true)
-									}
-								}}
-								onKeyDown={e => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault()
-										if (isCustomer) {
-											setSelectedProduct(product)
-											setBranchModalOpen(true)
-										} else {
-											setRegisterModalOpen(true)
-										}
-									}
-								}}
-							>
-								<ProductCard
-									product={product}
-									storeName={pharmacyById.get(product.storeId)?.name ?? "Unknown"}
-									onSelectClick={e => e.stopPropagation()}
-								/>
-							</div>
+								shellStyle={{ transitionDelay: gridInView ? `${Math.min(i, 7) * 80}ms` : "0ms" }}
+								onActivate={
+									isCustomer
+										? variantId => {
+												router.push(
+													pharmacyProductRoute(product.storeId, product.id, variantId)
+												)
+											}
+										: () => setRegisterModalOpen(true)
+								}
+							/>
 						))}
 					</div>
 
@@ -428,15 +514,6 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 				</>
 			)}
 			<LandingRegisterModal open={registerModalOpen} onOpenChange={setRegisterModalOpen} />
-			{selectedProduct && (
-				<ProductLocationFlowModal
-					open={branchModalOpen}
-					onOpenChange={setBranchModalOpen}
-					clickedProduct={selectedProduct}
-					allProducts={products}
-					pharmacies={pharmacies}
-				/>
-			)}
 		</div>
 	)
 }

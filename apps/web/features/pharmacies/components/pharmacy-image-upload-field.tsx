@@ -101,7 +101,6 @@ export function PharmacyImageUploadField({
 					)}
 				>
 					{displaySrc ? (
-						// eslint-disable-next-line @next/next/no-img-element -- user or blob URL
 						<img src={displaySrc} alt="" className="max-h-full max-w-full object-contain" />
 					) : (
 						<ImageIcon className="text-muted-foreground/50 size-10" aria-hidden />
