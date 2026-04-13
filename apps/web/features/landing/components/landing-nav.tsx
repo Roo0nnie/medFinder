@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { Route } from "next"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
 	BadgeCheck,
 	HelpCircleIcon,
@@ -43,10 +45,17 @@ function scrollToSection(href: string) {
 	}
 }
 
-function useActiveSection() {
-	const [active, setActive] = useState("home")
+function useActiveSection(isHome: boolean) {
+	const [active, setActive] = useState<string | null>(() => (isHome ? "home" : null))
 
 	useEffect(() => {
+		if (!isHome) {
+			setActive(null)
+			return
+		}
+
+		setActive("home")
+
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
@@ -64,53 +73,83 @@ function useActiveSection() {
 		}
 
 		return () => observer.disconnect()
-	}, [])
+	}, [isHome])
 
 	return active
 }
 
 export function LandingNav({ session }: { session: AuthSession | null }) {
+	const pathname = usePathname()
+	const isHome = pathname === "/"
 	const signOutMutation = useSignOutMutation("/")
-	const activeSection = useActiveSection()
+	const activeSection = useActiveSection(isHome)
 	const [mobileOpen, setMobileOpen] = useState(false)
+
+	const logoClass = "flex items-center gap-3"
+	const logoInner = (
+		<>
+			{/* eslint-disable-next-line @next/next/no-img-element */}
+			<img src="/assets/MedFinder_logo.svg" alt="MedFinder" width={80} height={20} />
+			<span className="text-muted-foreground hidden text-sm font-medium sm:inline">
+				MedFinder
+			</span>
+		</>
+	)
 
 	return (
 		<>
-			<a
-				href="#home"
-				onClick={e => {
-					e.preventDefault()
-					scrollToSection("#home")
-				}}
-				className="flex items-center gap-3"
-			>
-				{/* eslint-disable-next-line @next/next/no-img-element */}
-				<img src="/assets/MedFinder_logo.svg" alt="MedFinder" width={80} height={20} />
-				<span className="text-muted-foreground hidden text-sm font-medium sm:inline">
-					MedFinder
-				</span>
-			</a>
+			{isHome ? (
+				<a
+					href="#home"
+					onClick={e => {
+						e.preventDefault()
+						scrollToSection("#home")
+					}}
+					className={logoClass}
+				>
+					{logoInner}
+				</a>
+			) : (
+				<Link href={"/#home" as Route} className={logoClass}>
+					{logoInner}
+				</Link>
+			)}
 
 			{/* Desktop nav */}
 			<div className="text-muted-foreground hidden items-center gap-1 text-sm md:flex">
-				{SECTIONS.map(({ href, label, id }) => (
-					<a
-						key={href}
-						href={href}
-						onClick={e => {
-							e.preventDefault()
-							scrollToSection(href)
-						}}
-						className={`relative rounded-md px-3 py-1.5 transition-colors hover:text-foreground ${
-							activeSection === id ? "text-foreground font-medium" : ""
-						}`}
-					>
-						{label}
-						{activeSection === id && (
-							<span className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full transition-all" />
-						)}
-					</a>
-				))}
+				{SECTIONS.map(({ href, label, id }) =>
+					isHome ? (
+						<a
+							key={href}
+							href={href}
+							onClick={e => {
+								e.preventDefault()
+								scrollToSection(href)
+							}}
+							className={`relative rounded-md px-3 py-1.5 transition-colors hover:text-foreground ${
+								activeSection === id ? "text-foreground font-medium" : ""
+							}`}
+						>
+							{label}
+							{activeSection === id ? (
+								<span className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full transition-all" />
+							) : null}
+						</a>
+					) : (
+						<Link
+							key={href}
+							href={`/#${id}` as Route}
+							className={`relative rounded-md px-3 py-1.5 transition-colors hover:text-foreground ${
+								isHome && activeSection === id ? "text-foreground font-medium" : ""
+							}`}
+						>
+							{label}
+							{isHome && activeSection === id ? (
+								<span className="bg-primary absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full transition-all" />
+							) : null}
+						</Link>
+					)
+				)}
 				{session ? (
 					<DropdownMenu>
 						<DropdownMenuTrigger>
@@ -210,22 +249,35 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 			{mobileOpen && (
 				<div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur border-b border-border animate-fade-in-up">
 					<div className="flex flex-col gap-1 px-4 py-4">
-						{SECTIONS.map(({ href, label, id }) => (
-							<a
-								key={href}
-								href={href}
-								onClick={e => {
-									e.preventDefault()
-									scrollToSection(href)
-									setMobileOpen(false)
-								}}
-								className={`rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted ${
-									activeSection === id ? "text-primary font-medium bg-primary/5" : "text-muted-foreground"
-								}`}
-							>
-								{label}
-							</a>
-						))}
+						{SECTIONS.map(({ href, label, id }) =>
+							isHome ? (
+								<a
+									key={href}
+									href={href}
+									onClick={e => {
+										e.preventDefault()
+										scrollToSection(href)
+										setMobileOpen(false)
+									}}
+									className={`rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted ${
+										isHome && activeSection === id ? "text-primary font-medium bg-primary/5" : "text-muted-foreground"
+									}`}
+								>
+									{label}
+								</a>
+							) : (
+								<Link
+									key={href}
+									href={`/#${id}` as Route}
+									className={`rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted ${
+										isHome && activeSection === id ? "text-primary font-medium bg-primary/5" : "text-muted-foreground"
+									}`}
+									onClick={() => setMobileOpen(false)}
+								>
+									{label}
+								</Link>
+							)
+						)}
 						{!session && (
 							<Link
 								href="/login"

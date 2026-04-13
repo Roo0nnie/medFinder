@@ -32,6 +32,7 @@ import { Package } from "lucide-react"
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
 	getStoredProductListPageSize,
+	normalizeProductListPageSize,
 	PAGE_SIZE_OPTIONS,
 	PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY,
 	setStoredProductListPageSize,
@@ -261,18 +262,18 @@ function ProductCard({
 					{stockLabel}
 				</span>
 			</div>
-			<CardContent className="bg-zinc-950 text-zinc-50 dark:bg-zinc-900 flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+			<CardContent className="bg-card text-card-foreground flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
 				<div className="min-w-0 space-y-1">
-					<h3 className="text-base leading-tight font-semibold text-zinc-50">{product.name}</h3>
-					<p className="text-zinc-400 text-sm">{product.brand}</p>
-					<p className="text-zinc-500 text-sm">Category: {product.category}</p>
+					<h3 className="text-base leading-tight font-semibold">{product.name}</h3>
+					<p className="text-muted-foreground text-sm">{product.brand}</p>
+					<p className="text-muted-foreground text-sm">Category: {product.category}</p>
 				</div>
 				{showRating ? <PharmacyRatingRow rating={product.rating!} /> : null}
 				{dosageDisplay ? (
-					<p className="text-zinc-400 text-sm">Dosage: {dosageDisplay}</p>
+					<p className="text-muted-foreground text-sm">Dosage: {dosageDisplay}</p>
 				) : null}
 				{product.description ? (
-					<p className="text-zinc-500 line-clamp-2 text-sm">{product.description}</p>
+					<p className="text-muted-foreground line-clamp-2 text-sm">{product.description}</p>
 				) : null}
 				{hasVariants ? (
 					<div className="mt-1" onClick={onSelectClick}>
@@ -284,7 +285,7 @@ function ProductCard({
 							value={selectedVariantId ?? ""}
 							onChange={e => setSelectedVariantId(e.target.value || null)}
 							onClick={e => e.stopPropagation()}
-							className="border-zinc-700 bg-zinc-900/80 text-zinc-50 focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							className="border-input bg-background text-foreground focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
@@ -294,17 +295,17 @@ function ProductCard({
 						</select>
 					</div>
 				) : null}
-				<p className="text-zinc-500 text-xs">
+				<p className="text-muted-foreground text-xs">
 					{display.quantity} {unit}
 					{display.quantity !== 1 ? "s" : ""} in stock at this pharmacy
 				</p>
-				<div className="border-zinc-800 mt-auto flex flex-col gap-2 border-t pt-3">
+				<div className="border-border mt-auto flex flex-col gap-2 border-t pt-3">
 					<div className="flex flex-wrap items-center justify-between gap-2">
-						<span className="text-lg font-semibold tabular-nums text-zinc-50">
+						<span className="text-lg font-semibold tabular-nums">
 							₱{(display.price ?? 0).toFixed(2)}
 						</span>
 						<span
-							className="bg-zinc-50 text-zinc-950 pointer-events-none inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium"
+							className="bg-primary text-primary-foreground pointer-events-none inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium"
 							aria-hidden
 						>
 							View details
@@ -489,9 +490,7 @@ export function PharmacyProductsClient({
 		const onStorage = (e: StorageEvent) => {
 			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue == null) return
 			const n = Number.parseInt(e.newValue, 10)
-			if (Number.isFinite(n) && (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)) {
-				setPageSize(n as ProductListPageSize)
-			}
+			if (Number.isFinite(n)) setPageSize(normalizeProductListPageSize(n))
 		}
 		window.addEventListener("storage", onStorage)
 		return () => window.removeEventListener("storage", onStorage)
@@ -711,7 +710,7 @@ export function PharmacyProductsClient({
 				</div>
 			) : (
 				<>
-					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						{paged.map((product, i) => (
 							<div
 								key={product.id}

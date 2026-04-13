@@ -22,6 +22,7 @@ import { ArrowUpDown, Layers, MapPin, Package, Search, Store, Tag } from "lucide
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
 	getStoredProductListPageSize,
+	normalizeProductListPageSize,
 	PAGE_SIZE_OPTIONS,
 	PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY,
 	setStoredProductListPageSize,
@@ -444,9 +445,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 		const onStorage = (e: StorageEvent) => {
 			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue == null) return
 			const n = Number.parseInt(e.newValue, 10)
-			if (Number.isFinite(n) && (PAGE_SIZE_OPTIONS as readonly number[]).includes(n)) {
-				setPageSize(n as ProductListPageSize)
-			}
+			if (Number.isFinite(n)) setPageSize(normalizeProductListPageSize(n))
 		}
 		window.addEventListener("storage", onStorage)
 		return () => window.removeEventListener("storage", onStorage)
@@ -656,7 +655,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 				<>
 					<div
 						ref={gridRef}
-						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+						className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
 					>
 						{paged.map((product, i) => (
 							<ProductCard
