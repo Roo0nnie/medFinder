@@ -356,7 +356,7 @@ type ProductSeedRow = {
 
 /** Single demo image URL applied to every seeded product variant (gallery uses two identical slides). */
 const SEED_DEFAULT_PRODUCT_IMAGE =
-	"https://www.shielddrugstore.com/web/image/product.product/22893/image_1024/%5BOTC-T10186-PAIN-CAT00103%5D%20Biogesic%20%28paracetamol%29%20250mg-5ml%20strawberry-flavored%20suspension%2C%2060ml?unique=e871f6d"
+	"https://exxifujdzeimjusoycos.supabase.co/storage/v1/object/public/sample/sample.svg"
 
 const SEED_DEFAULT_VARIANT_GALLERY: string[] = [SEED_DEFAULT_PRODUCT_IMAGE, SEED_DEFAULT_PRODUCT_IMAGE]
 

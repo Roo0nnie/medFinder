@@ -215,51 +215,57 @@ function ProductCard({
 
 	const inner = (
 		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-			<div className="bg-muted relative aspect-4/3 w-full shrink-0">
-				{slides.length === 0 ? (
-					<div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2 text-sm">
-						<Package className="h-10 w-10 opacity-40" aria-hidden />
-						<span>No image</span>
-					</div>
-				) : slides.length === 1 ? (
-					<img
-						src={slides[0]}
-						alt=""
-						loading="lazy"
-						decoding="async"
-						className="h-full w-full object-cover"
-					/>
-				) : (
-					<Carousel
-						key={selectedVariantId ?? product.id}
-						className="h-full w-full"
-						opts={{ loop: true }}
-					>
-						<CarouselContent className="ml-0 h-full">
-							{slides.map((url, i) => (
-								<CarouselItem key={`${url}-${i}`} className="basis-full pl-0">
-									<img
-										src={url}
-										alt=""
-										loading="lazy"
-										decoding="async"
-										className="aspect-4/3 h-full w-full object-cover"
-									/>
-								</CarouselItem>
-							))}
-						</CarouselContent>
-						<CarouselPrevious
-							type="button"
-							className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
-							onClick={e => e.stopPropagation()}
+			<div className="bg-muted relative w-full shrink-0" style={{ paddingBottom: "100%" }}>
+				<div className="absolute inset-0">
+					{slides.length === 0 ? (
+						<div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-2 text-sm">
+							<Package className="h-10 w-10 opacity-40" aria-hidden />
+							<span>No image</span>
+						</div>
+					) : slides.length === 1 ? (
+						<img
+							src={slides[0]}
+							alt=""
+							loading="lazy"
+							decoding="async"
+							className="object-contain"
+							style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
 						/>
-						<CarouselNext
-							type="button"
-							className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
-							onClick={e => e.stopPropagation()}
-						/>
-					</Carousel>
-				)}
+					) : (
+						<Carousel
+							key={selectedVariantId ?? product.id}
+							className="h-full w-full"
+							opts={{ loop: true }}
+						>
+							<CarouselContent className="ml-0 h-full">
+								{slides.map((url, i) => (
+									<CarouselItem key={`${url}-${i}`} className="basis-full pl-0">
+										<div className="relative w-full" style={{ paddingBottom: "100%" }}>
+											<img
+												src={url}
+												alt=""
+												loading="lazy"
+												decoding="async"
+												className="object-contain"
+												style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+											/>
+										</div>
+									</CarouselItem>
+								))}
+							</CarouselContent>
+							<CarouselPrevious
+								type="button"
+								className="left-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
+								onClick={e => e.stopPropagation()}
+							/>
+							<CarouselNext
+								type="button"
+								className="right-2 top-1/2 h-9 w-9 -translate-y-1/2 border-white/30 bg-black/45 text-white hover:bg-black/65 disabled:opacity-30"
+								onClick={e => e.stopPropagation()}
+							/>
+						</Carousel>
+					)}
+				</div>
 				<span
 					className={cn(
 						"absolute top-2 right-2 rounded-md px-2 py-0.5 text-xs font-medium shadow-sm backdrop-blur-sm",
@@ -272,18 +278,18 @@ function ProductCard({
 					{stockLabel}
 				</span>
 			</div>
-			<CardContent className="bg-zinc-950 text-zinc-50 dark:bg-zinc-900 flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
+			<CardContent className="bg-card text-card-foreground flex min-h-0 flex-1 flex-col gap-3 p-4 sm:p-5">
 				<div className="min-w-0 space-y-1">
-					<h3 className="text-base leading-tight font-semibold text-zinc-50">{product.name}</h3>
-					<p className="text-zinc-400 text-sm">{product.brand}</p>
-					<p className="text-zinc-500 text-sm">Category: {product.category}</p>
+					<h3 className="text-base leading-tight font-semibold">{product.name}</h3>
+					<p className="text-muted-foreground text-sm">{product.brand}</p>
+					<p className="text-muted-foreground text-sm">Category: {product.category}</p>
 				</div>
 				{showRating ? <LandingRatingRow rating={product.rating!} /> : null}
 				{dosageDisplay && (
-					<p className="text-zinc-400 text-sm">Dosage: {dosageDisplay}</p>
+					<p className="text-muted-foreground text-sm">Dosage: {dosageDisplay}</p>
 				)}
 				{product.description && (
-					<p className="text-zinc-500 line-clamp-2 text-sm">{product.description}</p>
+					<p className="text-muted-foreground line-clamp-2 text-sm">{product.description}</p>
 				)}
 				{hasVariants && (
 					<div className="mt-1" onClick={onSelectClick}>
@@ -295,7 +301,7 @@ function ProductCard({
 							value={selectedVariantId ?? ""}
 							onChange={e => setSelectedVariantId(e.target.value || null)}
 							onClick={e => e.stopPropagation()}
-							className="border-zinc-700 bg-zinc-900/80 text-zinc-50 focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							className="border-input bg-background text-foreground focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
@@ -305,19 +311,17 @@ function ProductCard({
 						</select>
 					</div>
 				)}
-				<div className="border-zinc-800 mt-auto flex flex-col gap-2 border-t pt-3">
+				<div className="border-border mt-auto flex flex-col gap-2 border-t pt-3">
 					<div className="flex flex-wrap items-center justify-between gap-2">
-						<span className="text-lg font-semibold tabular-nums text-zinc-50">
-							₱{display.price.toFixed(2)}
-						</span>
+						<span className="text-lg font-semibold tabular-nums">₱{display.price.toFixed(2)}</span>
 						<span
-							className="bg-zinc-50 text-zinc-950 pointer-events-none inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium"
+							className="bg-primary text-primary-foreground pointer-events-none inline-flex shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium"
 							aria-hidden
 						>
 							View availability
 						</span>
 					</div>
-					<p className="text-zinc-500 truncate text-xs">{storeName}</p>
+					<p className="text-muted-foreground truncate text-xs">{storeName}</p>
 				</div>
 			</CardContent>
 		</Card>
