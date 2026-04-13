@@ -7,6 +7,7 @@ urlpatterns = [
     path("health/", include("api.v1.health.urls")),
     path("users/", include("api.v1.users.urls")),
     path("staff/", include("api.v1.staff.urls")),
+    path("public/", include("api.v1.public.urls")),
     path("pharmacies/", include("api.v1.pharmacies.urls")),
     path("brands/", include("api.v1.brands.urls")),
     path("admin/brands/", include("api.v1.brands.admin_urls")),

@@ -9,6 +9,7 @@ import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import type { LandingPharmacy } from "@/features/landing/data/types"
+import { Search } from "lucide-react"
 
 import { LandingRegisterModal } from "./landing-register-modal"
 
@@ -122,46 +123,60 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 			</section>
 
 			<div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-				<Input
-					type="search"
-					placeholder="Search pharmacy name or location..."
-					value={query}
-					onChange={e => setQuery(e.target.value)}
-					onKeyDown={e => {
-						if (e.key !== "Enter") return
-						e.preventDefault()
-						const q = query.trim()
-						if (!q) return
-						if (isCustomer) {
-							router.push(`/pharmacies?q=${encodeURIComponent(q)}` as Route)
-						} else {
-							setRegisterModalOpen(true)
-						}
-					}}
-					className="w-full sm:max-w-md"
-					aria-label="Search pharmacies"
-				/>
+				<div className="relative w-full sm:max-w-md">
+					<Search
+						aria-hidden
+						className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+					/>
+					<Input
+						type="search"
+						placeholder="Search pharmacy name or location..."
+						value={query}
+						onChange={e => setQuery(e.target.value)}
+						onKeyDown={e => {
+							if (e.key !== "Enter") return
+							e.preventDefault()
+							const q = query.trim()
+							if (!q) return
+							if (isCustomer) {
+								router.push(`/pharmacies?q=${encodeURIComponent(q)}` as Route)
+							} else {
+								setRegisterModalOpen(true)
+							}
+						}}
+						className="w-full pl-9"
+						aria-label="Search pharmacies"
+					/>
+				</div>
 				<label htmlFor="pharmacy-location" className="text-foreground shrink-0 text-sm font-medium">
 					Filter by location
 				</label>
-				<select
-					id="pharmacy-location"
-					value={cityFilter}
-					onChange={e => setCityFilter(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-9 min-w-0 flex-1 rounded-lg border bg-transparent px-4 py-2.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[200px] sm:flex-none"
-				>
-					<option value="">All locations</option>
-					{cities.map(c => (
-						<option key={c} value={c}>
-							{c}
-						</option>
-					))}
-				</select>
+				<div className="relative min-w-0 flex-1 sm:min-w-[200px] sm:flex-none">
+					<LocationIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+					<select
+						id="pharmacy-location"
+						value={cityFilter}
+						onChange={e => setCityFilter(e.target.value)}
+						className="border-input bg-background text-foreground focus:ring-ring h-9 w-full rounded-lg border py-2.5 pr-4 pl-9 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter pharmacies by location"
+					>
+						<option value="">All locations</option>
+						{cities.map(c => (
+							<option key={c} value={c}>
+								{c}
+							</option>
+						))}
+					</select>
+				</div>
 			</div>
+
+			<p className="text-muted-foreground text-sm">
+				{filtered.length} result{filtered.length !== 1 ? "s" : ""}
+			</p>
 
 			<div
 				ref={gridRef}
-				className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+				className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
 			>
 				{paged.map((store, i) => (
 					<div

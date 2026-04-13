@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 
+import { env } from "@/env"
 import { getSession } from "@/services/better-auth/auth-server"
 import { LandingAboutSection } from "@/features/landing/components/landing-about-section"
 import { LandingContactSection } from "@/features/landing/components/landing-contact-section"
@@ -22,12 +23,31 @@ export default async function Home() {
 	const sectionContentClass = "scroll-mt-24 w-full flex flex-col py-12"
 	const containerClass = "mx-auto w-full max-w-7xl px-4 py-12 sm:px-8"
 
+	const apiBase = env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")
+	let landingStats: {
+		productsCount: number
+		variantsCount: number
+		approvedPharmaciesCount: number
+	} | null = null
+	try {
+		const res = await fetch(`${apiBase}/v1/public/landing-stats/`, { cache: "no-store" })
+		if (res.ok) landingStats = (await res.json()) as typeof landingStats
+	} catch {
+		landingStats = null
+	}
+
 	return (
 		<>
 			{/* Home / Hero */}
 			<section id="home" className={sectionClass}>
 				<div className={containerClass}>
-					<LandingHero />
+					<LandingHero
+						stats={{
+							approvedPharmaciesCount: landingStats?.approvedPharmaciesCount ?? null,
+							productsCount: landingStats?.productsCount ?? null,
+							variantsCount: landingStats?.variantsCount ?? null,
+						}}
+					/>
 				</div>
 			</section>
 

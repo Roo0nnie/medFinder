@@ -6,13 +6,24 @@ import Link from "next/link"
 import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 
-const STATS = [
-	{ value: "200+", label: "Pharmacies" },
-	{ value: "5,000+", label: "Products" },
-	{ value: "50+", label: "Cities" },
-] as const
+export type LandingHeroStats = {
+	approvedPharmaciesCount: number | null
+	productsCount: number | null
+	variantsCount: number | null
+}
 
-export function LandingHero() {
+function formatCount(value: number | null | undefined) {
+	if (value == null) return "—"
+	return new Intl.NumberFormat(undefined, { notation: "compact" }).format(value)
+}
+
+export function LandingHero({ stats }: { stats?: LandingHeroStats }) {
+	const statItems = [
+		{ value: formatCount(stats?.approvedPharmaciesCount), label: "Pharmacies" },
+		{ value: formatCount(stats?.productsCount), label: "Products" },
+		{ value: formatCount(stats?.variantsCount), label: "Variants" },
+	] as const
+
 	return (
 		<div className="grid items-center gap-10 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
 			<div className="space-y-6">
@@ -61,7 +72,7 @@ export function LandingHero() {
 
 				{/* Floating stat badges */}
 				<div className="animate-fade-in-up animate-delay-400 flex flex-wrap gap-4 pt-2">
-					{STATS.map((stat, i) => (
+					{statItems.map((stat, i) => (
 						<div
 							key={stat.label}
 							className={`animate-scale-in animate-delay-${(i + 4) * 100} bg-primary/5 border-primary/10 flex items-center gap-2 rounded-full border px-4 py-2`}

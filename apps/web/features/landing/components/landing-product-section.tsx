@@ -18,7 +18,7 @@ import { cn } from "@/core/lib/utils"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
 import type { LandingPharmacy, LandingProduct, LandingProductVariant } from "@/features/landing/data/types"
-import { Package } from "lucide-react"
+import { ArrowUpDown, Layers, MapPin, Package, Search, Store, Tag } from "lucide-react"
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
 	getStoredProductListPageSize,
@@ -468,38 +468,50 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 			</section>
 
 			<div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-				<Input
-					type="search"
-					placeholder="Search by name, brand, category..."
-					value={query}
-					onChange={e => setQuery(e.target.value)}
-					onKeyDown={e => {
-						if (e.key !== "Enter") return
-						e.preventDefault()
-						const q = query.trim()
-						if (!q) return
-						if (isCustomer) {
-							router.push(`/search?q=${encodeURIComponent(q)}&prefix=true` as Route)
-						} else {
-							setRegisterModalOpen(true)
-						}
-					}}
-					className="w-full sm:max-w-md"
-					aria-label="Search products"
-				/>
+				<div className="relative w-full sm:max-w-md">
+					<Search
+						aria-hidden
+						className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+					/>
+					<Input
+						type="search"
+						placeholder="Search by name, brand, category..."
+						value={query}
+						onChange={e => setQuery(e.target.value)}
+						onKeyDown={e => {
+							if (e.key !== "Enter") return
+							e.preventDefault()
+							const q = query.trim()
+							if (!q) return
+							if (isCustomer) {
+								router.push(`/search?q=${encodeURIComponent(q)}&prefix=true` as Route)
+							} else {
+								setRegisterModalOpen(true)
+							}
+						}}
+						className="w-full pl-9"
+						aria-label="Search products"
+					/>
+				</div>
 				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-					<select
-						value={sort}
-						onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
-						className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-						aria-label="Sort products"
-					>
-						{SORT_OPTIONS.map(o => (
-							<option key={o.value} value={o.value}>
-								{o.label}
-							</option>
-						))}
-					</select>
+					<div className="relative">
+						<ArrowUpDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+						/>
+						<select
+							value={sort}
+							onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
+							className="border-input bg-background text-foreground focus:ring-ring h-8 rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+							aria-label="Sort products"
+						>
+							{SORT_OPTIONS.map(o => (
+								<option key={o.value} value={o.value}>
+									{o.label}
+								</option>
+							))}
+						</select>
+					</div>
 					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
 						<span>Per page</span>
 						<select
@@ -509,7 +521,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 								setPageSize(v)
 								setStoredProductListPageSize(v)
 							}}
-							className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+							className="border-input bg-background text-foreground focus:ring-ring h-8 rounded-lg border px-3 py-1.5 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 							aria-label="Products per page"
 						>
 							{PAGE_SIZE_OPTIONS.map(n => (
@@ -524,54 +536,82 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 
 			<div className="flex flex-wrap items-center gap-3 sm:gap-4">
 				<span className="text-muted-foreground w-full text-sm sm:w-auto">Filters:</span>
-				<select
-					value={category}
-					onChange={e => setCategory(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
-				>
-					<option value="">All categories</option>
-					{categories.map(c => (
-						<option key={c} value={c}>
-							{c}
-						</option>
-					))}
-				</select>
-				<select
-					value={brandKey}
-					onChange={e => setBrandKey(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
-				>
-					<option value="">All brands</option>
-					{brandOptions.map(o => (
-						<option key={o.value} value={o.value}>
-							{o.label}
-						</option>
-					))}
-				</select>
-				<select
-					value={city}
-					onChange={e => setCity(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[160px] sm:flex-none md:min-w-[180px]"
-				>
-					<option value="">All locations</option>
-					{cities.map(c => (
-						<option key={c} value={c}>
-							{c}
-						</option>
-					))}
-				</select>
-				<select
-					value={storeId}
-					onChange={e => setStoreId(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[180px] sm:flex-none md:min-w-[200px]"
-				>
-					<option value="">All stores</option>
-					{pharmacies.map(pharmacy => (
-						<option key={pharmacy.id} value={pharmacy.id}>
-							{pharmacy.name}
-						</option>
-					))}
-				</select>
+				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
+					<Layers
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={category}
+						onChange={e => setCategory(e.target.value)}
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter by category"
+					>
+						<option value="">All categories</option>
+						{categories.map(c => (
+							<option key={c} value={c}>
+								{c}
+							</option>
+						))}
+					</select>
+				</div>
+				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
+					<Tag
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={brandKey}
+						onChange={e => setBrandKey(e.target.value)}
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter by brand"
+					>
+						<option value="">All brands</option>
+						{brandOptions.map(o => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</select>
+				</div>
+				<div className="relative min-w-0 flex-1 sm:min-w-[160px] sm:flex-none md:min-w-[180px]">
+					<MapPin
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={city}
+						onChange={e => setCity(e.target.value)}
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter by location"
+					>
+						<option value="">All locations</option>
+						{cities.map(c => (
+							<option key={c} value={c}>
+								{c}
+							</option>
+						))}
+					</select>
+				</div>
+				<div className="relative min-w-0 flex-1 sm:min-w-[180px] sm:flex-none md:min-w-[200px]">
+					<Store
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={storeId}
+						onChange={e => setStoreId(e.target.value)}
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter by store"
+					>
+						<option value="">All stores</option>
+						{pharmacies.map(pharmacy => (
+							<option key={pharmacy.id} value={pharmacy.id}>
+								{pharmacy.name}
+							</option>
+						))}
+					</select>
+				</div>
 				{hasFilters && (
 					<button
 						type="button"
