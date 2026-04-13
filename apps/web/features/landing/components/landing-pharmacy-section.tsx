@@ -9,7 +9,7 @@ import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import type { LandingPharmacy } from "@/features/landing/data/types"
-import { Search } from "lucide-react"
+import { ExternalLink, Phone, Search, Star } from "lucide-react"
 
 import { LandingRegisterModal } from "./landing-register-modal"
 
@@ -32,29 +32,115 @@ function LocationIcon({ className }: { className?: string }) {
 	)
 }
 
+function clamp(n: number, min: number, max: number) {
+	return Math.min(max, Math.max(min, n))
+}
+
+function buildOsmEmbedUrl(lat: number, lng: number) {
+	// Roughly ~2km span at equator; good enough for a small preview card.
+	const delta = 0.02
+	const left = clamp(lng - delta, -180, 180)
+	const right = clamp(lng + delta, -180, 180)
+	const top = clamp(lat + delta, -90, 90)
+	const bottom = clamp(lat - delta, -90, 90)
+	const bbox = `${left},${bottom},${right},${top}`
+	return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${encodeURIComponent(
+		`${lat},${lng}`
+	)}`
+}
+
+function buildOsmViewUrl(lat: number, lng: number) {
+	return `https://www.openstreetmap.org/?mlat=${encodeURIComponent(String(lat))}&mlon=${encodeURIComponent(
+		String(lng)
+	)}#map=16/${encodeURIComponent(String(lat))}/${encodeURIComponent(String(lng))}`
+}
+
 function PharmacyCard({ store }: { store: LandingPharmacy }) {
+	const lat = typeof store.latitude === "number" ? store.latitude : undefined
+	const lng = typeof store.longitude === "number" ? store.longitude : undefined
+	const hasCoords = typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)
+	const mapHref = hasCoords ? buildOsmViewUrl(lat, lng) : undefined
+	const mapEmbed = hasCoords ? buildOsmEmbedUrl(lat, lng) : undefined
+
 	return (
-		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-				<div className="flex gap-3">
-					<div className="bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors">
+		<Card className="border-border/60 group-hover:border-primary/30 bg-card flex min-h-0 min-w-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+			<CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-5">
+				<div className="flex min-w-0 items-start gap-3">
+					<div className="bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors">
 						<LocationIcon className="h-5 w-5" />
 					</div>
+
 					<div className="min-w-0 flex-1">
-						<h3 className="text-foreground truncate text-base font-semibold sm:text-lg">
-							{store.name}
-						</h3>
+						<div className="flex min-w-0 items-center justify-between gap-3">
+							<h3 className="text-foreground min-w-0 truncate text-base font-semibold sm:text-lg">
+								{store.name}
+							</h3>
+
+							{typeof store.rating === "number" && Number.isFinite(store.rating) && (
+								<span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+									<Star className="h-3.5 w-3.5 fill-current" aria-hidden />
+									{store.rating.toFixed(1)}
+								</span>
+							)}
+						</div>
+
 						<p className="text-muted-foreground mt-1 flex items-start gap-2 text-sm">
 							<LocationIcon className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
 							<span className="min-w-0 wrap-break-word">{store.address}</span>
 						</p>
+
 						<p className="text-muted-foreground mt-1 truncate text-sm">
 							{store.municipality}, {store.city}
 						</p>
+
+						<div className="mt-3 flex flex-wrap gap-2">
+							{store.operatingHours && (
+								<span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-2.5 py-1 text-xs">
+									{store.operatingHours}
+								</span>
+							)}
+							{store.phone && (
+								<span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs">
+									<Phone className="h-3.5 w-3.5" aria-hidden />
+									{store.phone}
+								</span>
+							)}
+						</div>
 					</div>
 				</div>
-				<div className="border-border bg-muted/30 mt-4 flex h-20 shrink-0 items-center justify-center rounded-lg border sm:h-24">
-					<span className="text-muted-foreground text-xs sm:text-sm">Map placeholder</span>
+
+				<div className="border-border bg-muted/20 relative overflow-hidden rounded-lg border">
+					<div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-black/5 dark:to-white/5" />
+					{mapEmbed ? (
+						<iframe
+							title={`${store.name} map preview`}
+							src={mapEmbed}
+							className="relative block h-28 w-full sm:h-32"
+							loading="lazy"
+							referrerPolicy="no-referrer-when-downgrade"
+						/>
+					) : (
+						<div className="relative flex h-28 w-full items-center justify-center sm:h-32">
+							<div className="text-muted-foreground text-center text-xs sm:text-sm">
+								Map unavailable
+								<div className="text-muted-foreground/80 mt-0.5 text-[11px]">
+									Missing coordinates for this pharmacy.
+								</div>
+							</div>
+						</div>
+					)}
+
+					{mapHref && (
+						<a
+							href={mapHref}
+							target="_blank"
+							rel="noreferrer"
+							onClick={e => e.stopPropagation()}
+							className="bg-background/80 text-foreground hover:bg-background absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs shadow-sm backdrop-blur"
+						>
+							View map <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+						</a>
+					)}
 				</div>
 			</CardContent>
 		</Card>
