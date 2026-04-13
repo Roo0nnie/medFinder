@@ -37,8 +37,8 @@ function PharmacyCard({ store }: { store: LandingPharmacy }) {
 		<Card className="hover:border-primary/20 flex min-h-0 min-w-0 overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
 			<CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
 				<div className="flex gap-3">
-					<div className="bg-primary/10 group-hover:bg-primary group-hover:text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors">
-						<LocationIcon className="text-primary h-5 w-5" />
+					<div className="bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors">
+						<LocationIcon className="h-5 w-5" />
 					</div>
 					<div className="min-w-0 flex-1">
 						<h3 className="text-foreground truncate text-base font-semibold sm:text-lg">
