@@ -28,7 +28,7 @@ import {
 import { Input } from "@/core/components/ui/input"
 import { cn } from "@/core/lib/utils"
 import type { LandingProduct, LandingProductVariant } from "@/features/landing/data/types"
-import { Package } from "lucide-react"
+import { ArrowUpDown, ChevronDown, Layers, Package, Tag } from "lucide-react"
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
 	getStoredProductListPageSize,
@@ -276,7 +276,7 @@ function ProductCard({
 					<p className="text-muted-foreground line-clamp-2 text-sm">{product.description}</p>
 				) : null}
 				{hasVariants ? (
-					<div className="mt-1" onClick={onSelectClick}>
+					<div className="relative mt-1" onClick={onSelectClick}>
 						<label htmlFor={`variant-${product.id}`} className="sr-only">
 							Select size / variant
 						</label>
@@ -285,7 +285,7 @@ function ProductCard({
 							value={selectedVariantId ?? ""}
 							onChange={e => setSelectedVariantId(e.target.value || null)}
 							onClick={e => e.stopPropagation()}
-							className="border-input bg-background text-foreground focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							className="border-input bg-background text-foreground focus:ring-ring w-full cursor-pointer appearance-none rounded-lg border py-2 pl-3 pr-10 text-sm focus:ring-2 focus:outline-none"
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
@@ -293,6 +293,10 @@ function ProductCard({
 								</option>
 							))}
 						</select>
+						<ChevronDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+						/>
 					</div>
 				) : null}
 				<p className="text-muted-foreground text-xs">
@@ -617,68 +621,104 @@ export function PharmacyProductsClient({
 					aria-label="Search products in this pharmacy"
 				/>
 				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
-					<select
-						value={sort}
-						onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
-						className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-						aria-label="Sort products"
-					>
-						{SORT_OPTIONS.map(o => (
-							<option key={o.value} value={o.value}>
-								{o.label}
-							</option>
-						))}
-					</select>
-					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
-						<span>Per page</span>
+					<div className="relative">
+						<ArrowUpDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+						/>
 						<select
-							value={String(pageSize)}
-							onChange={e => {
-								const v = Number(e.target.value) as ProductListPageSize
-								setPageSize(v)
-								setStoredProductListPageSize(v)
-							}}
-							className="border-input text-foreground focus:ring-ring h-8 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-							aria-label="Products per page"
+							value={sort}
+							onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
+							className="border-input text-foreground focus:ring-ring h-8 cursor-pointer appearance-none rounded-lg border bg-transparent py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none"
+							aria-label="Sort products"
 						>
-							{PAGE_SIZE_OPTIONS.map(n => (
-								<option key={n} value={n}>
-									{n}
+							{SORT_OPTIONS.map(o => (
+								<option key={o.value} value={o.value}>
+									{o.label}
 								</option>
 							))}
 						</select>
+						<ChevronDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+						/>
+					</div>
+					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
+						<span>Per page</span>
+						<span className="relative inline-block">
+							<select
+								value={String(pageSize)}
+								onChange={e => {
+									const v = Number(e.target.value) as ProductListPageSize
+									setPageSize(v)
+									setStoredProductListPageSize(v)
+								}}
+								className="border-input text-foreground focus:ring-ring h-8 w-full min-w-18 cursor-pointer appearance-none rounded-lg border bg-transparent py-1.5 pl-3 pr-10 text-sm focus:ring-2 focus:outline-none"
+								aria-label="Products per page"
+							>
+								{PAGE_SIZE_OPTIONS.map(n => (
+									<option key={n} value={n}>
+										{n}
+									</option>
+								))}
+							</select>
+							<ChevronDown
+								aria-hidden
+								className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+							/>
+						</span>
 					</label>
 				</div>
 			</div>
 
 			<div className="flex flex-wrap items-center gap-3 sm:gap-4">
 				<span className="text-muted-foreground w-full text-sm sm:w-auto">Filter by:</span>
-				<select
-					value={category}
-					onChange={e => setCategory(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
-				>
-					<option key="__all__" value="">
-						All categories
-					</option>
-					{categories.map((c, i) => (
-						<option key={c ? `${c}-${i}` : `category-${i}`} value={c}>
-							{c || "Uncategorized"}
+				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
+					<Layers
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={category}
+						onChange={e => setCategory(e.target.value)}
+						className="border-input text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border bg-transparent py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option key="__all__" value="">
+							All categories
 						</option>
-					))}
-				</select>
-				<select
-					value={brandKey}
-					onChange={e => setBrandKey(e.target.value)}
-					className="border-input text-foreground focus:ring-ring h-8 min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none sm:min-w-[140px] sm:flex-none md:min-w-[160px]"
-				>
-					<option value="">All brands</option>
-					{brandOptions.map(o => (
-						<option key={o.value} value={o.value}>
-							{o.label}
-						</option>
-					))}
-				</select>
+						{categories.map((c, i) => (
+							<option key={c ? `${c}-${i}` : `category-${i}`} value={c}>
+								{c || "Uncategorized"}
+							</option>
+						))}
+					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
+				</div>
+				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
+					<Tag
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
+					/>
+					<select
+						value={brandKey}
+						onChange={e => setBrandKey(e.target.value)}
+						className="border-input text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border bg-transparent py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option value="">All brands</option>
+						{brandOptions.map(o => (
+							<option key={o.value} value={o.value}>
+								{o.label}
+							</option>
+						))}
+					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
+				</div>
 			</div>
 
 			<p className="text-muted-foreground text-sm">
@@ -875,18 +915,24 @@ export function PharmacyProductsClient({
 											<label htmlFor="pharmacy-product-variant" className="text-sm font-medium">
 												Variant
 											</label>
-											<select
-												id="pharmacy-product-variant"
-												value={selectedVariantId}
-												onChange={e => setSelectedVariantId(e.target.value)}
-												className="border-input text-foreground focus:ring-ring h-9 w-full rounded-lg border bg-transparent px-3 text-sm focus:ring-2 focus:outline-none"
-											>
-												{activeProduct.variants?.map(v => (
-													<option key={v.id} value={v.id}>
-														{v.label}
-													</option>
-												))}
-											</select>
+											<div className="relative">
+												<select
+													id="pharmacy-product-variant"
+													value={selectedVariantId}
+													onChange={e => setSelectedVariantId(e.target.value)}
+													className="border-input text-foreground focus:ring-ring h-9 w-full cursor-pointer appearance-none rounded-lg border bg-transparent pl-3 pr-10 text-sm focus:ring-2 focus:outline-none"
+												>
+													{activeProduct.variants?.map(v => (
+														<option key={v.id} value={v.id}>
+															{v.label}
+														</option>
+													))}
+												</select>
+												<ChevronDown
+													aria-hidden
+													className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+												/>
+											</div>
 										</div>
 									) : null}
 

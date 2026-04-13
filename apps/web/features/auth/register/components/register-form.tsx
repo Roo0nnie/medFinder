@@ -190,12 +190,13 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 							</FieldDescription>
 						</FieldGroup>
 					</form>
-					<div className="bg-muted relative hidden md:block">
+					<div className="bg-muted relative hidden md:flex md:items-center md:justify-center md:p-12">
 						<Image
-							src="/placeholder.svg"
-							alt="Image"
-							fill
-							className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+							src="/assets/MedFinder_logo.svg"
+							alt="MedFinder"
+							width={280}
+							height={120}
+							className="h-auto w-full max-w-[280px] object-contain dark:opacity-90"
 						/>
 					</div>
 				</CardContent>

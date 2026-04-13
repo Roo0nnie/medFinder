@@ -18,7 +18,7 @@ import { cn } from "@/core/lib/utils"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
 import type { LandingPharmacy, LandingProduct, LandingProductVariant } from "@/features/landing/data/types"
-import { ArrowUpDown, Layers, MapPin, Package, Search, Store, Tag } from "lucide-react"
+import { ArrowUpDown, ChevronDown, Layers, MapPin, Package, Search, Store, Tag } from "lucide-react"
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
 	getStoredProductListPageSize,
@@ -293,7 +293,7 @@ function ProductCard({
 					<p className="text-muted-foreground line-clamp-2 text-sm">{product.description}</p>
 				)}
 				{hasVariants && (
-					<div className="mt-1" onClick={onSelectClick}>
+					<div className="relative mt-1" onClick={onSelectClick}>
 						<label htmlFor={`variant-${product.id}`} className="sr-only">
 							Select size / variant
 						</label>
@@ -302,7 +302,7 @@ function ProductCard({
 							value={selectedVariantId ?? ""}
 							onChange={e => setSelectedVariantId(e.target.value || null)}
 							onClick={e => e.stopPropagation()}
-							className="border-input bg-background text-foreground focus:ring-ring w-full rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							className="border-input bg-background text-foreground focus:ring-ring w-full cursor-pointer appearance-none rounded-lg border py-2 pl-3 pr-10 text-sm focus:ring-2 focus:outline-none"
 						>
 							{product.variants!.map(v => (
 								<option key={v.id} value={v.id}>
@@ -310,6 +310,10 @@ function ProductCard({
 								</option>
 							))}
 						</select>
+						<ChevronDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+						/>
 					</div>
 				)}
 				<div className="border-border mt-auto flex flex-col gap-2 border-t pt-3">
@@ -500,12 +504,12 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					<div className="relative">
 						<ArrowUpDown
 							aria-hidden
-							className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+							className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 						/>
 						<select
 							value={sort}
 							onChange={e => setSort(e.target.value as (typeof SORT_OPTIONS)[number]["value"])}
-							className="border-input bg-background text-foreground focus:ring-ring h-8 rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+							className="border-input bg-background text-foreground focus:ring-ring h-8 cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 							aria-label="Sort products"
 						>
 							{SORT_OPTIONS.map(o => (
@@ -514,25 +518,35 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 								</option>
 							))}
 						</select>
+						<ChevronDown
+							aria-hidden
+							className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+						/>
 					</div>
 					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
 						<span>Per page</span>
-						<select
-							value={String(pageSize)}
-							onChange={e => {
-								const v = Number(e.target.value) as ProductListPageSize
-								setPageSize(v)
-								setStoredProductListPageSize(v)
-							}}
-							className="border-input bg-background text-foreground focus:ring-ring h-8 rounded-lg border px-3 py-1.5 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
-							aria-label="Products per page"
-						>
-							{PAGE_SIZE_OPTIONS.map(n => (
-								<option key={n} value={n}>
-									{n}
-								</option>
-							))}
-						</select>
+						<span className="relative inline-block">
+							<select
+								value={String(pageSize)}
+								onChange={e => {
+									const v = Number(e.target.value) as ProductListPageSize
+									setPageSize(v)
+									setStoredProductListPageSize(v)
+								}}
+								className="border-input bg-background text-foreground focus:ring-ring h-8 w-full min-w-18 cursor-pointer appearance-none rounded-lg border py-1.5 pl-3 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+								aria-label="Products per page"
+							>
+								{PAGE_SIZE_OPTIONS.map(n => (
+									<option key={n} value={n}>
+										{n}
+									</option>
+								))}
+							</select>
+							<ChevronDown
+								aria-hidden
+								className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+							/>
+						</span>
 					</label>
 				</div>
 			</div>
@@ -542,12 +556,12 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
 					<Layers
 						aria-hidden
-						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
 					/>
 					<select
 						value={category}
 						onChange={e => setCategory(e.target.value)}
-						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 						aria-label="Filter by category"
 					>
 						<option value="">All categories</option>
@@ -557,16 +571,20 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							</option>
 						))}
 					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
 				</div>
 				<div className="relative min-w-0 flex-1 sm:min-w-[140px] sm:flex-none md:min-w-[160px]">
 					<Tag
 						aria-hidden
-						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
 					/>
 					<select
 						value={brandKey}
 						onChange={e => setBrandKey(e.target.value)}
-						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 						aria-label="Filter by brand"
 					>
 						<option value="">All brands</option>
@@ -576,16 +594,20 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							</option>
 						))}
 					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
 				</div>
 				<div className="relative min-w-0 flex-1 sm:min-w-[160px] sm:flex-none md:min-w-[180px]">
 					<MapPin
 						aria-hidden
-						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
 					/>
 					<select
 						value={city}
 						onChange={e => setCity(e.target.value)}
-						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 						aria-label="Filter by location"
 					>
 						<option value="">All locations</option>
@@ -595,16 +617,20 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							</option>
 						))}
 					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
 				</div>
 				<div className="relative min-w-0 flex-1 sm:min-w-[180px] sm:flex-none md:min-w-[200px]">
 					<Store
 						aria-hidden
-						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2"
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2"
 					/>
 					<select
 						value={storeId}
 						onChange={e => setStoreId(e.target.value)}
-						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full rounded-lg border py-1.5 pr-3 pl-8 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
 						aria-label="Filter by store"
 					>
 						<option value="">All stores</option>
@@ -614,6 +640,10 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 							</option>
 						))}
 					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
 				</div>
 				{hasFilters && (
 					<button

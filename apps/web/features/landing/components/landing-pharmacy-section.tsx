@@ -9,7 +9,16 @@ import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import type { LandingPharmacy } from "@/features/landing/data/types"
-import { ExternalLink, Phone, Search, Star } from "lucide-react"
+import {
+	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
+	getStoredProductListPageSize,
+	normalizeProductListPageSize,
+	PAGE_SIZE_OPTIONS,
+	PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY,
+	setStoredProductListPageSize,
+	type ProductListPageSize,
+} from "@/features/products/lib/product-list-page-size"
+import { ChevronDown, ExternalLink, Phone, Search, Star } from "lucide-react"
 
 import { LandingRegisterModal } from "./landing-register-modal"
 
@@ -153,7 +162,7 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 	const [query, setQuery] = useState("")
 	const [registerModalOpen, setRegisterModalOpen] = useState(false)
 	const [page, setPage] = useState(1)
-	const pageSize = 9
+	const [pageSize, setPageSize] = useState<ProductListPageSize>(DEFAULT_PRODUCT_LIST_PAGE_SIZE)
 
 	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
@@ -188,11 +197,30 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 	const paged = useMemo(() => {
 		const start = (safePage - 1) * pageSize
 		return filtered.slice(start, start + pageSize)
-	}, [filtered, safePage])
+	}, [filtered, safePage, pageSize])
 
 	useEffect(() => {
 		setPage(1)
 	}, [cityFilter, query])
+
+	useEffect(() => {
+		setPage(1)
+	}, [pageSize])
+
+	useEffect(() => {
+		setPage(p => Math.min(p, totalPages))
+	}, [totalPages])
+
+	useEffect(() => {
+		setPageSize(getStoredProductListPageSize())
+		const onStorage = (e: StorageEvent) => {
+			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue == null) return
+			const n = Number.parseInt(e.newValue, 10)
+			if (Number.isFinite(n)) setPageSize(normalizeProductListPageSize(n))
+		}
+		window.addEventListener("storage", onStorage)
+		return () => window.removeEventListener("storage", onStorage)
+	}, [])
 
 	return (
 		<div className="w-full space-y-6">
@@ -234,17 +262,45 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 						aria-label="Search pharmacies"
 					/>
 				</div>
-				<label htmlFor="pharmacy-location" className="text-foreground shrink-0 text-sm font-medium">
-					Filter by location
-				</label>
-				<div className="relative min-w-0 flex-1 sm:min-w-[200px] sm:flex-none">
-					<LocationIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+				<div className="flex flex-wrap items-center gap-2 sm:gap-3">
+					<label className="text-muted-foreground flex items-center gap-2 text-sm whitespace-nowrap">
+						<span>Per page</span>
+						<span className="relative inline-block">
+							<select
+								value={String(pageSize)}
+								onChange={e => {
+									const v = Number(e.target.value) as ProductListPageSize
+									setPageSize(v)
+									setStoredProductListPageSize(v)
+								}}
+								className="border-input bg-background text-foreground focus:ring-ring h-8 w-full min-w-18 cursor-pointer appearance-none rounded-lg border py-1.5 pl-3 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+								aria-label="Pharmacies per page"
+							>
+								{PAGE_SIZE_OPTIONS.map(n => (
+									<option key={n} value={n}>
+										{n}
+									</option>
+								))}
+							</select>
+							<ChevronDown
+								aria-hidden
+								className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 opacity-70"
+							/>
+						</span>
+					</label>
+				</div>
+			</div>
+
+			<div className="flex flex-wrap items-center gap-3 sm:gap-4">
+				<span className="text-muted-foreground w-full text-sm sm:w-auto">Filters:</span>
+				<div className="relative min-w-0 flex-1 sm:min-w-[160px] sm:flex-none md:min-w-[180px]">
+					<LocationIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2" />
 					<select
 						id="pharmacy-location"
 						value={cityFilter}
 						onChange={e => setCityFilter(e.target.value)}
-						className="border-input bg-background text-foreground focus:ring-ring h-9 w-full rounded-lg border py-2.5 pr-4 pl-9 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
-						aria-label="Filter pharmacies by location"
+						className="border-input bg-background text-foreground focus:ring-ring h-8 w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-9 pr-10 text-sm focus:ring-2 focus:outline-none scheme-light dark:scheme-dark"
+						aria-label="Filter by location"
 					>
 						<option value="">All locations</option>
 						{cities.map(c => (
@@ -253,6 +309,10 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 							</option>
 						))}
 					</select>
+					<ChevronDown
+						aria-hidden
+						className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 opacity-70"
+					/>
 				</div>
 			</div>
 
