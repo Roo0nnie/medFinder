@@ -1,7 +1,7 @@
 import type { Route } from "next"
 import Link from "next/link"
 
-import { Button, buttonVariants } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { cn } from "@/core/lib/utils"
 import { env } from "@/env"
 import { getSession } from "@/services/better-auth/auth-server"
@@ -112,9 +112,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 					</label>
 				</div>
 				<input type="hidden" name="searchType" value={searchType} />
-				<Button type="submit" className="h-9">
+				<button type="submit" className={buttonVariants({ size: "lg" })}>
 					Search
-				</Button>
+				</button>
 			</form>
 
 			{q && (

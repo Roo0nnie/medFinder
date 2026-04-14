@@ -3,7 +3,7 @@
 import type { Route } from "next"
 import Link from "next/link"
 
-import { buttonVariants } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { Separator } from "@/core/components/ui/separator"
 import { getApiUrl } from "@/core/lib/utils"
 

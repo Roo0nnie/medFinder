@@ -5,7 +5,8 @@ import Link from "next/link"
 import { ArrowRight01FreeIcons, Logout01FreeIcons } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import { Button, buttonVariants } from "@/core/components/ui/button"
+import { Button } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
 
 interface HomeCtaButtonProps {

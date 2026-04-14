@@ -6,7 +6,8 @@ import Link from "next/link"
 import { GitbookFreeIcons } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import { Button, buttonVariants, type ButtonVariants } from "@/core/components/ui/button"
+import { Button } from "@/core/components/ui/button"
+import { buttonVariants, type ButtonVariants } from "@/core/components/ui/button-variants"
 import { cn } from "@/core/lib/utils"
 
 export interface LogoIconProps extends Omit<

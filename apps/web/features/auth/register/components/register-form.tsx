@@ -4,7 +4,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
 
-import { Button, buttonVariants } from "@/core/components/ui/button"
+import { Button } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,

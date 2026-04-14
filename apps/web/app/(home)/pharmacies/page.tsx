@@ -2,7 +2,7 @@ import type { Route } from "next"
 import Link from "next/link"
 
 import { Card, CardContent } from "@/core/components/ui/card"
-import { Button, buttonVariants } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { cn } from "@/core/lib/utils"
 import { env } from "@/env"
 
@@ -107,9 +107,9 @@ export default async function PharmaciesPage({ searchParams }: PharmaciesPagePro
 						className="border-input text-foreground focus:ring-ring h-9 w-full rounded-lg border bg-transparent px-3 text-sm focus:ring-2 focus:outline-none"
 					/>
 				</div>
-				<Button type="submit" className="h-9">
+				<button type="submit" className={buttonVariants({ size: "lg" })}>
 					Search
-				</Button>
+				</button>
 			</form>
 
 			{all.length === 0 ? (

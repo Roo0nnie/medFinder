@@ -5,7 +5,8 @@ import Link from "next/link"
 import { useForm } from "@tanstack/react-form"
 
 import { MedFinderLogo } from "@/core/components/logo"
-import { Button, buttonVariants } from "@/core/components/ui/button"
+import { Button } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { Card, CardContent } from "@/core/components/ui/card"
 import {
 	Field,

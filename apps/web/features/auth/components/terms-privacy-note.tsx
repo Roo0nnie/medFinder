@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-import { buttonVariants } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
 import { FieldDescription } from "@/core/components/ui/field"
 import { cn } from "@/core/lib/utils"
 
