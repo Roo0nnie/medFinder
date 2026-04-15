@@ -242,6 +242,7 @@ export const ownerBrands = createTable(
 	]
 )
 
+// PostgreSQL FTS index for medical_products is migration-managed (see medical_products_fts_idx).
 export const medicalProducts = createTable(
 	"medical_products",
 	t => ({
@@ -252,6 +253,9 @@ export const medicalProducts = createTable(
 		brandName: t.text("brand_name"),
 		brandId: t.text("brand_id").references(() => brands.id, { onDelete: "restrict" }),
 		description: t.text("description"),
+		indications: t.text("indications"),
+		activeIngredients: t.text("active_ingredients"),
+		searchSynonyms: t.text("search_synonyms"),
 		manufacturer: t.text("manufacturer"),
 		categoryId: t
 			.text("category_id")

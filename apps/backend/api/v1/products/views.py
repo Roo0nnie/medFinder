@@ -127,8 +127,8 @@ class ProductListView(APIView):
             category_id=category_id,
             requires_prescription=requires_prescription,
             manufacturer=manufacturer,
-            limit=limit,
-            offset=offset,
+            limit=None,
+            offset=None,
             prefix=prefix,
             search_type=search_type,
         )
@@ -150,6 +150,12 @@ class ProductListView(APIView):
                 products = products.filter(pharmacy_id__in=pharmacy_ids)
             except Staff.DoesNotExist:
                 products = products.none()
+
+        if offset is not None:
+            products = products[offset:]
+        if limit is not None:
+            products = products[:limit]
+
         # Evaluate queryset once so we can log search telemetry with result count.
         product_list = list(products)
 
@@ -708,6 +714,9 @@ class ProductManageView(APIView):
                 brand_id=resolved_brand_id,
                 brand_name=resolved_brand_name,
                 description=data.get("description"),
+                indications=data.get("indications"),
+                active_ingredients=data.get("activeIngredients"),
+                search_synonyms=data.get("searchSynonyms"),
                 manufacturer=data.get("manufacturer"),
                 requires_prescription=data.get("requiresPrescription"),
                 supplier=data.get("supplier"),
@@ -817,6 +826,9 @@ class ProductManageDetailView(APIView):
                 generic_name=data.get("genericName"),
                 brand_fields=brand_fields,
                 description=data.get("description"),
+                indications=data.get("indications"),
+                active_ingredients=data.get("activeIngredients"),
+                search_synonyms=data.get("searchSynonyms"),
                 manufacturer=data.get("manufacturer"),
                 category_id=data.get("categoryId"),
                 requires_prescription=data.get("requiresPrescription"),

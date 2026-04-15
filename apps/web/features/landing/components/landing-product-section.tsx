@@ -15,9 +15,10 @@ import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
 import { cn } from "@/core/lib/utils"
-import { useLandingCatalog } from "@/features/landing/api/catalog.hooks"
+import { mapApiProductToLandingProduct, useLandingCatalog } from "@/features/landing/api/catalog.hooks"
 import { LandingRegisterModal } from "@/features/landing/components/landing-register-modal"
 import type { LandingPharmacy, LandingProduct, LandingProductVariant } from "@/features/landing/data/types"
+import { useProductSearchQuery, type Product } from "@/features/products/api/products.hooks"
 import { ArrowUpDown, ChevronDown, Layers, MapPin, Package, Search, Store, Tag } from "lucide-react"
 import {
 	DEFAULT_PRODUCT_LIST_PAGE_SIZE,
@@ -31,11 +32,15 @@ import {
 import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
+	{ value: "relevance", label: "Relevance" },
 	{ value: "name-asc", label: "Name A–Z" },
 	{ value: "name-desc", label: "Name Z–A" },
 	{ value: "price-asc", label: "Price low–high" },
 	{ value: "price-desc", label: "Price high–low" },
 ] as const
+
+const LANDING_SEARCH_DEBOUNCE_MS = 300
+const MIN_LIVE_SEARCH_QUERY_LENGTH = 2
 
 function brandOptionKey(p: LandingProduct): string {
 	if (p.brandId) return `id:${p.brandId}`
@@ -58,11 +63,12 @@ function filterProducts(
 	category: string,
 	brandKey: string,
 	city: string,
-	storeId: string
+	storeId: string,
+	applyTextQuery: boolean
 ): LandingProduct[] {
 	let result = products
 	const q = query.trim().toLowerCase()
-	if (q) {
+	if (applyTextQuery && q) {
 		result = result.filter(
 			p =>
 				p.name.toLowerCase().includes(q) ||
@@ -108,11 +114,19 @@ function sortProducts(
 	sort: (typeof SORT_OPTIONS)[number]["value"]
 ): LandingProduct[] {
 	const copy = [...products]
+	if (sort === "relevance") return copy
 	if (sort === "name-asc") copy.sort((a, b) => a.name.localeCompare(b.name))
 	else if (sort === "name-desc") copy.sort((a, b) => b.name.localeCompare(a.name))
 	else if (sort === "price-asc") copy.sort((a, b) => getSortPrice(a) - getSortPrice(b))
 	else if (sort === "price-desc") copy.sort((a, b) => getSortPrice(b) - getSortPrice(a))
 	return copy
+}
+
+function mapSearchProductToLandingProduct(
+	product: Product,
+	categoryMap: Map<string, string>
+): LandingProduct | null {
+	return mapApiProductToLandingProduct(product as Record<string, unknown>, [], categoryMap)
 }
 
 /** Slides for the card gallery: imageUrls, else [imageUrl], else product image, else []. */
@@ -356,6 +370,7 @@ function ProductCard({
 export function LandingProductSection({ isCustomer = false }: { isCustomer?: boolean }) {
 	const router = useRouter()
 	const [query, setQuery] = useState("")
+	const [debouncedQuery, setDebouncedQuery] = useState("")
 	const [category, setCategory] = useState("")
 	const [brandKey, setBrandKey] = useState("")
 	const [city, setCity] = useState("")
@@ -368,10 +383,55 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	const { ref: headingRef, isInView: headingInView } = useInView<HTMLDivElement>()
 	const { ref: gridRef, isInView: gridInView } = useInView<HTMLDivElement>({ threshold: 0.05 })
 
-	const { data: catalog, isLoading, isError } = useLandingCatalog()
-	const products = useMemo(() => catalog?.products ?? [], [catalog?.products])
-	const pharmacies: LandingPharmacy[] = catalog?.pharmacies ?? []
-	const catalogCategories = catalog?.categories ?? []
+	const { data: catalog, isLoading: isCatalogLoading, isError: isCatalogError } = useLandingCatalog()
+	const catalogProducts = useMemo(() => catalog?.products ?? [], [catalog?.products])
+	const pharmacies = useMemo<LandingPharmacy[]>(() => catalog?.pharmacies ?? [], [catalog?.pharmacies])
+	const catalogCategories = useMemo(() => catalog?.categories ?? [], [catalog?.categories])
+	const categoryNameById = useMemo(
+		() => new Map(catalogCategories.map(c => [c.id, c.name])),
+		[catalogCategories]
+	)
+
+	useEffect(() => {
+		const timeout = window.setTimeout(() => setDebouncedQuery(query), LANDING_SEARCH_DEBOUNCE_MS)
+		return () => window.clearTimeout(timeout)
+	}, [query])
+
+	const normalizedQuery = query.trim()
+	const normalizedDebouncedQuery = debouncedQuery.trim()
+	const shouldUseLiveSearch = normalizedDebouncedQuery.length >= MIN_LIVE_SEARCH_QUERY_LENGTH
+
+	const {
+		data: liveSearchApiProducts,
+		isLoading: isLiveSearchLoading,
+		isFetching: isLiveSearchFetching,
+		isError: isLiveSearchError,
+	} = useProductSearchQuery(
+		{
+			query: normalizedDebouncedQuery,
+			prefix: true,
+			searchType: "plain",
+		},
+		{ enabled: shouldUseLiveSearch }
+	)
+
+	const liveSearchProducts = useMemo(() => {
+		if (!shouldUseLiveSearch) return []
+		return (liveSearchApiProducts ?? [])
+			.map(product => mapSearchProductToLandingProduct(product, categoryNameById))
+			.filter((product): product is LandingProduct => product !== null)
+	}, [shouldUseLiveSearch, liveSearchApiProducts, categoryNameById])
+
+	const useServerRankedProducts = shouldUseLiveSearch && !isLiveSearchError
+	const products = useMemo(
+		() => (useServerRankedProducts ? liveSearchProducts : catalogProducts),
+		[useServerRankedProducts, liveSearchProducts, catalogProducts]
+	)
+
+	const isDebouncingSearch = normalizedQuery.length > 0 && normalizedQuery !== normalizedDebouncedQuery
+	const showSearchLoading =
+		useServerRankedProducts && (isDebouncingSearch || isLiveSearchLoading || isLiveSearchFetching)
+	const hasApiError = isCatalogError || (shouldUseLiveSearch && isLiveSearchError)
 
 	const pharmacyById = useMemo(() => new Map(pharmacies.map(s => [s.id, s])), [pharmacies])
 	// When a store is selected, only show categories that belong to that owner and appear in that store's products
@@ -416,12 +476,34 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	)
 
 	const filtered = useMemo(
-		() =>
-			sortProducts(
-				filterProducts(products, pharmacies, query, category, brandKey, city, storeId),
-				sort
-			),
-		[products, pharmacies, query, category, brandKey, city, storeId, sort]
+		() => {
+			const activeSort =
+				sort === "relevance" && !useServerRankedProducts ? "name-asc" : sort
+			return sortProducts(
+				filterProducts(
+					products,
+					pharmacies,
+					query,
+					category,
+					brandKey,
+					city,
+					storeId,
+					!useServerRankedProducts
+				),
+				activeSort
+			)
+		},
+		[
+			products,
+			pharmacies,
+			query,
+			category,
+			brandKey,
+			city,
+			storeId,
+			sort,
+			useServerRankedProducts,
+		]
 	)
 
 	const hasFilters = category || brandKey || city || storeId
@@ -447,7 +529,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	useEffect(() => {
 		setPageSize(getStoredProductListPageSize())
 		const onStorage = (e: StorageEvent) => {
-			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue == null) return
+			if (e.key !== PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY || e.newValue === null) return
 			const n = Number.parseInt(e.newValue, 10)
 			if (Number.isFinite(n)) setPageSize(normalizeProductListPageSize(n))
 		}
@@ -484,7 +566,18 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 						type="search"
 						placeholder="Search by name, brand, category..."
 						value={query}
-						onChange={e => setQuery(e.target.value)}
+						onChange={e => {
+							const nextQuery = e.target.value
+							const nextIsLive = nextQuery.trim().length >= MIN_LIVE_SEARCH_QUERY_LENGTH
+							const prevIsLive = query.trim().length >= MIN_LIVE_SEARCH_QUERY_LENGTH
+							if (nextIsLive && !prevIsLive && sort !== "relevance") {
+								setSort("relevance")
+							}
+							if (!nextIsLive && prevIsLive && sort === "relevance") {
+								setSort("name-asc")
+							}
+							setQuery(nextQuery)
+						}}
 						onKeyDown={e => {
 							if (e.key !== "Enter") return
 							e.preventDefault()
@@ -662,9 +755,11 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 			</div>
 
 			<p className="text-muted-foreground text-sm">
-				{isLoading
+				{isCatalogLoading && catalogProducts.length === 0
 					? "Loading real-time availability..."
-					: `${filtered.length}${isError ? " (API error)" : ""} result${filtered.length !== 1 ? "s" : ""}`}
+					: showSearchLoading
+						? "Searching products..."
+						: `${filtered.length}${hasApiError ? " (API error)" : ""} result${filtered.length !== 1 ? "s" : ""}`}
 			</p>
 
 			{filtered.length === 0 ? (
@@ -675,7 +770,10 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 					</p>
 					<button
 						type="button"
-						onClick={() => setQuery("")}
+						onClick={() => {
+							setQuery("")
+							if (sort === "relevance") setSort("name-asc")
+						}}
 						className="text-primary text-sm font-medium hover:underline"
 					>
 						Clear search

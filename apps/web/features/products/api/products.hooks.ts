@@ -108,6 +108,9 @@ export type Product = {
 	manufacturer?: string
 	requiresPrescription: boolean
 	description?: string
+	indications?: string
+	activeIngredients?: string
+	searchSynonyms?: string
 	/** Create payload: first variant display label (separate from strength). */
 	variantLabel?: string
 	/** Present on create payload only; stored on the first variant server-side. */
@@ -165,7 +168,10 @@ export type ProductSearchParams = {
 	searchType?: "plain" | "websearch"
 }
 
-export function useProductSearchQuery(params: ProductSearchParams = {}) {
+export function useProductSearchQuery(
+	params: ProductSearchParams = {},
+	options?: { enabled?: boolean }
+) {
 	return useQuery({
 		queryKey: ["products", "search", params],
 		queryFn: () => {
@@ -182,6 +188,7 @@ export function useProductSearchQuery(params: ProductSearchParams = {}) {
 			const suffix = search.toString() ? `?${search.toString()}` : ""
 			return apiFetch<Product[]>(`/v1/products/${suffix}`)
 		},
+		enabled: options?.enabled ?? true,
 	})
 }
 

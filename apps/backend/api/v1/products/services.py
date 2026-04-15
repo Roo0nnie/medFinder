@@ -10,7 +10,7 @@ from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
 from collections import defaultdict
-from django.db.models import Max, Q, QuerySet
+from django.db.models import Case, IntegerField, Max, Q, QuerySet, Value, When
 from django.utils import timezone
 
 from api.v1.brands.models import Brand, OwnerBrand
@@ -111,34 +111,64 @@ def list_products(
 
     if query:
         query = query.strip()
-        if prefix:
-            raw = _build_prefix_raw_query(query)
-            search_query = SearchQuery(raw, search_type="raw", config="english") if raw else None
-        else:
-            search_query = SearchQuery(query, search_type=search_type, config="english")
+        if query:
+            if prefix:
+                raw = _build_prefix_raw_query(query)
+                search_query = SearchQuery(raw, search_type="raw", config="english") if raw else None
+            else:
+                search_query = SearchQuery(query, search_type=search_type, config="english")
 
-        vector = (
-            SearchVector("name", weight="A", config="english")
-            + SearchVector("brand_name", weight="B", config="english")
-            + SearchVector("generic_name", weight="B", config="english")
-            + SearchVector("manufacturer", weight="C", config="english")
-            + SearchVector("description", weight="D", config="english")
-        )
-
-        variant_text_filter = (
-            Q(medicalproductvariant__label__icontains=query)
-            | Q(medicalproductvariant__unit__icontains=query)
-            | Q(medicalproductvariant__strength__icontains=query)
-            | Q(medicalproductvariant__dosage_form__icontains=query)
-        )
-
-        if search_query is not None:
-            qs = (
-                qs.annotate(rank=SearchRank(vector, search_query))
-                .filter(Q(rank__gt=0) | variant_text_filter)
-                .distinct()
-                .order_by("-rank", "name")
+            vector = (
+                SearchVector("name", weight="A", config="english")
+                + SearchVector("generic_name", weight="A", config="english")
+                + SearchVector("brand_name", weight="B", config="english")
+                + SearchVector("search_synonyms", weight="B", config="english")
+                + SearchVector("indications", weight="C", config="english")
+                + SearchVector("active_ingredients", weight="C", config="english")
+                + SearchVector("manufacturer", weight="D", config="english")
+                + SearchVector("description", weight="D", config="english")
             )
+
+            variant_match_product_ids = MedicalProductVariant.objects.filter(
+                Q(label__icontains=query)
+                | Q(unit__icontains=query)
+                | Q(strength__icontains=query)
+                | Q(dosage_form__icontains=query)
+            ).values("product_id")
+
+            # Hybrid recovery for short/infix terms (e.g., "flu", "gesic").
+            token_count = len([part for part in query.split() if part])
+            fallback_enabled = token_count == 1 and 2 <= len(query) <= 6
+            product_text_fallback_filter = (
+                Q(name__icontains=query)
+                | Q(brand_name__icontains=query)
+                | Q(generic_name__icontains=query)
+                | Q(search_synonyms__icontains=query)
+                | Q(indications__icontains=query)
+                | Q(active_ingredients__icontains=query)
+            )
+            fallback_filter = Q(id__in=variant_match_product_ids)
+            if fallback_enabled:
+                fallback_filter = fallback_filter | product_text_fallback_filter
+
+            if search_query is not None:
+                qs = (
+                    qs.annotate(rank=SearchRank(vector, search_query))
+                    .filter(Q(rank__gt=0) | fallback_filter)
+                    .annotate(
+                        search_bucket=Case(
+                            When(rank__gt=0, then=Value(0)),
+                            default=Value(1),
+                            output_field=IntegerField(),
+                        )
+                    )
+                    .distinct()
+                    .order_by("search_bucket", "-rank", "name")
+                )
+            else:
+                qs = qs.filter(fallback_filter).distinct().order_by("name")
+        else:
+            qs = qs.order_by("name")
     else:
         qs = qs.order_by("name")
 
@@ -485,6 +515,9 @@ def create_product(
     brand_id: Optional[str] = None,
     brand_name: Optional[str] = None,
     description: Optional[str] = None,
+    indications: Optional[str] = None,
+    active_ingredients: Optional[str] = None,
+    search_synonyms: Optional[str] = None,
     manufacturer: Optional[str] = None,
     requires_prescription: Optional[bool] = False,
     supplier: Optional[str] = None,
@@ -499,6 +532,9 @@ def create_product(
         brand_id=brand_id,
         brand_name=brand_name or "",
         description=description or "",
+        indications=indications or "",
+        active_ingredients=active_ingredients or "",
+        search_synonyms=search_synonyms or "",
         manufacturer=manufacturer or "",
         category_id=category_id,
         requires_prescription=requires_prescription or False,
@@ -517,6 +553,9 @@ def update_product(
     generic_name: Optional[str] = None,
     brand_fields: Optional[tuple[Optional[str], str]] = None,
     description: Optional[str] = None,
+    indications: Optional[str] = None,
+    active_ingredients: Optional[str] = None,
+    search_synonyms: Optional[str] = None,
     manufacturer: Optional[str] = None,
     category_id: Optional[str] = None,
     requires_prescription: Optional[bool] = None,
@@ -543,6 +582,15 @@ def update_product(
     if description is not None:
         product.description = description
         update_fields.append("description")
+    if indications is not None:
+        product.indications = indications
+        update_fields.append("indications")
+    if active_ingredients is not None:
+        product.active_ingredients = active_ingredients
+        update_fields.append("active_ingredients")
+    if search_synonyms is not None:
+        product.search_synonyms = search_synonyms
+        update_fields.append("search_synonyms")
     if manufacturer is not None:
         product.manufacturer = manufacturer
         update_fields.append("manufacturer")

@@ -44,6 +44,9 @@ class MedicalProductSerializer(serializers.ModelSerializer):
     brandId = serializers.CharField(source="brand_id", allow_null=True, required=False)
     brandName = serializers.CharField(source="brand_name", allow_null=True)
     manufacturer = serializers.CharField(allow_null=True)
+    indications = serializers.CharField(allow_null=True)
+    activeIngredients = serializers.CharField(source="active_ingredients", allow_null=True)
+    searchSynonyms = serializers.CharField(source="search_synonyms", allow_null=True)
     categoryId = serializers.CharField(source="category_id")
     requiresPrescription = serializers.BooleanField(source="requires_prescription")
     lowStockThreshold = serializers.IntegerField(source="low_stock_threshold", allow_null=True)
@@ -60,6 +63,9 @@ class MedicalProductSerializer(serializers.ModelSerializer):
             "brandId",
             "brandName",
             "description",
+            "indications",
+            "activeIngredients",
+            "searchSynonyms",
             "manufacturer",
             "categoryId",
             "requiresPrescription",
@@ -159,6 +165,9 @@ class MedicalProductCreateSerializer(serializers.Serializer):
     brandId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     brandName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
+    indications = serializers.CharField(required=False, allow_blank=True)
+    activeIngredients = serializers.CharField(required=False, allow_blank=True)
+    searchSynonyms = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     categoryId = serializers.CharField(max_length=255)
     variantLabel = serializers.CharField(max_length=255)
@@ -187,6 +196,9 @@ class MedicalProductUpdateSerializer(serializers.Serializer):
     brandId = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     brandName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     description = serializers.CharField(required=False, allow_blank=True)
+    indications = serializers.CharField(required=False, allow_blank=True)
+    activeIngredients = serializers.CharField(required=False, allow_blank=True)
+    searchSynonyms = serializers.CharField(required=False, allow_blank=True)
     manufacturer = serializers.CharField(max_length=255, required=False, allow_blank=True)
     categoryId = serializers.CharField(max_length=255, required=False)
     requiresPrescription = serializers.BooleanField(required=False)

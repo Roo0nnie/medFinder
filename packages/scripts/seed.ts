@@ -7,7 +7,7 @@
  */
 import "./load-env"
 
-import { eq } from "drizzle-orm"
+import { and, eq, inArray, notInArray } from "drizzle-orm"
 
 import { getAuth } from "@repo/auth"
 import { createDBClient } from "@repo/db/client"
@@ -352,6 +352,25 @@ type ProductSeedRow = {
 	unit: string
 	price: string
 	quantity: number
+	description?: string
+	indications?: string
+	activeIngredients?: string
+	searchSynonyms?: string
+	manufacturer?: string
+}
+
+type ProductVariantSeedRow = {
+	id: string
+	productId: string
+	pharmacyId: string
+	inventoryId: string
+	label: string
+	unit: string
+	sortOrder: number
+	strength: string
+	dosageForm: string
+	price: string
+	quantity: number
 }
 
 /** Single demo image URL applied to every seeded product variant (gallery uses two identical slides). */
@@ -359,6 +378,108 @@ const SEED_DEFAULT_PRODUCT_IMAGE =
 	"https://exxifujdzeimjusoycos.supabase.co/storage/v1/object/public/sample/sample.svg"
 
 const SEED_DEFAULT_VARIANT_GALLERY: string[] = [SEED_DEFAULT_PRODUCT_IMAGE, SEED_DEFAULT_PRODUCT_IMAGE]
+
+function medicalSearchTextForProduct(d: ProductSeedRow) {
+	const name = d.name.toLowerCase()
+	const generic = d.genericName.toLowerCase()
+
+	if (name.includes("bioflu") || name.includes("neozep")) {
+		return {
+			description:
+				"Combination cold and flu medicine for temporary relief of fever, headache, colds, and body aches.",
+			indications: "flu, colds, fever, headache, runny nose, body aches",
+			activeIngredients: d.genericName,
+			searchSynonyms: "flu medicine, cold remedy, trangkaso, sipon, fever reducer",
+		}
+	}
+
+	if (name.includes("solmux")) {
+		return {
+			description:
+				"Mucolytic medicine that helps loosen thick phlegm and ease productive cough from respiratory irritation.",
+			indications: "cough with phlegm, chest congestion, productive cough",
+			activeIngredients: d.genericName,
+			searchSynonyms: "phlegm remover, expectorant, ubo with plema",
+		}
+	}
+
+	if (name.includes("paracetamol") || generic.includes("paracetamol")) {
+		return {
+			description:
+				"Analgesic and antipyretic used for temporary relief of mild to moderate pain and reduction of fever.",
+			indications: "fever, headache, toothache, body pain, mild pain",
+			activeIngredients: d.genericName,
+			searchSynonyms: "acetaminophen, fever reducer, pain reliever",
+		}
+	}
+
+	if (name.includes("ibuprofen") || generic.includes("ibuprofen")) {
+		return {
+			description:
+				"Nonsteroidal anti-inflammatory medicine for relief of pain, swelling, and fever in common conditions.",
+			indications: "headache, muscle pain, dysmenorrhea, inflammation, fever",
+			activeIngredients: d.genericName,
+			searchSynonyms: "nsaid, anti-inflammatory, pain reliever",
+		}
+	}
+
+	if (name.includes("loperamide") || name.includes("diatabs ors")) {
+		return {
+			description:
+				"Digestive support medicine used for acute diarrhea symptom control and oral rehydration support.",
+			indications: "diarrhea, loose bowel movement, dehydration support",
+			activeIngredients: d.genericName,
+			searchSynonyms: "anti-diarrheal, lbm relief, oral rehydration salts",
+		}
+	}
+
+	if (name.includes("omeprazole")) {
+		return {
+			description:
+				"Proton pump inhibitor used to reduce stomach acid for relief of hyperacidity and reflux symptoms.",
+			indications: "acid reflux, hyperacidity, heartburn, dyspepsia",
+			activeIngredients: d.genericName,
+			searchSynonyms: "acid reducer, ppi, gerd relief",
+		}
+	}
+
+	if (name.includes("enervon") || name.includes("ceelin")) {
+		return {
+			description:
+				"Vitamin supplement formulated to help support immunity, energy metabolism, and overall wellness.",
+			indications: "vitamin deficiency support, immune support, daily supplementation",
+			activeIngredients: d.genericName,
+			searchSynonyms: "vitamins, immune booster, supplement",
+		}
+	}
+
+	if (name.includes("bactidol")) {
+		return {
+			description:
+				"Oral antiseptic solution for temporary relief of sore throat discomfort and mouth or throat irritation.",
+			indications: "sore throat, mouth irritation, throat discomfort",
+			activeIngredients: d.genericName,
+			searchSynonyms: "throat gargle, oral antiseptic, sore throat relief",
+		}
+	}
+
+	if (name.includes("isopropyl alcohol")) {
+		return {
+			description:
+				"Topical antiseptic for skin disinfection and hand hygiene to help reduce common germs on contact.",
+			indications: "skin disinfection, hand hygiene, first aid cleansing",
+			activeIngredients: d.genericName,
+			searchSynonyms: "rubbing alcohol, antiseptic, disinfectant",
+		}
+	}
+
+	return {
+		description: d.description ?? `${d.brandName} ${d.genericName} formulation for routine symptom relief.`,
+		indications: d.indications ?? "general symptom relief",
+		activeIngredients: d.activeIngredients ?? d.genericName,
+		searchSynonyms: d.searchSynonyms ?? `${d.genericName}, ${d.brandName}`,
+	}
+}
 
 async function seedProducts(
 	db: ReturnType<typeof createDBClient>,
@@ -785,9 +906,131 @@ async function seedProducts(
 		},
 	]
 
+	const extraVariants: ProductVariantSeedRow[] = [
+		{
+			id: "seed-variant-25",
+			productId: "seed-product-1",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-25",
+			label: "Strip of 10",
+			unit: "strip",
+			sortOrder: 1,
+			strength: "500mg",
+			dosageForm: "Tablet",
+			price: "18.00",
+			quantity: 220,
+		},
+		{
+			id: "seed-variant-26",
+			productId: "seed-product-1",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-26",
+			label: "Bottle 60ml",
+			unit: "bottle",
+			sortOrder: 2,
+			strength: "250mg/5ml",
+			dosageForm: "Suspension",
+			price: "96.00",
+			quantity: 64,
+		},
+		{
+			id: "seed-variant-27",
+			productId: "seed-product-8",
+			pharmacyId: ph("mc"),
+			inventoryId: "seed-inv-27",
+			label: "Box of 20",
+			unit: "box",
+			sortOrder: 1,
+			strength: "200mg",
+			dosageForm: "Tablet",
+			price: "152.00",
+			quantity: 52,
+		},
+		{
+			id: "seed-variant-28",
+			productId: "seed-product-12",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-28",
+			label: "Box of 24",
+			unit: "box",
+			sortOrder: 1,
+			strength: "NA",
+			dosageForm: "Tablet",
+			price: "165.00",
+			quantity: 46,
+		},
+		{
+			id: "seed-variant-29",
+			productId: "seed-product-12",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-29",
+			label: "Bottle 60ml",
+			unit: "bottle",
+			sortOrder: 2,
+			strength: "NA",
+			dosageForm: "Syrup",
+			price: "142.00",
+			quantity: 38,
+		},
+		{
+			id: "seed-variant-30",
+			productId: "seed-product-16",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-30",
+			label: "Box of 100",
+			unit: "box",
+			sortOrder: 1,
+			strength: "2mg",
+			dosageForm: "Capsule",
+			price: "296.00",
+			quantity: 25,
+		},
+		{
+			id: "seed-variant-31",
+			productId: "seed-product-21",
+			pharmacyId: ph("hp"),
+			inventoryId: "seed-inv-31",
+			label: "Bottle 60ml",
+			unit: "bottle",
+			sortOrder: 1,
+			strength: "0.1%",
+			dosageForm: "Solution",
+			price: "126.00",
+			quantity: 32,
+		},
+	]
+
+	const extrasByProduct = extraVariants.reduce<Record<string, ProductVariantSeedRow[]>>((acc, row) => {
+		acc[row.productId] ??= []
+		acc[row.productId]!.push(row)
+		return acc
+	}, {})
+
+	// Keep seeded variant cardinality deterministic across reruns:
+	// remove stale variants on seeded products that are not part of the current seed spec.
+	const seedProductIds = defs.map(d => d.productId)
+	const allowedVariantIds = [
+		...defs.map(d => d.variantId),
+		...extraVariants.map(v => v.id),
+	]
+	await db
+		.delete(medicalProductVariants)
+		.where(
+			and(
+				inArray(medicalProductVariants.productId, seedProductIds),
+				notInArray(medicalProductVariants.id, allowedVariantIds)
+			)
+		)
+
 	for (const d of defs) {
 		const categoryId = d.categoryId
 		const brandIdVal = b(d.brandKey)
+		const medicalText = medicalSearchTextForProduct(d)
+		const description = d.description ?? medicalText.description
+		const indications = d.indications ?? medicalText.indications
+		const activeIngredients = d.activeIngredients ?? medicalText.activeIngredients
+		const searchSynonyms = d.searchSynonyms ?? medicalText.searchSynonyms
+		const manufacturer = d.manufacturer ?? d.brandName
 
 		await db
 			.insert(medicalProducts)
@@ -798,8 +1041,11 @@ async function seedProducts(
 				genericName: d.genericName,
 				brandName: d.brandName,
 				brandId: brandIdVal,
-				description: `Seed ${d.genericName} (${d.brandName})`,
-				manufacturer: "",
+				description,
+				indications,
+				activeIngredients,
+				searchSynonyms,
+				manufacturer,
 				categoryId,
 				requiresPrescription: false,
 				supplier: "",
@@ -815,7 +1061,11 @@ async function seedProducts(
 					genericName: d.genericName,
 					brandName: d.brandName,
 					brandId: brandIdVal,
-					description: `Seed ${d.genericName} (${d.brandName})`,
+					description,
+					indications,
+					activeIngredients,
+					searchSynonyms,
+					manufacturer,
 					categoryId,
 					updatedAt: now,
 				},
@@ -823,60 +1073,80 @@ async function seedProducts(
 
 		const primaryImageUrl = SEED_DEFAULT_VARIANT_GALLERY[0] ?? ""
 
-		await db
-			.insert(medicalProductVariants)
-			.values({
+		const variantRows: ProductVariantSeedRow[] = [
+			{
 				id: d.variantId,
 				productId: d.productId,
+				pharmacyId: d.pharmacyId,
+				inventoryId: d.inventoryId,
 				label: d.variantLabel,
 				unit: d.unit,
 				sortOrder: 0,
 				strength: d.strength,
 				dosageForm: d.dosageForm,
-				imageUrl: primaryImageUrl,
-				imageUrls: SEED_DEFAULT_VARIANT_GALLERY,
-				createdAt: now,
-				updatedAt: now,
-			})
-			.onConflictDoUpdate({
-				target: medicalProductVariants.id,
-				set: {
-					label: d.variantLabel,
-					unit: d.unit,
-					strength: d.strength,
-					dosageForm: d.dosageForm,
+				price: d.price,
+				quantity: d.quantity,
+			},
+			...(extrasByProduct[d.productId] ?? []),
+		]
+
+		for (const row of variantRows) {
+			await db
+				.insert(medicalProductVariants)
+				.values({
+					id: row.id,
+					productId: row.productId,
+					label: row.label,
+					unit: row.unit,
+					sortOrder: row.sortOrder,
+					strength: row.strength,
+					dosageForm: row.dosageForm,
 					imageUrl: primaryImageUrl,
 					imageUrls: SEED_DEFAULT_VARIANT_GALLERY,
+					createdAt: now,
 					updatedAt: now,
-				},
-			})
+				})
+				.onConflictDoUpdate({
+					target: medicalProductVariants.id,
+					set: {
+						label: row.label,
+						unit: row.unit,
+						sortOrder: row.sortOrder,
+						strength: row.strength,
+						dosageForm: row.dosageForm,
+						imageUrl: primaryImageUrl,
+						imageUrls: SEED_DEFAULT_VARIANT_GALLERY,
+						updatedAt: now,
+					},
+				})
 
-		await db
-			.insert(pharmacyInventory)
-			.values({
-				id: d.inventoryId,
-				pharmacyId: d.pharmacyId,
-				productId: d.productId,
-				variantId: d.variantId,
-				quantity: d.quantity,
-				price: d.price,
-				isAvailable: true,
-				createdAt: now,
-				updatedAt: now,
-			})
-			.onConflictDoUpdate({
-				target: pharmacyInventory.id,
-				set: {
-					variantId: d.variantId,
-					quantity: d.quantity,
-					price: d.price,
+			await db
+				.insert(pharmacyInventory)
+				.values({
+					id: row.inventoryId,
+					pharmacyId: row.pharmacyId,
+					productId: row.productId,
+					variantId: row.id,
+					quantity: row.quantity,
+					price: row.price,
 					isAvailable: true,
+					createdAt: now,
 					updatedAt: now,
-				},
-			})
+				})
+				.onConflictDoUpdate({
+					target: pharmacyInventory.id,
+					set: {
+						variantId: row.id,
+						quantity: row.quantity,
+						price: row.price,
+						isAvailable: true,
+						updatedAt: now,
+					},
+				})
+		}
 	}
 
-	console.log("Seeded medical products, variants, and inventory (24).")
+	console.log("Seeded medical products (24), variants (31), and inventory rows (31).")
 }
 
 async function seed() {
