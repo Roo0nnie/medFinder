@@ -10,6 +10,7 @@ class User(models.Model):
     email = models.EmailField(unique=True)
     email_verified = models.BooleanField(default=False)
     image = models.TextField(blank=True, null=True)
+    profile_image_url = models.TextField(blank=True, null=True)
     first_name = models.CharField(max_length=255, blank=True, null=True)
     last_name = models.CharField(max_length=255)
     middle_name = models.CharField(max_length=255, blank=True, null=True)

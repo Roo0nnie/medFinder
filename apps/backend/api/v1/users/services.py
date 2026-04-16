@@ -16,7 +16,16 @@ def get_user_by_id(pk):
     return User.objects.get(pk=pk)  # raises User.DoesNotExist -> 404 in view
 
 
-def update_user(pk, *, first_name=None, last_name=None, middle_name=None, role=None, email=None):
+def update_user(
+    pk,
+    *,
+    first_name=None,
+    last_name=None,
+    middle_name=None,
+    role=None,
+    email=None,
+    profile_image_url=None,
+):
     from django.utils import timezone
     user = User.objects.get(pk=pk)
     update_fields = []
@@ -35,6 +44,12 @@ def update_user(pk, *, first_name=None, last_name=None, middle_name=None, role=N
     if email is not None:
         user.email = email
         update_fields.append("email")
+    if profile_image_url is not None:
+        user.profile_image_url = profile_image_url
+        update_fields.append("profile_image_url")
+        # Mirror into Better Auth's `image` field so sessions/clients that only read `image` still get the latest photo.
+        user.image = profile_image_url
+        update_fields.append("image")
     user.updated_at = timezone.now()
     update_fields.append("updated_at")
     user.save(update_fields=update_fields)

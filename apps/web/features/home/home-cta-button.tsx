@@ -14,13 +14,6 @@ interface HomeCtaButtonProps {
 	isLoggedIn: boolean
 }
 
-/**
- * Primary call-to-action button for the home page.
- *
- * Note: the server page (`app/(home)/page.tsx`) already knows whether the user
- * is logged in. We accept `isLoggedIn` as a prop to avoid client-side session
- * flicker on first paint.
- */
 export function HomeCtaButton({ href, isLoggedIn }: HomeCtaButtonProps) {
 	const signOutMutation = useSignOutMutation()
 

@@ -8,13 +8,13 @@ import {
 	BadgeCheck,
 	HelpCircleIcon,
 	LogoutIcon,
-	SettingsIcon,
 	UnfoldMoreIcon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import type { AuthSession } from "@repo/auth"
 
+import { ThemeToggle } from "@/core/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
 import { Button } from "@/core/components/ui/button"
 import {
@@ -28,6 +28,7 @@ import {
 } from "@/core/components/ui/dropdown-menu"
 import { getDisplayName, getInitials } from "@/core/lib/utils"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
+import { useUserQuery } from "@/features/users/api/users.hooks"
 
 const SECTIONS = [
 	{ href: "#home", label: "Home", id: "home" },
@@ -84,6 +85,12 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 	const signOutMutation = useSignOutMutation("/")
 	const activeSection = useActiveSection(isHome)
 	const [mobileOpen, setMobileOpen] = useState(false)
+
+	// Session payload can be stale after profile edits; fetch fresh user for display.
+	const sessionUserId = (session?.user as { id?: string } | null)?.id ?? null
+	const { data: freshUser } = useUserQuery(sessionUserId)
+	const displayUser = (freshUser ?? session?.user ?? null) as any
+	const displayImageSrc = (displayUser?.profileImageUrl ?? displayUser?.image ?? undefined) as string | undefined
 
 	const logoClass = "flex items-center gap-3"
 	const logoInner = (
@@ -150,6 +157,7 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 						</Link>
 					)
 				)}
+				<ThemeToggle />
 				{session ? (
 					<DropdownMenu>
 						<DropdownMenuTrigger>
@@ -159,11 +167,11 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 							>
 								<Avatar className="h-7 w-7 rounded-md">
 									<AvatarImage
-										src={session.user?.image ?? undefined}
-										alt={getDisplayName(session.user)}
+										src={displayImageSrc}
+										alt={getDisplayName(displayUser)}
 									/>
 									<AvatarFallback className="rounded-md text-xs">
-										{getInitials(getDisplayName(session.user)) || "CN"}
+										{getInitials(getDisplayName(displayUser)) || "CN"}
 									</AvatarFallback>
 								</Avatar>
 								<span className="font-medium">Menu</span>
@@ -176,17 +184,17 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 									<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 										<Avatar className="h-8 w-8 rounded-lg">
 											<AvatarImage
-												src={session.user?.image ?? undefined}
-												alt={getDisplayName(session.user)}
+												src={displayImageSrc}
+												alt={getDisplayName(displayUser)}
 											/>
 											<AvatarFallback className="rounded-lg">
-												{getInitials(getDisplayName(session.user)) || "CN"}
+												{getInitials(getDisplayName(displayUser)) || "CN"}
 											</AvatarFallback>
 										</Avatar>
 										<div className="grid flex-1 text-left text-sm leading-tight">
-											<span className="truncate font-medium">{getDisplayName(session.user)}</span>
+											<span className="truncate font-medium">{getDisplayName(displayUser)}</span>
 											<span className="text-muted-foreground truncate text-xs">
-												{session.user?.email ?? ""}
+												{displayUser?.email ?? ""}
 											</span>
 										</div>
 									</div>
@@ -195,19 +203,14 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 							<DropdownMenuSeparator />
 							<DropdownMenuGroup>
 								<DropdownMenuItem>
-									<Link href="#" className="flex items-center">
+									<Link href={"/profile" as Route} className="flex items-center">
 										<HugeiconsIcon icon={BadgeCheck} className="mr-2 size-4" strokeWidth={2} />
 										Profile
 									</Link>
 								</DropdownMenuItem>
+							
 								<DropdownMenuItem>
-									<Link href="#" className="flex items-center">
-										<HugeiconsIcon icon={SettingsIcon} className="mr-2 size-4" strokeWidth={2} />
-										Settings
-									</Link>
-								</DropdownMenuItem>
-								<DropdownMenuItem>
-									<Link href="#" className="flex items-center">
+									<Link href={"/help" as Route} className="flex items-center">
 										<HugeiconsIcon icon={HelpCircleIcon} className="mr-2 size-4" strokeWidth={2} />
 										Help
 									</Link>
@@ -249,6 +252,10 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 			{mobileOpen && (
 				<div className="md:hidden absolute top-full left-0 right-0 bg-background/95 backdrop-blur border-b border-border animate-fade-in-up">
 					<div className="flex flex-col gap-1 px-4 py-4">
+						<div className="flex items-center justify-between pb-2">
+							<span className="text-muted-foreground text-sm">Theme</span>
+							<ThemeToggle />
+						</div>
 						{SECTIONS.map(({ href, label, id }) =>
 							isHome ? (
 								<a
@@ -277,6 +284,24 @@ export function LandingNav({ session }: { session: AuthSession | null }) {
 									{label}
 								</Link>
 							)
+						)}
+						{session && (
+							<div className="mt-2 flex flex-col gap-1 border-t border-border pt-2">
+								<Link
+									href={"/profile" as Route}
+									className="rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted text-muted-foreground"
+									onClick={() => setMobileOpen(false)}
+								>
+									Profile
+								</Link>
+								<Link
+									href={"/help" as Route}
+									className="rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted text-muted-foreground"
+									onClick={() => setMobileOpen(false)}
+								>
+									Help
+								</Link>
+							</div>
 						)}
 						{!session && (
 							<Link

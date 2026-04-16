@@ -15,6 +15,7 @@ export const users = createTable("users", t => ({
 	email: t.text("email").notNull().unique(),
 	emailVerified: t.boolean("email_verified").default(false).notNull(),
 	image: t.text("image"),
+	profile_image_url: t.text("profile_image_url"),
 	name: t.text("name"), // Better Auth default; app uses first_name + last_name
 	first_name: t.text("first_name"),
 	last_name: t.text("last_name").notNull(),

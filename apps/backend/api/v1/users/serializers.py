@@ -13,6 +13,7 @@ class UserListSerializer(serializers.ModelSerializer):
     lastName = serializers.CharField(source="last_name", read_only=True)
     middleName = serializers.CharField(source="middle_name", read_only=True)
     emailVerified = serializers.BooleanField(source="email_verified", read_only=True)
+    profileImageUrl = serializers.CharField(source="profile_image_url", read_only=True)
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
 
@@ -23,6 +24,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "email",
             "emailVerified",
             "image",
+            "profileImageUrl",
             "firstName",
             "lastName",
             "middleName",
@@ -38,3 +40,4 @@ class UserUpdateInputSerializer(serializers.Serializer):
     middleName = serializers.CharField(max_length=255, required=False, allow_blank=True)
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=False)
     email = serializers.EmailField(required=False)
+    profileImageUrl = serializers.CharField(required=False, allow_blank=True)

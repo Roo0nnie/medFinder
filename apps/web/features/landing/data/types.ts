@@ -1,4 +1,4 @@
-export interface LandingProductVariant {
+export type LandingProductVariant = {
 	id: string
 	label: string
 	unit?: string
@@ -8,15 +8,13 @@ export interface LandingProductVariant {
 	strength?: string
 	dosageForm?: string
 	imageUrl?: string
-	/** Gallery URLs from API; when set, drives carousel. */
 	imageUrls?: string[]
 }
 
-export interface LandingProduct {
+export type LandingProduct = {
 	id: string
 	name: string
 	brand: string
-	/** Stable brand identity when API provides it; prefer for grouping over string labels */
 	brandId?: string
 	brandName?: string
 	genericName?: string
@@ -24,33 +22,28 @@ export interface LandingProduct {
 	dosageForm?: string
 	category: string
 	dosage?: string
-	description?: string
+	description: string
 	price: number
 	quantity: number
 	supplier: string
 	storeId: string
 	lowStockThreshold: number
 	unit?: string
-	variants?: LandingProductVariant[]
-	/** Product photo URL for detail page */
 	imageUrl?: string
 	manufacturer?: string
-	/** Display rating 1–5; when using DB, computed from product_reviews */
-	rating?: number
-	/** Pharmacy IDs where this product is available; if omitted, only storeId is used */
 	availableAtStoreIds?: string[]
-	/** False when all inventory rows are marked not for sale */
-	isAvailable?: boolean
+	isAvailable: boolean
+	rating?: number
+	variants?: LandingProductVariant[]
 }
 
-export interface LandingPharmacy {
+export type LandingPharmacy = {
 	id: string
 	name: string
 	address: string
 	city: string
 	municipality: string
-	ownerId?: string
-	/** Short intro line ("what is this" / tagline) */
+	ownerId: string
 	whatIsThis?: string
 	description?: string
 	phone?: string
@@ -58,7 +51,7 @@ export interface LandingPharmacy {
 	website?: string
 	latitude?: number
 	longitude?: number
-	/** Display rating 1–5; when using DB, computed from pharmacy_reviews */
 	rating?: number
 	operatingHours?: string
 }
+

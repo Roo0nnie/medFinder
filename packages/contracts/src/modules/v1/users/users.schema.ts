@@ -12,6 +12,7 @@ const baseUserSchema = z.object({
 	email: z.string().email(),
 	emailVerified: z.boolean().default(false),
 	image: z.string().nullable().optional(),
+	profileImageUrl: z.string().nullable().optional(),
 	firstName: z.string().nullable().optional(),
 	lastName: z.string(),
 	middleName: z.string().nullable().optional(),
@@ -41,6 +42,7 @@ export const UpdateUserSchema = z.object({
 	middleName: z.string().optional(),
 	role: userRoleSchema.optional(),
 	email: z.string().email().optional(),
+	profileImageUrl: z.string().optional(),
 })
 
 export const UserIdSchema = z.object({
