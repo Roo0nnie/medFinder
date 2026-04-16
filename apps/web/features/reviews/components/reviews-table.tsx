@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import {
@@ -82,7 +83,8 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 			},
 			{
 				id: "customer",
-				header: "Customer",
+				accessorFn: row => (row.customerName ?? "").toLowerCase(),
+				header: ({ column }) => <SortableHeader column={column} label="Customer" />,
 				cell: ({ row }) => {
 					const r = row.original
 					return (
@@ -109,7 +111,7 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 				: ([
 						{
 							accessorKey: "pharmacyName",
-							header: "Pharmacy",
+							header: ({ column }) => <SortableHeader column={column} label="Pharmacy" />,
 							cell: ({ row }) => (
 								<span className="text-muted-foreground text-sm">
 									{row.original.pharmacyName ?? row.original.pharmacyId}
@@ -119,12 +121,13 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 					] as ColumnDef<ReviewRow>[])),
 			{
 				id: "rating",
-				header: "Rating",
+				accessorFn: row => row.rating ?? 0,
+				header: ({ column }) => <SortableHeader column={column} label="Rating" />,
 				cell: ({ row }) => <span className="font-semibold">{row.original.rating}/5</span>,
 			},
 			{
 				accessorKey: "comment",
-				header: "Comment",
+				header: ({ column }) => <SortableHeader column={column} label="Comment" />,
 				cell: ({ row }) => (
 					<div className="max-w-xl">
 						<p className="text-sm">{row.original.comment || "No comment provided."}</p>

@@ -1,0 +1,73 @@
+import type { LandingProduct } from "./types"
+
+/**
+ * Static fallback data used when the API is unavailable.
+ * Keep this small and representative; the real catalog comes from `useLandingCatalog()`.
+ */
+export const landingProducts: LandingProduct[] = [
+	{
+		id: "demo-product-1",
+		name: "Paracetamol 500mg",
+		brand: "Paracetamol",
+		genericName: "Paracetamol",
+		strength: "500mg",
+		dosageForm: "Tablet",
+		category: "Pain relief",
+		dosage: "500mg",
+		description: "For temporary relief of minor aches and pains and reduction of fever.",
+		price: 8,
+		quantity: 120,
+		supplier: "Demo Supplier",
+		storeId: "demo-pharmacy-1",
+		lowStockThreshold: 10,
+		unit: "tablet",
+		isAvailable: true,
+		rating: 4.5,
+		variants: [
+			{
+				id: "demo-product-1-v1",
+				label: "10 tablets",
+				unit: "tablet",
+				price: 8,
+				quantity: 120,
+				lowStockThreshold: 10,
+				strength: "500mg",
+				dosageForm: "Tablet",
+			},
+		],
+	},
+	{
+		id: "demo-product-2",
+		name: "Cetirizine 10mg",
+		brand: "Cetirizine",
+		genericName: "Cetirizine",
+		strength: "10mg",
+		dosageForm: "Tablet",
+		category: "Allergy",
+		dosage: "10mg",
+		description: "Non-drowsy antihistamine for allergy symptoms.",
+		price: 12,
+		quantity: 80,
+		supplier: "Demo Supplier",
+		storeId: "demo-pharmacy-1",
+		lowStockThreshold: 10,
+		unit: "tablet",
+		isAvailable: true,
+	},
+	{
+		id: "demo-product-3",
+		name: "Oral Rehydration Salts",
+		brand: "ORS",
+		category: "Digestive health",
+		dosage: "1 sachet",
+		description: "Helps prevent dehydration due to diarrhea or vomiting.",
+		price: 18,
+		quantity: 40,
+		supplier: "Demo Supplier",
+		storeId: "demo-pharmacy-2",
+		lowStockThreshold: 5,
+		unit: "sachet",
+		isAvailable: true,
+		availableAtStoreIds: ["demo-pharmacy-1", "demo-pharmacy-2"],
+	},
+]

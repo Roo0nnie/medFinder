@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import {
@@ -91,30 +92,31 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 			},
 			{
 				accessorKey: "productName",
-				header: "Product",
+				header: ({ column }) => <SortableHeader column={column} label="Product" />,
 				cell: ({ row }) => <span className="font-medium">{row.original.productName}</span>,
 			},
 			{
 				accessorKey: "variantLabelDisplay",
-				header: "Variant",
+				header: ({ column }) => <SortableHeader column={column} label="Variant" />,
 				cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.variantLabelDisplay}</span>,
 			},
 			{
 				accessorKey: "quantity",
-				header: "Qty",
+				header: ({ column }) => <SortableHeader column={column} label="Qty" />,
 				cell: ({ row }) => <span className="font-semibold">{row.original.quantity}</span>,
 			},
 			{
 				accessorKey: "priceDisplay",
-				header: "Price",
+				header: ({ column }) => <SortableHeader column={column} label="Price" />,
 			},
 			{
 				accessorKey: "discountDisplay",
-				header: "Discount",
+				header: ({ column }) => <SortableHeader column={column} label="Discount" />,
 			},
 			{
 				id: "available",
-				header: "Available",
+				accessorFn: row => (row.isAvailable ? 1 : 0),
+				header: ({ column }) => <SortableHeader column={column} label="Available" />,
 				cell: ({ row }) => (row.original.isAvailable ? "Yes" : "No"),
 			},
 			{

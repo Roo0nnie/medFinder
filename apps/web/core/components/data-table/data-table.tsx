@@ -11,7 +11,7 @@ import {
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 
 import { Button } from "@/core/components/ui/button"
 import { Input } from "@/core/components/ui/input"
@@ -176,15 +176,18 @@ export function DataTable<TData>({
 
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 					{toolbarRight ? <div className="min-w-0">{toolbarRight}</div> : null}
-					<Input
-						placeholder={searchPlaceholder}
-						value={searchInput}
-						onChange={e => {
-							setSearchInput(e.target.value)
-							setPageIndex(0)
-						}}
-						className="h-8 w-full sm:w-64"
-					/>
+					<div className="relative w-full sm:w-64">
+						<Search className="text-muted-foreground pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2" />
+						<Input
+							placeholder={searchPlaceholder}
+							value={searchInput}
+							onChange={e => {
+								setSearchInput(e.target.value)
+								setPageIndex(0)
+							}}
+							className="h-8 w-full pl-8"
+						/>
+					</div>
 				</div>
 			</div>
 

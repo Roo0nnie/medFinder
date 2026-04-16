@@ -11,9 +11,10 @@ import {
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 
 import { Button } from "@/core/components/ui/button"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Input } from "@/core/components/ui/input"
 import {
 	Select,
@@ -71,6 +72,8 @@ export function StaffProductTable({
 	const [categoryFilter, setCategoryFilter] = useState<string>("all")
 	const [stockFilter, setStockFilter] = useState<"all" | "low" | "high">("all")
 
+	const categoryMap = useMemo(() => new Map((categories ?? []).map(c => [c.id, c.name])), [categories])
+
 	const filteredData = useMemo(() => {
 		let list = products
 
@@ -94,14 +97,18 @@ export function StaffProductTable({
 		() => [
 			{
 				accessorKey: "name",
-				header: "Name",
+				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => (
 					<span className="font-semibold">{row.original.name}</span>
 				),
 			},
 			{
 				id: "pharmacy",
-				header: "Pharmacy",
+				accessorFn: row => {
+					const pid = row.pharmacyId
+					return pid ? (pharmacyMap.get(pid) ?? pid) : ""
+				},
+				header: ({ column }) => <SortableHeader column={column} label="Pharmacy" />,
 				cell: ({ row }) => {
 					const pid = row.original.pharmacyId
 					return (
@@ -113,28 +120,30 @@ export function StaffProductTable({
 			},
 			{
 				id: "brandGeneric",
-				header: "Brand / Generic",
+				accessorFn: row => (row.brandName || row.genericName || "").toLowerCase(),
+				header: ({ column }) => <SortableHeader column={column} label="Brand / Generic" />,
 				cell: ({ row }) =>
 					row.original.brandName || row.original.genericName || "—",
 			},
 			{
 				id: "category",
-				header: "Category",
+				accessorFn: row => categoryMap.get(row.categoryId) ?? row.categoryId,
+				header: ({ column }) => <SortableHeader column={column} label="Category" />,
 				cell: ({ row }) => {
 					const catId = row.original.categoryId
-					const name = categories?.find(c => c.id === catId)?.name
-					return name ?? catId
+					return categoryMap.get(catId) ?? catId
 				},
 			},
 			{
 				id: "unit",
-				header: "Unit",
+				header: ({ column }) => <SortableHeader column={column} label="Unit" />,
 				accessorFn: row => row.variants?.[0]?.unit ?? "",
 				cell: ({ row }) => row.original.variants?.[0]?.unit ?? "—",
 			},
 			{
 				id: "variants",
-				header: "Variants",
+				accessorFn: row => row.variants?.length ?? 0,
+				header: ({ column }) => <SortableHeader column={column} label="Variants" />,
 				cell: ({ row }) => {
 					const v = row.original.variants
 					if (!v || v.length === 0) return "—"
@@ -143,18 +152,19 @@ export function StaffProductTable({
 			},
 			{
 				id: "strength",
-				header: "Strength",
+				header: ({ column }) => <SortableHeader column={column} label="Strength" />,
 				accessorFn: row => row.variants?.[0]?.strength ?? "",
 				cell: ({ row }) => (row.original.variants?.[0]?.strength ?? "").trim() || "—",
 			},
 			{
 				accessorKey: "supplier",
-				header: "Supplier",
+				header: ({ column }) => <SortableHeader column={column} label="Supplier" />,
 				cell: ({ row }) => row.original.supplier || "—",
 			},
 			{
 				id: "rx",
-				header: "Rx",
+				accessorFn: row => (row.requiresPrescription ? 1 : 0),
+				header: ({ column }) => <SortableHeader column={column} label="Rx" />,
 				cell: ({ row }) =>
 					row.original.requiresPrescription ? "Yes" : "No",
 			},
@@ -175,7 +185,7 @@ export function StaffProductTable({
 				),
 			},
 		],
-		[categories, pharmacyMap, onView]
+		[categoryMap, pharmacyMap, onView]
 	)
 
 	const table = useReactTable({
@@ -288,15 +298,18 @@ export function StaffProductTable({
 							<SelectItem value="high">High stock</SelectItem>
 						</SelectContent>
 					</Select>
-					<Input
-						placeholder="Search products..."
-						value={searchInput}
-						onChange={e => {
-							setSearchInput(e.target.value)
-							setPageIndex(0)
-						}}
-						className="h-8 w-full sm:w-64"
-					/>
+					<div className="relative w-full sm:w-64">
+						<Search className="text-muted-foreground pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2" />
+						<Input
+							placeholder="Search products..."
+							value={searchInput}
+							onChange={e => {
+								setSearchInput(e.target.value)
+								setPageIndex(0)
+							}}
+							className="h-8 w-full pl-8"
+						/>
+					</div>
 				</div>
 			</div>
 

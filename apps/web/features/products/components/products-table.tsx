@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Pencil, Tag, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import {
@@ -85,36 +86,42 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 			},
 			{
 				accessorKey: "name",
-				header: "Name",
+				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>,
 			},
 			{
 				id: "brandGeneric",
-				header: "Brand / Generic",
+				accessorFn: row => (row.brandName || row.genericName || "").toLowerCase(),
+				header: ({ column }) => <SortableHeader column={column} label="Brand / Generic" />,
 				cell: ({ row }) => row.original.brandName || row.original.genericName || "—",
 			},
 			{
 				accessorKey: "categoryName",
-				header: "Category",
+				header: ({ column }) => <SortableHeader column={column} label="Category" />,
 			},
 		
 			{
-				id: "variants",
-				header: "Variants",
+				accessorKey: "variantsCount",
+				header: ({ column }) => <SortableHeader column={column} label="Variants" />,
 				cell: ({ row }) => {
 					const count = row.original.variantsCount ?? 0
-					return <span className="text-muted-foreground text-sm">{count > 0 ? `${count} variant${count !== 1 ? "s" : ""}` : "—"}</span>
+					return (
+						<span className="text-muted-foreground text-sm">
+							{count > 0 ? `${count} variant${count !== 1 ? "s" : ""}` : "—"}
+						</span>
+					)
 				},
 			},
 		
 			{
 				accessorKey: "supplier",
-				header: "Supplier",
+				header: ({ column }) => <SortableHeader column={column} label="Supplier" />,
 				cell: ({ row }) => row.original.supplier || "—",
 			},
 			{
 				id: "rx",
-				header: "Rx",
+				accessorFn: row => (row.requiresPrescription ? 1 : 0),
+				header: ({ column }) => <SortableHeader column={column} label="Rx" />,
 				cell: ({ row }) => (row.original.requiresPrescription ? "Yes" : "No"),
 			},
 			{

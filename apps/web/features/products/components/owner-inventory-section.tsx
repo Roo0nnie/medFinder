@@ -24,6 +24,7 @@ import {
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
 import { useToast } from "@/core/components/ui/use-toast"
+import { Plus } from "lucide-react"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import {
 	useInventoryCreateMutation,
@@ -186,7 +187,10 @@ export function OwnerInventorySection() {
 								Update stock, prices, availability, batch, expiry, and other inventory values.
 							</p>
 						</div>
-						<Button onClick={beginCreate}>Add inventory</Button>
+						<Button onClick={beginCreate}>
+							<Plus className="mr-2 h-4 w-4" />
+							Add inventory
+						</Button>
 					</div>
 
 					<div className="mt-4">

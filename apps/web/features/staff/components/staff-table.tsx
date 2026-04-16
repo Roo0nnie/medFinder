@@ -8,6 +8,7 @@ import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -128,30 +129,31 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 			},
 			{
 				accessorKey: "userName",
-				header: "Name",
+				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => (
 					<span className="font-medium">{row.original.userName || row.original.id}</span>
 				),
 			},
 			{
 				accessorKey: "email",
-				header: "Email",
+				header: ({ column }) => <SortableHeader column={column} label="Email" />,
 			},
 			{
 				accessorKey: "department",
-				header: "Department",
+				header: ({ column }) => <SortableHeader column={column} label="Department" />,
 			},
 			{
 				accessorKey: "position",
-				header: "Position",
+				header: ({ column }) => <SortableHeader column={column} label="Position" />,
 			},
 			{
 				accessorKey: "phone",
-				header: "Phone",
+				header: ({ column }) => <SortableHeader column={column} label="Phone" />,
 			},
 			{
 				id: "status",
-				header: "Status",
+				accessorFn: row => (row.isActive ? 1 : 0),
+				header: ({ column }) => <SortableHeader column={column} label="Status" />,
 				cell: ({ row }) => <StatusBadge isActive={row.original.isActive} />,
 			},
 			{

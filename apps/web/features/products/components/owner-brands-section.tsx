@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import {
 	Dialog,
@@ -162,7 +163,7 @@ export function OwnerBrandsSection() {
 		() => [
 			{
 				accessorKey: "name",
-				header: "Name",
+				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
 			},
 			{

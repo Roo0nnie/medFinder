@@ -46,7 +46,7 @@ import {
 import { ProductBrandCombobox } from "@/features/products/components/product-brand-combobox"
 import { ProductsTable } from "@/features/products/components/products-table"
 import { getStockStatus } from "@/features/products/lib/stock-status"
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react"
 
 /** Stable reference when the variants query has no data yet (avoids useEffect loops). */
 const EMPTY_PRODUCT_VARIANTS: ProductVariant[] = []
@@ -671,6 +671,7 @@ export function OwnerProductSection() {
 								setIsFormOpen(true)
 							}}
 						>
+							<Plus className="mr-2 h-4 w-4" />
 							Add product
 						</Button>
 					</div>

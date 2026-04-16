@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import {
@@ -173,17 +174,17 @@ export function CategoriesTable() {
 			},
 			{
 				accessorKey: "name",
-				header: "Name",
+				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
 			},
 			{
 				accessorKey: "parentName",
-				header: "Parent",
+				header: ({ column }) => <SortableHeader column={column} label="Parent" />,
 				cell: ({ row }) => <span className="text-muted-foreground">{row.original.parentName}</span>,
 			},
 			{
 				accessorKey: "description",
-				header: "Description",
+				header: ({ column }) => <SortableHeader column={column} label="Description" />,
 				cell: ({ row }) => (
 					<span className="text-muted-foreground inline-block max-w-[320px] truncate">
 						{row.original.description || "—"}
@@ -192,7 +193,7 @@ export function CategoriesTable() {
 			},
 			{
 				accessorKey: "requiresPrescription",
-				header: "Requires Rx",
+				header: ({ column }) => <SortableHeader column={column} label="Requires Rx" />,
 				cell: ({ row }) => (
 					<span className="text-muted-foreground">{row.original.requiresPrescription ? "Yes" : "No"}</span>
 				),

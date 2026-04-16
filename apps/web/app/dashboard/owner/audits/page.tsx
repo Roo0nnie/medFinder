@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/core/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/core/components/ui/table"
+import { AuditsTable } from "@/features/audits/components/audits-table"
 import { DashboardLayout } from "../../../../features/dashboard/components/DashboardLayout"
 
 export default function OwnerAuditsPage() {
@@ -17,26 +17,7 @@ export default function OwnerAuditsPage() {
 
 				<Card>
 					<CardContent className="p-4 sm:p-6">
-						<div className="overflow-x-auto">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Time</TableHead>
-										<TableHead>Actor</TableHead>
-										<TableHead>Action</TableHead>
-										<TableHead>Resource</TableHead>
-										<TableHead>Details</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									<TableRow>
-										<TableCell colSpan={5} className="h-24 text-center text-sm text-muted-foreground">
-											No audit entries yet. Audit logs will appear here when the feature is connected.
-										</TableCell>
-									</TableRow>
-								</TableBody>
-							</Table>
-						</div>
+						<AuditsTable />
 					</CardContent>
 				</Card>
 			</div>

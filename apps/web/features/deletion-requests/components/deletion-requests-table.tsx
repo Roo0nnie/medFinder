@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, ThumbsDown, ThumbsUp } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
+import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import {
@@ -84,22 +85,22 @@ export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsT
 			},
 			{
 				accessorKey: "productName",
-				header: "Product",
+				header: ({ column }) => <SortableHeader column={column} label="Product" />,
 				cell: ({ row }) => <span className="font-medium">{row.original.productName}</span>,
 			},
 			{
 				accessorKey: "pharmacyName",
-				header: "Pharmacy",
+				header: ({ column }) => <SortableHeader column={column} label="Pharmacy" />,
 				cell: ({ row }) => <span className="text-muted-foreground">{row.original.pharmacyName}</span>,
 			},
 			{
 				accessorKey: "requestedByName",
-				header: "Requested by",
+				header: ({ column }) => <SortableHeader column={column} label="Requested by" />,
 				cell: ({ row }) => <span className="text-muted-foreground">{row.original.requestedByName}</span>,
 			},
 			{
 				accessorKey: "reason",
-				header: "Reason",
+				header: ({ column }) => <SortableHeader column={column} label="Reason" />,
 				cell: ({ row }) => (
 					<span className="text-muted-foreground inline-block max-w-[200px] truncate">
 						{row.original.reason || "—"}
@@ -107,8 +108,8 @@ export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsT
 				),
 			},
 			{
-				accessorKey: "dateLabel",
-				header: "Date",
+				accessorKey: "createdAt",
+				header: ({ column }) => <SortableHeader column={column} label="Date" />,
 				cell: ({ row }) => <span className="text-muted-foreground text-sm">{row.original.dateLabel}</span>,
 			},
 			{
