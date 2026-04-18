@@ -18,6 +18,13 @@ import { Spinner } from "@/core/components/ui/spinner"
 import { Checkbox } from "@/core/components/ui/checkbox"
 import { Label } from "@/core/components/ui/label"
 import { useToast } from "@/core/components/ui/use-toast"
+import {
+	extractPhMobileNineDigits,
+	isValidOptionalPhMobileDisplay,
+	maskPhMobileInput,
+	phMobileDisplayToStored,
+	phMobileStoredToDisplay,
+} from "@/core/lib/ph-mobile-phone"
 
 type CustomerUser = {
 	id: string
@@ -25,6 +32,7 @@ type CustomerUser = {
 	firstName?: string | null
 	lastName?: string | null
 	middleName?: string | null
+	phone?: string | null
 	image?: string | null
 	profileImageUrl?: string | null
 	role?: string | null
@@ -86,6 +94,7 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 	const [pwShowConfirm, setPwShowConfirm] = useState(false)
 	const [revokeOtherSessions, setRevokeOtherSessions] = useState(true)
 	const [newPasswordDraft, setNewPasswordDraft] = useState("")
+	const [phoneDisplay, setPhoneDisplay] = useState(() => phMobileStoredToDisplay(user.phone ?? null))
 
 	const defaults = useMemo(
 		() => ({
@@ -103,6 +112,10 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 	}, [defaults.profileImageUrl])
 
 	useEffect(() => {
+		setPhoneDisplay(phMobileStoredToDisplay(user.phone ?? null))
+	}, [user.id, user.phone])
+
+	useEffect(() => {
 		if (!pendingPhotoFile) {
 			setPendingPhotoBlobUrl(null)
 			return
@@ -113,12 +126,19 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 	}, [pendingPhotoFile])
 
 	const updateProfileMutation = useMutation({
-		mutationFn: async (input: { firstName?: string; lastName?: string; middleName?: string; profileImageUrl?: string }) => {
+		mutationFn: async (input: {
+			firstName?: string
+			lastName?: string
+			middleName?: string
+			profileImageUrl?: string
+			phone?: string
+		}) => {
 			return updateUser(user.id, {
 				firstName: input.firstName || undefined,
 				lastName: input.lastName || undefined,
 				middleName: input.middleName || undefined,
 				profileImageUrl: input.profileImageUrl || undefined,
+				phone: input.phone === "" ? "" : input.phone,
 			} as any)
 		},
 		onSuccess: async () => {
@@ -179,12 +199,24 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 						<form
 							onSubmit={e => {
 								e.preventDefault()
+								if (!isValidOptionalPhMobileDisplay(phoneDisplay)) {
+									toast({
+										title: "Check phone number",
+										description: "Use +63 09 and 9 digits after 09, or leave the field blank.",
+										variant: "destructive",
+									})
+									return
+								}
 								const formData = new FormData(e.currentTarget)
+								const nine = extractPhMobileNineDigits(phoneDisplay)
+								const phonePayload =
+									nine.length === 0 ? "" : (phMobileDisplayToStored(phoneDisplay) ?? "")
 								updateProfileMutation.mutate({
 									firstName: String(formData.get("firstName") ?? ""),
 									lastName: String(formData.get("lastName") ?? ""),
 									middleName: String(formData.get("middleName") ?? ""),
 									profileImageUrl: String(formData.get("profileImageUrl") ?? ""),
+									phone: phonePayload,
 								})
 							}}
 							className="flex flex-col gap-5"
@@ -323,6 +355,22 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 								<Field>
 									<FieldLabel>Middle name</FieldLabel>
 									<Input name="middleName" defaultValue={defaults.middleName} disabled={isPending} />
+								</Field>
+								<Field>
+									<FieldLabel>Phone (optional)</FieldLabel>
+									<Input
+										type="tel"
+										inputMode="numeric"
+										autoComplete="tel"
+										value={phoneDisplay}
+										onChange={e => setPhoneDisplay(maskPhMobileInput(e.target.value))}
+										disabled={isPending}
+										placeholder="+63 09 123456789"
+									/>
+									<p className="text-muted-foreground mt-1 text-xs">
+										Philippine mobile: starts with +63 09, then 9 digits. Leave blank if you prefer not to share a
+										number.
+									</p>
 								</Field>
 								<Field>
 									<FieldLabel>Email</FieldLabel>

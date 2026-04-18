@@ -16,6 +16,7 @@ import type { LandingProduct, LandingProductVariant } from "@/features/landing/d
 import { cn } from "@/core/lib/utils"
 import { ProductLocationFlowModal } from "@/features/products/components/product-branch-selection-modal"
 import { getStockStatus } from "@/features/products/lib/stock-status"
+import { recordProductSearchSelection } from "@/features/search/lib/record-product-search-selection"
 import { ChevronDown, Package } from "lucide-react"
 
 import type { ApiProduct } from "./page"
@@ -86,7 +87,7 @@ function apiProductToLanding(p: ApiProduct): LandingProduct {
 		price: fallbackVariant?.price ?? 0,
 		quantity: fallbackVariant?.quantity ?? 0,
 		supplier: "",
-		storeId: "",
+		storeId: p.pharmacyId ?? "",
 		lowStockThreshold: 5,
 		isAvailable: true,
 		imageUrl: p.imageUrl ?? (firstVar?.imageUrl ?? fallbackVariant?.imageUrl) ?? undefined,
@@ -302,9 +303,11 @@ function ProductCard({
 
 export function SearchResultsClient({
 	products,
+	searchQuery,
 	isCustomer,
 }: {
 	products: ApiProduct[]
+	searchQuery: string
 	isCustomer: boolean
 }) {
 	const { data: catalog } = useLandingCatalog()
@@ -327,6 +330,11 @@ export function SearchResultsClient({
 	const [selectedLanding, setSelectedLanding] = useState<LandingProduct | null>(null)
 
 	const handleProductClick = (p: ApiProduct) => {
+		recordProductSearchSelection({
+			productId: p.id,
+			pharmacyId: p.pharmacyId,
+			searchQuery,
+		})
 		if (!isCustomer) {
 			setRegisterOpen(true)
 			return

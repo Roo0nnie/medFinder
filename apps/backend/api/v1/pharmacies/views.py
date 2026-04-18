@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, safe_log_audit_event
 from api.v1.staff.models import Staff
 from api.v1.users.permissions import IsOwner
 
@@ -132,6 +133,17 @@ class PharmacyCreateView(APIView):
             social_links=data.get("socialLinks"),
         )
 
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(pharmacy.owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="CREATE",
+            resource_type="Pharmacy",
+            resource_id=pharmacy.id,
+            details=pharmacy.name or "",
+        )
+
         out_serializer = PharmacyDetailSerializer(pharmacy)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -216,6 +228,17 @@ class PharmacyDetailView(APIView):
             social_links=data.get("socialLinks"),
         )
 
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(pharmacy.owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="UPDATE",
+            resource_type="Pharmacy",
+            resource_id=pharmacy.id,
+            details=pharmacy.name or "",
+        )
+
         out_serializer = PharmacyDetailSerializer(pharmacy)
         return Response(out_serializer.data)
 
@@ -234,7 +257,20 @@ class PharmacyDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        oid = str(pharmacy.owner_id)
+        pid = pharmacy.id
+        pname = pharmacy.name or ""
+        actor_uid, actor_role = audit_actor_from_request(request)
         result = services.delete_pharmacy(pk)
+        safe_log_audit_event(
+            owner_id=oid,
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="DELETE",
+            resource_type="Pharmacy",
+            resource_id=str(pid),
+            details=pname,
+        )
         return Response(result)
 
 

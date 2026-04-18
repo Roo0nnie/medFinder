@@ -241,6 +241,9 @@ export function EditPharmacyStepperDialog({
 					await uploadPharmacyCertificate(pharmacyId, pendingCertificate, certNumber)
 				}
 			}
+			toast({
+				title: mode === "create" ? "Pharmacy created" : "Pharmacy updated",
+			})
 			onSaved()
 			onOpenChange(false)
 		} catch (e: unknown) {

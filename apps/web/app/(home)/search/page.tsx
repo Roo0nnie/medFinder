@@ -29,6 +29,8 @@ type SearchPageProps = {
 export type ApiProduct = {
 	id: string
 	name: string
+	/** Present when the search hit is tied to a pharmacy catalog row. */
+	pharmacyId?: string | null
 	brandId?: string | null
 	brandName?: string | null
 	genericName?: string | null
@@ -227,6 +229,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 			) : (
 				<SearchResultsClient
 					products={products}
+					searchQuery={q}
 					isCustomer={(session?.user as { role?: string } | undefined)?.role === "customer"}
 				/>
 			)}

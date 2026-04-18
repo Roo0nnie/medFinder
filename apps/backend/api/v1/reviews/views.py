@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, owner_id_from_pharmacy_id, owner_id_from_product_id, safe_log_audit_event
 from api.v1.pharmacies.models import Pharmacy, PharmacyStaff
 from api.v1.staff.models import Staff
 from api.v1.users.models import User
@@ -98,6 +99,19 @@ class PharmacyReviewListCreateView(APIView):
             comment=data.get("comment"),
         )
 
+        oid = owner_id_from_pharmacy_id(data["pharmacyId"])
+        if oid:
+            actor_uid, _ = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role="customer",
+                action="CREATE",
+                resource_type="PharmacyReview",
+                resource_id=review.id,
+                details=f"rating={data['rating']}",
+            )
+
         out_serializer = PharmacyReviewSerializer(review)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -135,8 +149,21 @@ class PharmacyReviewDetailView(APIView):
             )
 
         role = getattr(request.user, "role", None)
+        oid = owner_id_from_pharmacy_id(review.pharmacy_id)
+        rid = review.id
+        actor_uid, actor_role = audit_actor_from_request(request)
         if role == "admin":
             review.delete()
+            if oid:
+                safe_log_audit_event(
+                    owner_id=oid,
+                    actor_user_id=actor_uid,
+                    actor_role=actor_role,
+                    action="DELETE",
+                    resource_type="PharmacyReview",
+                    resource_id=str(rid),
+                    details="moderation",
+                )
             return Response({"success": True, "id": pk})
 
         # Owner can delete reviews on their pharmacy
@@ -154,6 +181,16 @@ class PharmacyReviewDetailView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
             review.delete()
+            if oid:
+                safe_log_audit_event(
+                    owner_id=oid,
+                    actor_user_id=actor_uid,
+                    actor_role=actor_role,
+                    action="DELETE",
+                    resource_type="PharmacyReview",
+                    resource_id=str(rid),
+                    details="moderation",
+                )
             return Response({"success": True, "id": pk})
 
         return Response(
@@ -194,6 +231,19 @@ class ProductReviewListCreateView(APIView):
             rating=data["rating"],
             comment=data.get("comment"),
         )
+
+        oid = owner_id_from_product_id(data["productId"])
+        if oid:
+            actor_uid, _ = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role="customer",
+                action="CREATE",
+                resource_type="ProductReview",
+                resource_id=review.id,
+                details=f"rating={data['rating']} product={data['productId']}",
+            )
 
         out_serializer = ProductReviewSerializer(review)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -237,7 +287,21 @@ class ProductReviewDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        oid = owner_id_from_product_id(review.product_id)
+        rid = review.id
+        pid = review.product_id
+        actor_uid, actor_role = audit_actor_from_request(request)
         review.delete()
+        if oid:
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="DELETE",
+                resource_type="ProductReview",
+                resource_id=str(rid),
+                details=f"product={pid}",
+            )
         return Response({"success": True, "id": pk})
 
 

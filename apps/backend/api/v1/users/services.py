@@ -25,6 +25,7 @@ def update_user(
     role=None,
     email=None,
     profile_image_url=None,
+    phone=None,
 ):
     from django.utils import timezone
     user = User.objects.get(pk=pk)
@@ -50,6 +51,9 @@ def update_user(
         # Mirror into Better Auth's `image` field so sessions/clients that only read `image` still get the latest photo.
         user.image = profile_image_url
         update_fields.append("image")
+    if phone is not None:
+        user.phone = phone or None
+        update_fields.append("phone")
     user.updated_at = timezone.now()
     update_fields.append("updated_at")
     user.save(update_fields=update_fields)

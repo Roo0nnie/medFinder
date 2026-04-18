@@ -42,6 +42,12 @@ export default function AdminBrandsPage() {
 		},
 		{
 			id: "actions",
+			header: () => (
+				<div className="text-right">
+					<span className="text-xs font-semibold">Action</span>
+				</div>
+			),
+			enableSorting: false,
 			cell: ({ row }) => {
 				const b = row.original
 				const canDelete = b.ownerCount === 0 && b.productCount === 0

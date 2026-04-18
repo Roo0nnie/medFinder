@@ -14,6 +14,7 @@ class User(models.Model):
     first_name = models.CharField(max_length=255, blank=True, null=True)
     last_name = models.CharField(max_length=255)
     middle_name = models.CharField(max_length=255, blank=True, null=True)
+    phone = models.CharField(max_length=32, blank=True, null=True)
     role = models.CharField(max_length=50, default="customer")
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()

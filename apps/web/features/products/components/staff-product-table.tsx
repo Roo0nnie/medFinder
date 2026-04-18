@@ -170,7 +170,12 @@ export function StaffProductTable({
 			},
 			{
 				id: "actions",
-				header: () => <span className="text-right">View</span>,
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => (
 					<div className="text-right">
 						<Button

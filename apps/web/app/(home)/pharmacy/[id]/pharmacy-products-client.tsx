@@ -38,6 +38,7 @@ import {
 	setStoredProductListPageSize,
 	type ProductListPageSize,
 } from "@/features/products/lib/product-list-page-size"
+import { recordProductCatalogEngagement } from "@/features/landing/lib/product-engagement"
 import { getStockStatus } from "@/features/products/lib/stock-status"
 
 const SORT_OPTIONS = [
@@ -527,6 +528,7 @@ export function PharmacyProductsClient({
 			setActiveProduct(detail)
 			setSelectedVariantId(resolvedVariantId)
 			setModalOpen(true)
+			recordProductCatalogEngagement(productId)
 		} catch {
 			// no-op
 		}

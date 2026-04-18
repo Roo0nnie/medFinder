@@ -16,6 +16,7 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
+import { useToast } from "@/core/components/ui/use-toast"
 import { cn } from "@/core/lib/utils"
 import { PasswordInput } from "@/features/auth/components/password-input"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
@@ -25,7 +26,8 @@ import { useRegisterMutation } from "../api/register.hooks"
 import { RegisterSchema } from "../api/register.schema"
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<"div">) {
-	const { mutateAsync: register, isPending, isError, error } = useRegisterMutation()
+	const { toast } = useToast()
+	const { mutateAsync: register, isPending } = useRegisterMutation()
 
 	const form = useForm({
 		defaultValues: {
@@ -38,7 +40,16 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 			onSubmit: RegisterSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await register(value)
+			try {
+				await register(value)
+				toast({ title: "Account created", description: "Welcome! Redirecting…" })
+			} catch (e) {
+				toast({
+					title: "Sign up failed",
+					description: e instanceof Error ? e.message : "An unexpected error occurred",
+					variant: "destructive",
+				})
+			}
 		},
 	})
 
@@ -58,12 +69,6 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<"div"
 								<h1 className="text-2xl font-bold">Create an account</h1>
 								<p className="text-muted-foreground text-balance">Sign up to get started</p>
 							</div>
-
-							{isError && (
-								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
-									{error instanceof Error ? error.message : "An unexpected error occurred"}
-								</div>
-							)}
 
 							<form.Field
 								name="firstName"

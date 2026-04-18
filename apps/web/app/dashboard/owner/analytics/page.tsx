@@ -1,16 +1,10 @@
 import { DashboardLayout } from "../../../../features/dashboard/components/DashboardLayout"
+import { OwnerAnalyticsPage } from "../../../../features/dashboard/components/owner-analytics-page"
 
-export default function OwnerAnalyticsPage() {
+export default function OwnerAnalyticsRoute() {
 	return (
 		<DashboardLayout role="owner">
-			<div className="space-y-4">
-				<div>
-					<h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics</h1>
-					<p className="mt-2 text-sm text-muted-foreground">
-						This is a placeholder page for viewing performance and sales analytics for your pharmacies.
-					</p>
-				</div>
-			</div>
+			<OwnerAnalyticsPage />
 		</DashboardLayout>
 	)
 }

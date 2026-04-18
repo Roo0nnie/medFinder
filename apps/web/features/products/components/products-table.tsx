@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Tag, Trash2 } from "lucide-react"
+import { FolderTree, MoreHorizontal, Pencil, Tag, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
@@ -15,6 +15,15 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/core/components/ui/dropdown-menu"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/core/components/ui/select"
+import { useToast } from "@/core/components/ui/use-toast"
+import { useMyBrandsQuery } from "@/features/brands/api/brands.hooks"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import { useProductCategoriesQuery, useProductsQuery, type Product } from "@/features/products/api/products.hooks"
 
@@ -28,15 +37,29 @@ export type ProductsTableProps = {
 	onEdit?: (product: Product) => void
 	onDelete?: (product: Product) => void
 	onAddBrand?: (product: Product) => void
+	/** Notifies parent when row selection changes (for header bulk actions). */
+	onSelectionChange?: (rows: Product[]) => void
+	selectionClearKey?: number | string
 }
 
-export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTableProps) {
+export function ProductsTable({
+	onEdit,
+	onDelete,
+	onAddBrand,
+	onSelectionChange,
+	selectionClearKey,
+}: ProductsTableProps) {
+	const { toast } = useToast()
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: categories } = useProductCategoriesQuery()
+	const { data: myBrands } = useMyBrandsQuery()
 	const productsQuery = useProductsQuery()
+	const productsLoadErrorNotified = useRef(false)
 	const onEditRef = useRef(onEdit)
 	const onDeleteRef = useRef(onDelete)
 	const onAddBrandRef = useRef(onAddBrand)
+	const [filterBrandId, setFilterBrandId] = useState("")
+	const [filterCategoryId, setFilterCategoryId] = useState("")
 
 	useEffect(() => {
 		onEditRef.current = onEdit
@@ -50,6 +73,21 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 		onAddBrandRef.current = onAddBrand
 	}, [onAddBrand])
 
+	useEffect(() => {
+		if (productsQuery.isError) {
+			if (!productsLoadErrorNotified.current) {
+				productsLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load products",
+					description: "Could not load products from the API.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			productsLoadErrorNotified.current = false
+		}
+	}, [productsQuery.isError, toast])
+
 	const pharmacyMap = useMemo(() => new Map((pharmacies ?? []).map(p => [p.id, p.name])), [pharmacies])
 	const categoryMap = useMemo(() => new Map((categories ?? []).map(c => [c.id, c.name])), [categories])
 
@@ -62,6 +100,14 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 			variantsCount: p.variants?.length ?? 0,
 		}))
 	}, [productsQuery.data, pharmacyMap, categoryMap])
+
+	const filteredRows = useMemo(() => {
+		return rows.filter(p => {
+			if (filterBrandId && (p.brandId ?? "") !== filterBrandId) return false
+			if (filterCategoryId && p.categoryId !== filterCategoryId) return false
+			return true
+		})
+	}, [rows, filterBrandId, filterCategoryId])
 
 	const columns = useMemo<ColumnDef<ProductRow>[]>(
 		() => [
@@ -87,7 +133,25 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 			{
 				accessorKey: "name",
 				header: ({ column }) => <SortableHeader column={column} label="Name" />,
-				cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>,
+				cell: ({ row }) => (
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 truncate font-semibold">{row.original.name}</span>
+						{row.getIsSelected() && onDeleteRef.current ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+								aria-label="Delete product"
+								onClick={e => {
+									e.stopPropagation()
+									onDeleteRef.current?.(row.original)
+								}}
+							>
+							</Button>
+						) : null}
+					</div>
+				),
 			},
 			{
 				id: "brandGeneric",
@@ -99,7 +163,7 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 				accessorKey: "categoryName",
 				header: ({ column }) => <SortableHeader column={column} label="Category" />,
 			},
-		
+
 			{
 				accessorKey: "variantsCount",
 				header: ({ column }) => <SortableHeader column={column} label="Variants" />,
@@ -112,7 +176,7 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 					)
 				},
 			},
-		
+
 			{
 				accessorKey: "supplier",
 				header: ({ column }) => <SortableHeader column={column} label="Supplier" />,
@@ -126,6 +190,12 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const product = row.original
 					return (
@@ -153,7 +223,10 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 									{onDeleteRef.current ? (
 										<>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem onClick={() => onDeleteRef.current?.(product)} className="text-destructive">
+											<DropdownMenuItem
+												onClick={() => onDeleteRef.current?.(product)}
+												className="text-destructive"
+											>
 												<Trash2 className="mr-2 h-4 w-4" />
 												Delete
 											</DropdownMenuItem>
@@ -169,14 +242,54 @@ export function ProductsTable({ onEdit, onDelete, onAddBrand }: ProductsTablePro
 		[]
 	)
 
+	const toolbarRight = (
+		<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+			<Select value={filterBrandId} onValueChange={v => setFilterBrandId(v ?? "")}>
+				<SelectTrigger className="h-8 w-full min-w-40 sm:w-48">
+					<div className="flex min-w-0 items-center gap-2">
+						<Tag className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
+						<SelectValue />
+					</div>
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="">All brands</SelectItem>
+					{(myBrands ?? []).map(b => (
+						<SelectItem key={b.id} value={b.id}>
+							{b.name}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+			<Select value={filterCategoryId} onValueChange={v => setFilterCategoryId(v ?? "")}>
+				<SelectTrigger className="h-8 w-full min-w-40 sm:w-48">
+					<div className="flex min-w-0 items-center gap-2">
+						<FolderTree className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
+						<SelectValue />
+					</div>
+				</SelectTrigger>
+				<SelectContent>
+					<SelectItem value="">All categories</SelectItem>
+					{(categories ?? []).map(c => (
+						<SelectItem key={c.id} value={c.id}>
+							{c.name}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		</div>
+	)
+
 	return (
 		<DataTable
-			data={rows}
+			data={filteredRows}
 			columns={columns}
+			toolbarRight={toolbarRight}
 			isLoading={productsQuery.isLoading}
 			errorText={productsQuery.isError ? "Failed to load products from the API." : null}
 			searchPlaceholder="Search products..."
+			getRowId={row => row.id}
+			onSelectedRowsChange={onSelectionChange}
+			selectionClearKey={selectionClearKey}
 		/>
 	)
 }
-

@@ -14,6 +14,7 @@ import {
 	SelectValue,
 } from "@/core/components/ui/select"
 import { Spinner } from "@/core/components/ui/spinner"
+import { useToast } from "@/core/components/ui/use-toast"
 
 import type { CreateUserInput, User } from "@repo/contracts"
 
@@ -28,6 +29,7 @@ interface UserFormProps {
 
 export function UserForm({ user, onSuccess }: UserFormProps) {
 	const isEdit = !!user
+	const { toast } = useToast()
 	const { mutateAsync: createUser, isPending: isCreatePending } = useCreateUserMutation()
 	const { mutateAsync: updateUser, isPending: isUpdatePending } = useUpdateUserMutation()
 	const isPending = isCreatePending || isUpdatePending
@@ -42,27 +44,37 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 			role: (user?.role as (typeof ROLES)[number]) ?? "customer",
 		},
 		onSubmit: async ({ value }) => {
-			if (isEdit && user) {
-				await updateUser({
-					id: user.id,
-					firstName: value.firstName || undefined,
-					lastName: value.lastName,
-					middleName: value.middleName || undefined,
-					email: value.email,
-					role: value.role,
-				})
-			} else {
-				const input: CreateUserInput = {
-					email: value.email,
-					lastName: value.lastName,
-					firstName: value.firstName || undefined,
-					middleName: value.middleName || undefined,
-					role: value.role,
+			try {
+				if (isEdit && user) {
+					await updateUser({
+						id: user.id,
+						firstName: value.firstName || undefined,
+						lastName: value.lastName,
+						middleName: value.middleName || undefined,
+						email: value.email,
+						role: value.role,
+					})
+					toast({ title: "User updated" })
+				} else {
+					const input: CreateUserInput = {
+						email: value.email,
+						lastName: value.lastName,
+						firstName: value.firstName || undefined,
+						middleName: value.middleName || undefined,
+						role: value.role,
+					}
+					if (value.password) input.password = value.password
+					await createUser(input)
+					toast({ title: "User created" })
 				}
-				if (value.password) input.password = value.password
-				await createUser(input)
+				onSuccess?.()
+			} catch (e) {
+				toast({
+					title: isEdit ? "Update failed" : "Create failed",
+					description: e instanceof Error ? e.message : "Unknown error",
+					variant: "destructive",
+				})
 			}
-			onSuccess?.()
 		},
 	})
 
@@ -162,13 +174,13 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 								disabled={isPending}
 							>
 								<SelectTrigger>
-									<SelectValue placeholder="Select role" />
+									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
 									{ROLES.map(r => (
 										<SelectItem key={r} value={r}>
 											{r}
-										</SelectItem>
+										</SelectItem >
 									))}
 								</SelectContent>
 							</Select>
@@ -181,7 +193,7 @@ export function UserForm({ user, onSuccess }: UserFormProps) {
 					{isPending && <Spinner className="mr-2 size-4 animate-spin" />}
 					{isEdit ? "Update" : "Create"} user
 				</Button>
-				<Button type="button" variant="outline" asChild>
+				<Button type="button" variant="outline" >
 					<Link href="/users">Cancel</Link>
 				</Button>
 			</div>

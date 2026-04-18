@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, owner_id_from_pharmacy_id, safe_log_audit_event
 from api.v1.inventory.views import _can_modify_inventory, _pharmacy_ids_for_user
 from api.v1.pharmacies.models import Pharmacy
 from api.v1.products.models import MedicalProduct
@@ -96,6 +97,19 @@ class DeletionRequestListCreateView(APIView):
             reason=data.get("reason"),
         )
 
+        oid = owner_id_from_pharmacy_id(pharmacy_id)
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="CREATE",
+                resource_type="DeletionRequest",
+                resource_id=deletion_request.id,
+                details=f"product={product_id}",
+            )
+
         out_serializer = DeletionRequestSerializer(deletion_request)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -176,6 +190,20 @@ class DeletionRequestDetailView(APIView):
                 product_services.delete_product(str(deletion_request.product_id))
             except Exception:
                 pass
+
+        oid = owner_id_from_pharmacy_id(deletion_request.pharmacy_id)
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            audit_action = "APPROVE" if action == "approve" else "REJECT"
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action=audit_action,
+                resource_type="DeletionRequest",
+                resource_id=str(pk),
+                details=f"product={deletion_request.product_id}",
+            )
 
         serializer = DeletionRequestSerializer(deletion_request)
         return Response(serializer.data)

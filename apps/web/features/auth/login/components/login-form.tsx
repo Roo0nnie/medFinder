@@ -17,6 +17,7 @@ import {
 	FieldSeparator,
 } from "@/core/components/ui/field"
 import { Input } from "@/core/components/ui/input"
+import { useToast } from "@/core/components/ui/use-toast"
 import { cn } from "@/core/lib/utils"
 import { PasswordInput } from "@/features/auth/components/password-input"
 import { SocialLoginButtons } from "@/features/auth/components/social-login-buttons"
@@ -26,7 +27,8 @@ import { useLoginMutation } from "../api/login.hooks"
 import { LoginSchema } from "../api/login.schema"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
-	const { mutateAsync: login, isPending, isError, error } = useLoginMutation()
+	const { toast } = useToast()
+	const { mutateAsync: login, isPending } = useLoginMutation()
 
 	const form = useForm({
 		defaultValues: {
@@ -37,7 +39,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 			onSubmit: LoginSchema,
 		},
 		onSubmit: async ({ value }) => {
-			await login(value)
+			try {
+				await login(value)
+				toast({ title: "Signed in" })
+			} catch (e) {
+				toast({
+					title: "Sign in failed",
+					description: e instanceof Error ? e.message : "An unexpected error occurred",
+					variant: "destructive",
+				})
+			}
 		},
 	})
 
@@ -57,12 +68,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 								<h1 className="text-2xl font-bold">Welcome backs</h1>
 								<p className="text-muted-foreground text-balance">Login to your account</p>
 							</div>
-
-							{isError && (
-								<div className="bg-destructive/10 text-destructive dark:bg-destructive/20 rounded-lg p-3 text-sm">
-									{error instanceof Error ? error.message : "An unexpected error occurred"}
-								</div>
-							)}
 
 							<form.Field
 								name="email"

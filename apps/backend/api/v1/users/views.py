@@ -80,6 +80,7 @@ class UserDetailView(APIView):
             role=data.get("role"),
             email=data.get("email"),
             profile_image_url=data.get("profileImageUrl"),
+            phone=data.get("phone"),
         )
         out_serializer = UserListSerializer(user)
         return Response(out_serializer.data)

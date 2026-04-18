@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
 import { Button } from "@/core/components/ui/button"
+import { Checkbox } from "@/core/components/ui/checkbox"
 import {
 	Dialog,
 	DialogContent,
@@ -36,6 +37,22 @@ import {
 export function OwnerBrandsSection() {
 	const { toast } = useToast()
 	const mineQuery = useMyBrandsQuery()
+	const brandsLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (mineQuery.isError) {
+			if (!brandsLoadErrorNotified.current) {
+				brandsLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load brands",
+					description: "Could not load your linked brands.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			brandsLoadErrorNotified.current = false
+		}
+	}, [mineQuery.isError, toast])
+
 	const createMutation = useBrandCreateMutation()
 	const updateMutation = useBrandMineUpdateMutation()
 	const unlinkMutation = useBrandUnlinkMutation()
@@ -44,6 +61,9 @@ export function OwnerBrandsSection() {
 	const [isEditOpen, setIsEditOpen] = useState(false)
 	const [editing, setEditing] = useState<Brand | null>(null)
 	const [deleteTarget, setDeleteTarget] = useState<Brand | null>(null)
+	const [bulkUnlinkTargets, setBulkUnlinkTargets] = useState<Brand[] | null>(null)
+	const [selectedRows, setSelectedRows] = useState<Brand[]>([])
+	const [selectionClearKey, setSelectionClearKey] = useState(0)
 	const [name, setName] = useState("")
 	const [debouncedName, setDebouncedName] = useState("")
 	const [brandNameInputFocused, setBrandNameInputFocused] = useState(false)
@@ -150,6 +170,25 @@ export function OwnerBrandsSection() {
 			await unlinkMutation.mutateAsync(deleteTarget.id)
 			toast({ title: "Brand unlinked" })
 			setDeleteTarget(null)
+			setSelectionClearKey(k => k + 1)
+		} catch (e) {
+			toast({
+				title: "Unlink failed",
+				description: e instanceof Error ? e.message : "Unknown error",
+				variant: "destructive",
+			})
+		}
+	}
+
+	const confirmBulkUnlink = async () => {
+		if (!bulkUnlinkTargets?.length) return
+		try {
+			for (const b of bulkUnlinkTargets) {
+				await unlinkMutation.mutateAsync(b.id)
+			}
+			toast({ title: "Brands unlinked" })
+			setBulkUnlinkTargets(null)
+			setSelectionClearKey(k => k + 1)
 		} catch (e) {
 			toast({
 				title: "Unlink failed",
@@ -162,12 +201,80 @@ export function OwnerBrandsSection() {
 	const columns: ColumnDef<Brand>[] = useMemo(
 		() => [
 			{
+				id: "select",
+				header: ({ table }) => (
+					<Checkbox
+						checked={table.getIsAllPageRowsSelected()}
+						onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
+						aria-label="Select all"
+					/>
+				),
+				cell: ({ row }) => (
+					<Checkbox
+						checked={row.getIsSelected()}
+						onCheckedChange={value => row.toggleSelected(!!value)}
+						aria-label="Select row"
+					/>
+				),
+				enableSorting: false,
+				enableHiding: false,
+			},
+			{
 				accessorKey: "name",
 				header: ({ column }) => <SortableHeader column={column} label="Name" />,
-				cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+				cell: ({ row }) => (
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 truncate font-medium">{row.original.name}</span>
+						{row.getIsSelected() ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+								aria-label="Unlink brand"
+								onClick={e => {
+									e.stopPropagation()
+									setDeleteTarget(row.original)
+								}}
+							>
+								<Trash2 className="h-4 w-4" />
+							</Button>
+						) : null}
+					</div>
+				),
+			},
+			{
+				accessorKey: "createdAt",
+				header: ({ column }) => <SortableHeader column={column} label="Created" />,
+				cell: ({ row }) => {
+					const v = row.original.createdAt
+					return (
+						<span className="text-muted-foreground text-sm tabular-nums whitespace-nowrap">
+							{v ? new Date(v).toLocaleDateString() : "—"}
+						</span>
+					)
+				},
+			},
+			{
+				accessorKey: "updatedAt",
+				header: ({ column }) => <SortableHeader column={column} label="Last updated" />,
+				cell: ({ row }) => {
+					const v = row.original.updatedAt
+					return (
+						<span className="text-muted-foreground text-sm tabular-nums whitespace-nowrap">
+							{v ? new Date(v).toLocaleDateString() : "—"}
+						</span>
+					)
+				},
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const b = row.original
 					return (
@@ -199,30 +306,48 @@ export function OwnerBrandsSection() {
 		[]
 	)
 
-	const toolbarLeft = (
-		<Button size="sm" className="h-8" onClick={openCreate}>
-			<Plus className="mr-2 h-4 w-4" />
-			Add brand
-		</Button>
-	)
-
 	return (
 		<>
-			<div className="mb-4">
-				<h2 className="text-lg font-semibold">Brands</h2>
-				<p className="text-muted-foreground text-sm">
-					Link global brands to your account, then pick them on products.
-				</p>
+			<div className="flex flex-wrap items-center justify-between gap-3">
+				<div>
+					<h2 className="text-lg font-semibold">Brands</h2>
+					<p className="text-muted-foreground text-sm">
+						Link global brands to your account, then pick them on products.
+					</p>
+				</div>
+				<div className="flex flex-wrap items-center justify-end gap-2">
+					<Button onClick={openCreate}>
+						<Plus className="mr-2 h-4 w-4" />
+						Add brand
+					</Button>
+					{selectedRows.length > 0 ? (
+						<Button
+							type="button"
+							variant="destructive"
+							size="sm"
+							className="h-9"
+							onClick={() => setBulkUnlinkTargets(selectedRows)}
+						>
+							<Trash2 className="mr-2 h-4 w-4" />
+							Unlink {selectedRows.length}{" "}
+							{selectedRows.length === 1 ? "Brand" : "Brands"}
+						</Button>
+					) : null}
+				</div>
 			</div>
 
-			<DataTable
-				data={rows}
-				columns={columns}
-				toolbarLeft={toolbarLeft}
-				isLoading={mineQuery.isLoading}
-				errorText={mineQuery.isError ? "Failed to load brands." : null}
-				searchPlaceholder="Search brands…"
-			/>
+			<div className="mt-4">
+				<DataTable
+					data={rows}
+					columns={columns}
+					isLoading={mineQuery.isLoading}
+					errorText={mineQuery.isError ? "Failed to load brands." : null}
+					searchPlaceholder="Search brands…"
+					getRowId={row => row.id}
+					onSelectedRowsChange={setSelectedRows}
+					selectionClearKey={selectionClearKey}
+				/>
+			</div>
 
 			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
 				<DialogContent>
@@ -370,6 +495,26 @@ export function OwnerBrandsSection() {
 						</Button>
 						<Button variant="destructive" onClick={() => void confirmDelete()}>
 							Unlink
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={!!bulkUnlinkTargets?.length} onOpenChange={open => !open && setBulkUnlinkTargets(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Unlink {bulkUnlinkTargets?.length ?? 0} brands?</DialogTitle>
+					</DialogHeader>
+					<p className="text-muted-foreground text-sm">
+						This removes the selected brands from your list. You can only unlink if no products still use
+						each brand.
+					</p>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setBulkUnlinkTargets(null)}>
+							Cancel
+						</Button>
+						<Button variant="destructive" onClick={() => void confirmBulkUnlink()}>
+							Unlink all
 						</Button>
 					</DialogFooter>
 				</DialogContent>

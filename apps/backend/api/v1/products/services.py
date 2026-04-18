@@ -495,7 +495,13 @@ def save_variant_image_upload(
     return variant
 
 
-def log_product_search(*, search_query: str, customer_id: Optional[str], results_count: int):
+def log_product_search(
+    *,
+    search_query: str,
+    customer_id: Optional[str],
+    results_count: int,
+    matched_owner_ids: Optional[list[str]] = None,
+):
     """Persist a product search telemetry event."""
     ProductSearch.objects.create(
         id=str(uuid.uuid4()),
@@ -503,6 +509,7 @@ def log_product_search(*, search_query: str, customer_id: Optional[str], results
         search_query=search_query,
         results_count=results_count,
         searched_at=timezone.now(),
+        matched_owner_ids=matched_owner_ids if matched_owner_ids is not None else [],
     )
 
 

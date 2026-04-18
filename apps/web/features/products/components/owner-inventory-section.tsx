@@ -24,10 +24,9 @@ import {
 import { Input } from "@/core/components/ui/input"
 import { Label } from "@/core/components/ui/label"
 import { useToast } from "@/core/components/ui/use-toast"
-import { Plus } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import {
-	useInventoryCreateMutation,
 	useInventoryDeleteMutation,
 	useInventoryListQuery,
 	useInventoryUpdateMutation,
@@ -66,13 +65,15 @@ export function OwnerInventorySection() {
 	const { data: pharmacies } = useMyPharmaciesQuery()
 	const { data: products } = useProductsQuery()
 	useInventoryListQuery()
-	const createMutation = useInventoryCreateMutation()
 	const updateMutation = useInventoryUpdateMutation()
 	const deleteMutation = useInventoryDeleteMutation()
 
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [editing, setEditing] = useState<PharmacyInventoryItem | null>(null)
 	const [toDelete, setToDelete] = useState<PharmacyInventoryItem | null>(null)
+	const [bulkToDelete, setBulkToDelete] = useState<PharmacyInventoryItem[] | null>(null)
+	const [selectionClearKey, setSelectionClearKey] = useState(0)
+	const [selectedInventory, setSelectedInventory] = useState<PharmacyInventoryItem[]>([])
 	const [form, setForm] = useState<InventoryForm>(emptyForm)
 
 	const productMap = useMemo(() => new Map((products ?? []).map(p => [p.id, p.name])), [products])
@@ -86,12 +87,6 @@ export function OwnerInventorySection() {
 		setIsFormOpen(false)
 		setEditing(null)
 		setForm(emptyForm)
-	}
-
-	const beginCreate = () => {
-		setEditing(null)
-		setForm(emptyForm)
-		setIsFormOpen(true)
 	}
 
 	const beginEdit = (row: PharmacyInventoryItem) => {
@@ -122,12 +117,8 @@ export function OwnerInventorySection() {
 			return
 		}
 
-		if (!editing && (!form.pharmacyId || !form.productId)) {
-			toast({
-				title: "Validation",
-				description: "Pharmacy and product are required.",
-				variant: "destructive",
-			})
+		if (!editing) {
+			toast({ title: "Validation", description: "Nothing to save.", variant: "destructive" })
 			return
 		}
 
@@ -142,20 +133,11 @@ export function OwnerInventorySection() {
 				variantId: form.variantId.trim() || null,
 			}
 
-			if (editing) {
-				await updateMutation.mutateAsync({
-					id: editing.id,
-					...payload,
-				})
-				toast({ title: "Inventory updated" })
-			} else {
-				await createMutation.mutateAsync({
-					pharmacyId: form.pharmacyId,
-					productId: form.productId,
-					...payload,
-				})
-				toast({ title: "Inventory created" })
-			}
+			await updateMutation.mutateAsync({
+				id: editing.id,
+				...payload,
+			})
+			toast({ title: "Inventory updated" })
 			closeForm()
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : "Save failed"
@@ -170,6 +152,21 @@ export function OwnerInventorySection() {
 			toast({ title: "Inventory deleted" })
 			if (editing?.id === toDelete.id) closeForm()
 			setToDelete(null)
+			setSelectionClearKey(k => k + 1)
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : "Delete failed"
+			toast({ title: "Delete failed", description: message, variant: "destructive" })
+		}
+	}
+
+	const confirmBulkDelete = async () => {
+		if (!bulkToDelete?.length) return
+		try {
+			await Promise.all(bulkToDelete.map(row => deleteMutation.mutateAsync(row.id)))
+			toast({ title: "Inventory rows deleted" })
+			if (editing && bulkToDelete.some(r => r.id === editing.id)) closeForm()
+			setBulkToDelete(null)
+			setSelectionClearKey(k => k + 1)
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : "Delete failed"
 			toast({ title: "Delete failed", description: message, variant: "destructive" })
@@ -180,21 +177,36 @@ export function OwnerInventorySection() {
 		<div className="space-y-6">
 			<Card>
 				<CardContent className="p-4 sm:p-6">
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h2 className="text-lg font-semibold">Inventory</h2>
 							<p className="text-muted-foreground text-sm">
-								Update stock, prices, availability, batch, expiry, and other inventory values.
+								Rows appear when you add products. Edit a row to update stock and pricing, or select
+								rows to remove.
 							</p>
 						</div>
-						<Button onClick={beginCreate}>
-							<Plus className="mr-2 h-4 w-4" />
-							Add inventory
-						</Button>
+						{selectedInventory.length > 0 ? (
+							<Button
+								type="button"
+								variant="destructive"
+								size="sm"
+								className="h-9"
+								onClick={() => setBulkToDelete(selectedInventory)}
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								Delete {selectedInventory.length}{" "}
+								{selectedInventory.length === 1 ? "inventory row" : "inventory rows"}
+							</Button>
+						) : null}
 					</div>
 
 					<div className="mt-4">
-						<InventoryTable onEditRow={row => beginEdit(row)} onDeleteRow={row => setToDelete(row)} />
+						<InventoryTable
+							onEditRow={row => beginEdit(row)}
+							onDeleteRow={row => setToDelete(row)}
+							onSelectionChange={setSelectedInventory}
+							selectionClearKey={selectionClearKey}
+						/>
 					</div>
 				</CardContent>
 			</Card>
@@ -211,7 +223,7 @@ export function OwnerInventorySection() {
 			>
 				<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
 					<DialogHeader>
-						<DialogTitle>{editing ? "Edit inventory" : "Add inventory"}</DialogTitle>
+						<DialogTitle>Edit inventory</DialogTitle>
 					</DialogHeader>
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div className="space-y-1">
@@ -277,6 +289,7 @@ export function OwnerInventorySection() {
 								min={0}
 								value={form.quantity}
 								onChange={e => setForm(prev => ({ ...prev, quantity: e.target.value }))}
+								placeholder="e.g. 120"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -288,6 +301,7 @@ export function OwnerInventorySection() {
 								step="0.01"
 								value={form.price}
 								onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))}
+								placeholder="e.g. 24.99"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -299,6 +313,7 @@ export function OwnerInventorySection() {
 								step="0.01"
 								value={form.discountPrice}
 								onChange={e => setForm(prev => ({ ...prev, discountPrice: e.target.value }))}
+								placeholder="e.g. 19.99 (optional)"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -308,6 +323,7 @@ export function OwnerInventorySection() {
 								type="date"
 								value={form.expiryDate}
 								onChange={e => setForm(prev => ({ ...prev, expiryDate: e.target.value }))}
+								placeholder="YYYY-MM-DD"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -316,6 +332,7 @@ export function OwnerInventorySection() {
 								id="batchNumber"
 								value={form.batchNumber}
 								onChange={e => setForm(prev => ({ ...prev, batchNumber: e.target.value }))}
+								placeholder="e.g. LOT-2026-0142"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -337,7 +354,7 @@ export function OwnerInventorySection() {
 						<Button variant="outline" onClick={closeForm}>
 							Cancel
 						</Button>
-						<Button onClick={save}>{editing ? "Save changes" : "Create inventory"}</Button>
+						<Button onClick={save}>Save changes</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
@@ -357,6 +374,26 @@ export function OwnerInventorySection() {
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog open={!!bulkToDelete?.length} onOpenChange={open => !open && setBulkToDelete(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete {bulkToDelete?.length ?? 0} inventory rows?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to delete the selected inventory rows? This action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => void confirmBulkDelete()}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Delete all
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

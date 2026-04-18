@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, safe_log_audit_event
 from api.v1.staff.models import Staff
 from api.v1.users.permissions import IsAdmin
 
@@ -74,6 +75,16 @@ class BrandSearchListView(APIView):
             brand = services.resolve_or_create_and_link(owner_id, serializer.validated_data["name"])
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="CREATE",
+            resource_type="OwnerBrand",
+            resource_id=str(brand.id),
+            details=brand.name or "",
+        )
         return Response(BrandSerializer(brand).data, status=status.HTTP_201_CREATED)
 
 
@@ -119,6 +130,16 @@ class BrandMineDetailView(APIView):
             brand = services.owner_update_brand(owner_id, brand_id, serializer.validated_data["name"])
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="UPDATE",
+            resource_type="OwnerBrand",
+            resource_id=str(brand_id),
+            details=brand.name or "",
+        )
         return Response(BrandSerializer(brand).data)
 
     def delete(self, request, brand_id):
@@ -137,6 +158,16 @@ class BrandMineDetailView(APIView):
             services.unlink_owner_brand(owner_id, brand_id)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="DELETE",
+            resource_type="OwnerBrand",
+            resource_id=str(brand_id),
+            details="unlink",
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

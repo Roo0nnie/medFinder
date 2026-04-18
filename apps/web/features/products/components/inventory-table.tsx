@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
@@ -38,13 +38,67 @@ type InventoryRow = PharmacyInventoryItem & {
 export type InventoryTableProps = {
 	onEditRow?: (row: PharmacyInventoryItem) => void
 	onDeleteRow?: (row: PharmacyInventoryItem) => void
+	onSelectionChange?: (rows: PharmacyInventoryItem[]) => void
+	selectionClearKey?: number | string
 }
 
-export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) {
+export function InventoryTable({
+	onEditRow,
+	onDeleteRow,
+	onSelectionChange,
+	selectionClearKey,
+}: InventoryTableProps) {
 	const { toast } = useToast()
-	const { data: products = [] } = useProductsQuery()
-	const { data: pharmacies = [] } = useMyPharmaciesQuery()
+	const { data: products = [], isError: productsQueryError } = useProductsQuery()
+	const { data: pharmacies = [], isError: pharmaciesQueryError } = useMyPharmaciesQuery()
 	const inventoryQuery = useInventoryListQuery()
+	const inventoryLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (inventoryQuery.isError) {
+			if (!inventoryLoadErrorNotified.current) {
+				inventoryLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load inventory",
+					description: "Could not load inventory from the API.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			inventoryLoadErrorNotified.current = false
+		}
+	}, [inventoryQuery.isError, toast])
+
+	const productsLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (productsQueryError) {
+			if (!productsLoadErrorNotified.current) {
+				productsLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load products",
+					description: "Product names in the inventory table may be missing.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			productsLoadErrorNotified.current = false
+		}
+	}, [productsQueryError, toast])
+
+	const pharmaciesLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (pharmaciesQueryError) {
+			if (!pharmaciesLoadErrorNotified.current) {
+				pharmaciesLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load pharmacies",
+					description: "Pharmacy names in the inventory table may be missing.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			pharmaciesLoadErrorNotified.current = false
+		}
+	}, [pharmaciesQueryError, toast])
 
 	const updateMutation = useInventoryUpdateMutation()
 	const deleteMutation = useInventoryDeleteMutation()
@@ -93,7 +147,42 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 			{
 				accessorKey: "productName",
 				header: ({ column }) => <SortableHeader column={column} label="Product" />,
-				cell: ({ row }) => <span className="font-medium">{row.original.productName}</span>,
+				cell: ({ row }) => {
+					const item = row.original
+					const canDelegateDelete = typeof onDeleteRow === "function"
+					return (
+						<div className="flex min-w-0 items-center gap-2">
+							<span className="min-w-0 truncate font-medium">{item.productName}</span>
+							{row.getIsSelected() ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+									aria-label="Delete inventory row"
+									onClick={async e => {
+										e.stopPropagation()
+										if (canDelegateDelete) {
+											onDeleteRow(item)
+											return
+										}
+										try {
+											await deleteMutation.mutateAsync(item.id)
+											toast({ title: "Inventory row deleted" })
+										} catch (err) {
+											toast({
+												title: "Delete failed",
+												description: err instanceof Error ? err.message : "Unknown error",
+												variant: "destructive",
+											})
+										}
+									}}
+								>
+								</Button>
+							) : null}
+						</div>
+					)
+				},
 			},
 			{
 				accessorKey: "variantLabelDisplay",
@@ -121,6 +210,12 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const item = row.original
 					const canDelegateEdit = typeof onEditRow === "function"
@@ -183,8 +278,9 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 		[deleteMutation, toast, onEditRow, onDeleteRow]
 	)
 
-	const toolbarLeft = editing && !onEditRow ? (
-		<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+	const quickEditToolbar =
+		editing && !onEditRow ? (
+			<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
 			<div className="space-y-1">
 				<Label className="text-muted-foreground text-xs">Editing</Label>
 				<div className="text-sm font-medium">
@@ -284,6 +380,10 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 				</Button>
 			</div>
 		</div>
+		) : null
+
+	const toolbarLeft = quickEditToolbar ? (
+		<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">{quickEditToolbar}</div>
 	) : null
 
 	return (
@@ -294,6 +394,11 @@ export function InventoryTable({ onEditRow, onDeleteRow }: InventoryTableProps) 
 			isLoading={inventoryQuery.isLoading}
 			errorText={inventoryQuery.isError ? "Failed to load inventory." : null}
 			searchPlaceholder="Search inventory..."
+			getRowId={row => row.id}
+			onSelectedRowsChange={rows => {
+				onSelectionChange?.(rows)
+			}}
+			selectionClearKey={selectionClearKey}
 		/>
 	)
 }

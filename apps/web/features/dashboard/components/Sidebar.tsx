@@ -29,6 +29,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/core/components/ui/dropdown-menu"
 import { cn, getDisplayName, getInitials } from "@/core/lib/utils"
+import { OwnerHelpDialog } from "@/features/dashboard/components/owner-help-dialog"
 import { OwnerProductManagementSidebar } from "@/features/dashboard/components/OwnerProductManagementSidebar"
 import { useAuth } from "@/services/better-auth/context/auth-provider"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
@@ -66,7 +67,6 @@ const ownerLinks = [
 	{ href: "/dashboard/owner/reviews", label: "Reviews", icon: MessageSquare },
 	{ href: "/dashboard/owner/analytics", label: "Analytics", icon: BarChart3 },
 	{ href: "/dashboard/owner/audits", label: "Audit Logs", icon: Activity },
-	{ href: "/dashboard/owner/settings", label: "Settings", icon: Settings },
 ] as const
 
 const staffLinks = [
@@ -83,6 +83,7 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 	const router = useRouter()
 	const signOutMutation = useSignOutMutation("/")
 	const { session } = useAuth()
+	const [ownerHelpOpen, setOwnerHelpOpen] = React.useState(false)
 
 	const user = session?.user as
 		| {
@@ -234,13 +235,23 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 							</div>
 							<DropdownMenuSeparator />
 							<DropdownMenuGroup>
-								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/profile` as any)}>
+								<DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/profile` as any)}>
 									<span className="text-sm">Profile</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/settings` as any)}>
-									<span className="text-sm">Settings</span>
-								</DropdownMenuItem>
-								<DropdownMenuItem onSelect={() => router.push(`/dashboard/${role}/help` as any)}>
+								{role !== "owner" && (
+									<DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/settings` as any)}>
+										<span className="text-sm">Settings</span>
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem
+									onClick={() => {
+										if (role === "owner") {
+											setOwnerHelpOpen(true)
+										} else {
+											router.push(`/dashboard/${role}/help` as any)
+										}
+									}}
+								>
 									<span className="text-sm">Help</span>
 								</DropdownMenuItem>
 							</DropdownMenuGroup>
@@ -255,6 +266,9 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
+					{role === "owner" && (
+						<OwnerHelpDialog open={ownerHelpOpen} onOpenChange={setOwnerHelpOpen} />
+					)}
 				</div>
 			</div>
 		</aside>

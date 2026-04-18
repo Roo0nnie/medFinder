@@ -28,6 +28,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "firstName",
             "lastName",
             "middleName",
+            "phone",
             "role",
             "createdAt",
             "updatedAt",
@@ -41,3 +42,4 @@ class UserUpdateInputSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=ROLE_CHOICES, required=False)
     email = serializers.EmailField(required=False)
     profileImageUrl = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)

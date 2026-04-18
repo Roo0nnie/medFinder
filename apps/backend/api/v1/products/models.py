@@ -75,6 +75,7 @@ class ProductSearch(models.Model):
     search_query = models.TextField()
     results_count = models.IntegerField(default=0)
     searched_at = models.DateTimeField()
+    matched_owner_ids = models.JSONField(blank=True, null=True, db_column="matched_owner_ids")
 
     class Meta:
         db_table = "product_searches"

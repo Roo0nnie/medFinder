@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Trash2 } from "lucide-react"
+import { MoreHorizontal, Star, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
@@ -22,7 +22,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/core/components/ui/select"
-import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import { usePharmacyReviewsQuery, type PharmacyReview } from "@/features/reviews/api/reviews.hooks"
 
 type ReviewRow = PharmacyReview & {
@@ -33,15 +32,16 @@ type ReviewRow = PharmacyReview & {
 
 export type ReviewsTableProps = {
 	onDelete?: (reviewId: string) => void
+	onDeleteMany?: (reviewIds: string[]) => void
+	selectionClearKey?: number | string
 }
 
-export function ReviewsTable({ onDelete }: ReviewsTableProps) {
-	const { data: pharmacies } = useMyPharmaciesQuery()
-	const [pharmacyId, setPharmacyId] = useState<string>("")
+export function ReviewsTable({ onDelete, onDeleteMany, selectionClearKey }: ReviewsTableProps) {
 	const [ratingFilter, setRatingFilter] = useState<string>("")
+	const [selectedRows, setSelectedRows] = useState<ReviewRow[]>([])
 	const selectedRating = ratingFilter ? Number(ratingFilter) : undefined
 
-	const reviewsQuery = usePharmacyReviewsQuery(pharmacyId || undefined, selectedRating, { enabled: true })
+	const reviewsQuery = usePharmacyReviewsQuery(undefined, selectedRating, { enabled: true })
 
 	const rows: ReviewRow[] = useMemo(() => {
 		const list = reviewsQuery.data ?? []
@@ -88,37 +88,47 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 				cell: ({ row }) => {
 					const r = row.original
 					return (
-						<div className="flex items-center gap-2">
+						<div className="flex min-w-0 items-center gap-2">
 							{r.avatarUrl ? (
 								// eslint-disable-next-line @next/next/no-img-element
 								<img
 									src={r.avatarUrl}
 									alt={r.customerName || "Customer"}
-									className="h-8 w-8 rounded-full object-cover"
+									className="h-8 w-8 shrink-0 rounded-full object-cover"
 								/>
 							) : (
-								<div className="bg-muted text-muted-foreground flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium">
+								<div className="bg-muted text-muted-foreground flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
 									{r.avatarFallback}
 								</div>
 							)}
-							<span className="text-sm font-medium">{r.customerName}</span>
+							<span className="min-w-0 truncate text-sm font-medium">{r.customerName}</span>
+							{row.getIsSelected() && onDelete ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+									aria-label="Delete review"
+									onClick={e => {
+										e.stopPropagation()
+										onDelete(r.id)
+									}}
+								>
+								</Button>
+							) : null}
 						</div>
 					)
 				},
 			},
-			...(pharmacyId
-				? []
-				: ([
-						{
-							accessorKey: "pharmacyName",
-							header: ({ column }) => <SortableHeader column={column} label="Pharmacy" />,
-							cell: ({ row }) => (
-								<span className="text-muted-foreground text-sm">
-									{row.original.pharmacyName ?? row.original.pharmacyId}
-								</span>
-							),
-						},
-					] as ColumnDef<ReviewRow>[])),
+			{
+				accessorKey: "createdAt",
+				header: ({ column }) => <SortableHeader column={column} label="Created" />,
+				cell: ({ row }) => (
+					<span className="text-muted-foreground text-sm">
+						{row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : "—"}
+					</span>
+				),
+			},
 			{
 				id: "rating",
 				accessorFn: row => row.rating ?? 0,
@@ -136,6 +146,12 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const r = row.original
 					return (
@@ -167,28 +183,31 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 				},
 			},
 		],
-		[onDelete, pharmacyId]
+		[onDelete]
 	)
+
+	const showBulkDelete = Boolean(onDeleteMany && selectedRows.length > 0)
+	const toolbarAboveSearch =
+		showBulkDelete && onDeleteMany ? (
+			<Button
+				variant="destructive"
+				size="sm"
+				className="h-8"
+				onClick={() => onDeleteMany(selectedRows.map(r => r.id))}
+			>
+				<Trash2 className="mr-2 h-4 w-4" />
+				Delete {selectedRows.length} {selectedRows.length === 1 ? "review" : "reviews"}
+			</Button>
+		) : null
 
 	const toolbarRight = (
 		<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-			<Select value={pharmacyId} onValueChange={v => setPharmacyId(v ?? "")}>
-				<SelectTrigger className="h-8 w-full sm:w-64">
-					<SelectValue />
-				</SelectTrigger>
-				<SelectContent>
-					<SelectItem value="">All my pharmacies</SelectItem>
-					{pharmacies?.map(ph => (
-						<SelectItem key={ph.id} value={ph.id}>
-							{ph.name}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
-
 			<Select value={ratingFilter} onValueChange={v => setRatingFilter(v ?? "")}>
 				<SelectTrigger className="h-8 w-full sm:w-40">
-					<SelectValue />
+					<div className="flex min-w-0 items-center gap-2">
+						<Star className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
+						<SelectValue />
+					</div>
 				</SelectTrigger>
 				<SelectContent>
 					<SelectItem value="">All ratings</SelectItem>
@@ -206,6 +225,7 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 		<DataTable
 			data={rows}
 			columns={columns}
+			toolbarAboveSearch={toolbarAboveSearch}
 			toolbarRight={toolbarRight}
 			isLoading={reviewsQuery.isLoading}
 			errorText={
@@ -216,6 +236,9 @@ export function ReviewsTable({ onDelete }: ReviewsTableProps) {
 					: null
 			}
 			searchPlaceholder="Search reviews..."
+			getRowId={row => row.id}
+			onSelectedRowsChange={setSelectedRows}
+			selectionClearKey={selectionClearKey}
 		/>
 	)
 }

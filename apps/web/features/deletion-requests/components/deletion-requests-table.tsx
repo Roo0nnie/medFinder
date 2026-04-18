@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, ThumbsDown, ThumbsUp } from "lucide-react"
+import { MoreHorizontal, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
@@ -30,9 +30,17 @@ type DeletionRequestRow = DeletionRequest & {
 export type DeletionRequestsTableProps = {
 	onApprove?: (req: DeletionRequest) => void
 	onReject?: (req: DeletionRequest) => void
+	onRejectMany?: (reqs: DeletionRequest[]) => void
+	selectionClearKey?: number | string
 }
 
-export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsTableProps) {
+export function DeletionRequestsTable({
+	onApprove,
+	onReject,
+	onRejectMany,
+	selectionClearKey,
+}: DeletionRequestsTableProps) {
+	const [selectedRows, setSelectedRows] = useState<DeletionRequestRow[]>([])
 	const requestsQuery = useDeletionRequestsQuery({ status: "pending" })
 	const { data: products = [] } = useProductsQuery()
 	const { data: pharmacies = [] } = useMyPharmaciesQuery()
@@ -86,7 +94,25 @@ export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsT
 			{
 				accessorKey: "productName",
 				header: ({ column }) => <SortableHeader column={column} label="Product" />,
-				cell: ({ row }) => <span className="font-medium">{row.original.productName}</span>,
+				cell: ({ row }) => (
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 truncate font-medium">{row.original.productName}</span>
+						{row.getIsSelected() && onReject ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+								aria-label="Reject request"
+								onClick={e => {
+									e.stopPropagation()
+									onReject(row.original)
+								}}
+							>
+							</Button>
+						) : null}
+					</div>
+				),
 			},
 			{
 				accessorKey: "pharmacyName",
@@ -114,6 +140,12 @@ export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsT
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const req = row.original
 					return (
@@ -148,16 +180,35 @@ export function DeletionRequestsTable({ onApprove, onReject }: DeletionRequestsT
 				},
 			},
 		],
-		[onApprove, onReject]
+		[onApprove, onReject, onRejectMany]
 	)
+
+	const showBulkReject = Boolean(onRejectMany && selectedRows.length > 0)
+	const toolbarLeft =
+		showBulkReject && onRejectMany ? (
+			<Button
+				variant="destructive"
+				size="sm"
+				className="h-8"
+				onClick={() => onRejectMany(selectedRows)}
+			>
+				<Trash2 className="mr-2 h-4 w-4" />
+				Reject {selectedRows.length}{" "}
+				{selectedRows.length === 1 ? "request" : "requests"}
+			</Button>
+		) : null
 
 	return (
 		<DataTable
 			data={rows}
 			columns={columns}
+			toolbarLeft={toolbarLeft}
 			isLoading={requestsQuery.isLoading}
 			errorText={requestsQuery.isError ? "Failed to load deletion requests." : null}
 			searchPlaceholder="Search deletion requests..."
+			getRowId={row => row.id}
+			onSelectedRowsChange={setSelectedRows}
+			selectionClearKey={selectionClearKey}
 		/>
 	)
 }

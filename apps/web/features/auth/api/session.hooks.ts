@@ -4,6 +4,7 @@ import type { Route } from "next"
 import { useRouter } from "next/navigation"
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query"
 
+import { postSessionAuditEvent } from "@/features/dashboard/api/analytics.hooks"
 import { authClient } from "@/services/better-auth/auth-client"
 
 /**
@@ -45,6 +46,7 @@ export function useSignOutMutation(redirectTo = "/login") {
 
 	return useMutation({
 		mutationFn: async () => {
+			await postSessionAuditEvent("logout")
 			const result = await authClient.signOut()
 			if (result.error) {
 				throw new Error(result.error.message || "Failed to sign out")

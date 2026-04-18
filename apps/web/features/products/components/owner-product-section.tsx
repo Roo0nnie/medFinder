@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -110,6 +110,10 @@ function VariantInventoryEditor({
 	row,
 	lowStockThreshold,
 	onSaved,
+	unit,
+	strength,
+	dosageForm,
+	onVariantDetailChange,
 }: {
 	productId: string
 	variantId: string | null
@@ -117,9 +121,16 @@ function VariantInventoryEditor({
 	row: PharmacyInventoryItem | undefined
 	lowStockThreshold: number
 	onSaved: () => void
+	unit: string
+	strength: string
+	dosageForm: string
+	onVariantDetailChange: (
+		patch: Partial<{ unit: string; strength: string; dosageForm: string }>
+	) => void
 }) {
 	const { toast } = useToast()
 	const updateMutation = useProductUpdateMutation()
+	const variantUpdateMutation = useVariantUpdateMutation()
 	const [quantity, setQuantity] = useState(String(row?.quantity ?? 0))
 	const [price, setPrice] = useState(row?.price ? String(row.price) : "")
 	const [discountPrice, setDiscountPrice] = useState(row?.discountPrice ? String(row.discountPrice) : "")
@@ -155,10 +166,25 @@ function VariantInventoryEditor({
 			})
 			return
 		}
+		if (!variantId) {
+			toast({
+				title: "Validation",
+				description: "This option is missing a variant id.",
+				variant: "destructive",
+			})
+			return
+		}
 		try {
+			await variantUpdateMutation.mutateAsync({
+				productId,
+				variantId,
+				unit: unit.trim() || "piece",
+				strength: strength.trim() || undefined,
+				dosageForm: dosageForm.trim() || undefined,
+			})
 			await updateMutation.mutateAsync({
 				id: productId,
-				variantId: variantId ?? null,
+				variantId,
 				quantity: q,
 				price: String(p),
 				discountPrice: discountPrice.trim() ? discountPrice.trim() : null,
@@ -184,9 +210,13 @@ function VariantInventoryEditor({
 		expiryDate,
 		batchNumber,
 		isAvailable,
+		unit,
+		strength,
+		dosageForm,
 		onSaved,
 		toast,
 		updateMutation,
+		variantUpdateMutation,
 	])
 
 	return (
@@ -194,7 +224,9 @@ function VariantInventoryEditor({
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div>
 					<p className="text-foreground text-sm font-medium">{title}</p>
-					<p className="text-muted-foreground text-xs">Stock and price for this option at your pharmacy.</p>
+					<p className="text-muted-foreground text-xs">
+						Unit, strength, dosage form, quantity, and price for this option at your pharmacy.
+					</p>
 				</div>
 				<span
 					className={`rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -212,12 +244,37 @@ function VariantInventoryEditor({
 			</div>
 			<div className="grid gap-3 sm:grid-cols-2">
 				<div className="space-y-1">
+					<Label className="text-xs">Unit</Label>
+					<Input
+						value={unit}
+						onChange={e => onVariantDetailChange({ unit: e.target.value })}
+						placeholder="e.g. bottle, tablet"
+					/>
+				</div>
+				<div className="space-y-1">
+					<Label className="text-xs">Strength</Label>
+					<Input
+						value={strength}
+						onChange={e => onVariantDetailChange({ strength: e.target.value })}
+						placeholder="e.g. 500 mg"
+					/>
+				</div>
+				<div className="space-y-1 sm:col-span-2">
+					<Label className="text-xs">Dosage form</Label>
+					<Input
+						value={dosageForm}
+						onChange={e => onVariantDetailChange({ dosageForm: e.target.value })}
+						placeholder="e.g. tablet, syrup"
+					/>
+				</div>
+				<div className="space-y-1">
 					<Label className="text-xs">Quantity</Label>
 					<Input
 						type="number"
 						min={0}
 						value={quantity}
 						onChange={e => setQuantity(e.target.value)}
+						placeholder="0"
 					/>
 				</div>
 				<div className="space-y-1">
@@ -228,6 +285,7 @@ function VariantInventoryEditor({
 						step="0.01"
 						value={price}
 						onChange={e => setPrice(e.target.value)}
+						placeholder="0.00"
 					/>
 				</div>
 				<div className="space-y-1">
@@ -238,19 +296,20 @@ function VariantInventoryEditor({
 						step="0.01"
 						value={discountPrice}
 						onChange={e => setDiscountPrice(e.target.value)}
+						placeholder="0.00"
 					/>
 				</div>
 				<div className="space-y-1">
 					<Label className="text-xs">Expiry (optional)</Label>
-					<Input
-						type="date"
-						value={expiryDate}
-						onChange={e => setExpiryDate(e.target.value)}
-					/>
+					<Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
 				</div>
 				<div className="space-y-1 sm:col-span-2">
 					<Label className="text-xs">Batch number (optional)</Label>
-					<Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} />
+					<Input
+						value={batchNumber}
+						onChange={e => setBatchNumber(e.target.value)}
+						placeholder="e.g. LOT-2024-001"
+					/>
 				</div>
 				<div className="space-y-1 sm:col-span-2">
 					<Label className="text-xs">Available for sale</Label>
@@ -264,21 +323,69 @@ function VariantInventoryEditor({
 					</select>
 				</div>
 			</div>
-			<Button type="button" size="sm" onClick={() => void save()} disabled={updateMutation.isPending}>
-				{updateMutation.isPending ? "Saving…" : "Save inventory"}
+			<Button
+				type="button"
+				size="sm"
+				onClick={() => void save()}
+				disabled={variantUpdateMutation.isPending || updateMutation.isPending}
+			>
+				{variantUpdateMutation.isPending || updateMutation.isPending ? "Saving…" : "Save inventory"}
 			</Button>
 		</div>
 	)
 }
 
+type OwnerProductDeleteState =
+	| { kind: "one"; product: Product }
+	| { kind: "many"; products: Product[] }
+	| null
+
 export function OwnerProductSection() {
 	const { toast } = useToast()
-	const { data: pharmacies } = useMyPharmaciesQuery()
-	const { data: categories } = useProductCategoriesQuery()
+	const { data: pharmacies, isError: pharmaciesQueryError } = useMyPharmaciesQuery()
+	const solePharmacyId = useMemo(
+		() => (pharmacies?.length === 1 && pharmacies[0] ? pharmacies[0].id : undefined),
+		[pharmacies]
+	)
+	const { data: categories, isError: categoriesQueryError } = useProductCategoriesQuery()
+
+	const pharmaciesLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (pharmaciesQueryError) {
+			if (!pharmaciesLoadErrorNotified.current) {
+				pharmaciesLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load pharmacies",
+					description: "Product form needs your pharmacy list. Try refreshing the page.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			pharmaciesLoadErrorNotified.current = false
+		}
+	}, [pharmaciesQueryError, toast])
+
+	const categoriesLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (categoriesQueryError) {
+			if (!categoriesLoadErrorNotified.current) {
+				categoriesLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load categories",
+					description: "Could not load categories for the product form.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			categoriesLoadErrorNotified.current = false
+		}
+	}, [categoriesQueryError, toast])
 	const [isFormOpen, setIsFormOpen] = useState(false)
 	const [editing, setEditing] = useState<Product | null>(null)
 	const [addBrandSource, setAddBrandSource] = useState<Product | null>(null)
-	const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+	const [productDeleteState, setProductDeleteState] = useState<OwnerProductDeleteState>(null)
+	const [selectionClearKey, setSelectionClearKey] = useState(0)
+	const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
 	const [newVariantLabel, setNewVariantLabel] = useState("")
 	const [newVariantUnit, setNewVariantUnit] = useState("piece")
 	const [newVariantStrength, setNewVariantStrength] = useState("")
@@ -313,7 +420,12 @@ export function OwnerProductSection() {
 		setIsFormOpen(true)
 	}, [])
 	const handleDeleteProduct = useCallback((p: Product) => {
-		setProductToDelete(p)
+		setProductDeleteState({ kind: "one", product: p })
+	}, [])
+
+	const handleDeleteManyProducts = useCallback((products: Product[]) => {
+		if (products.length === 0) return
+		setProductDeleteState({ kind: "many", products })
 	}, [])
 	const handleAddBrand = useCallback((p: Product) => {
 		setAddBrandSource(p)
@@ -332,6 +444,11 @@ export function OwnerProductSection() {
 				: { ...prev, requiresPrescription: !!cat.requiresPrescription }
 		)
 	}, [form.categoryId, categories])
+
+	useEffect(() => {
+		if (!solePharmacyId) return
+		setForm(prev => (prev.pharmacyId === solePharmacyId ? prev : { ...prev, pharmacyId: solePharmacyId }))
+	}, [solePharmacyId])
 
 	useEffect(() => {
 		if (editing) {
@@ -521,7 +638,9 @@ export function OwnerProductSection() {
 			return
 		}
 
-		const pharmacyId = (form.pharmacyId ?? "").trim()
+		const pharmacyId =
+			(form.pharmacyId ?? "").trim() ||
+			(pharmacies?.length === 1 && pharmacies[0] ? pharmacies[0].id : "")
 		if (!editing && !pharmacyId) {
 			toast({
 				title: "Validation",
@@ -553,7 +672,7 @@ export function OwnerProductSection() {
 					id: editing.id,
 					name,
 					categoryId,
-					pharmacyId: (form.pharmacyId ?? editing.pharmacyId) || undefined,
+					pharmacyId: (form.pharmacyId ?? editing.pharmacyId ?? solePharmacyId) || undefined,
 					brandId: form.brandId ?? null,
 					brandName: form.brandName,
 					genericName: form.genericName,
@@ -638,15 +757,29 @@ export function OwnerProductSection() {
 	}
 
 	const confirmDelete = async () => {
-		if (!productToDelete) return
+		if (!productDeleteState) return
 		try {
-			await deleteMutation.mutateAsync(productToDelete.id)
-			toast({ title: "Product deleted" })
-			if (editing?.id === productToDelete.id) {
-				setEditing(null)
-				setIsFormOpen(false)
+			if (productDeleteState.kind === "one") {
+				const productToDelete = productDeleteState.product
+				await deleteMutation.mutateAsync(productToDelete.id)
+				toast({ title: "Product deleted" })
+				if (editing?.id === productToDelete.id) {
+					setEditing(null)
+					setIsFormOpen(false)
+				}
+			} else {
+				for (const p of productDeleteState.products) {
+					await deleteMutation.mutateAsync(p.id)
+				}
+				toast({ title: `${productDeleteState.products.length} products deleted` })
+				const deletedIds = new Set(productDeleteState.products.map(p => p.id))
+				if (editing && deletedIds.has(editing.id)) {
+					setEditing(null)
+					setIsFormOpen(false)
+				}
 			}
-			setProductToDelete(null)
+			setProductDeleteState(null)
+			setSelectionClearKey(k => k + 1)
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : "Delete failed"
 			toast({ title: "Delete failed", description: message, variant: "destructive" })
@@ -657,29 +790,46 @@ export function OwnerProductSection() {
 		<div className="space-y-6">
 			<Card>
 				<CardContent className="p-4 sm:p-6">
-					<div className="flex items-center justify-between">
+					<div className="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h2 className="text-lg font-semibold">Product</h2>
 							<p className="text-muted-foreground text-sm">
 								Add product details and initial inventory at creation time.
 							</p>
 						</div>
-						<Button
-							onClick={() => {
-								setEditing(null)
-								setAddBrandSource(null)
-								setIsFormOpen(true)
-							}}
-						>
-							<Plus className="mr-2 h-4 w-4" />
-							Add product
-						</Button>
+						<div className="flex flex-wrap items-center justify-end gap-2">
+							<Button
+								onClick={() => {
+									setEditing(null)
+									setAddBrandSource(null)
+									setIsFormOpen(true)
+								}}
+							>
+								<Plus className="mr-2 h-4 w-4" />
+								Add product
+							</Button>
+							{selectedProducts.length > 0 ? (
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									className="h-9"
+									onClick={() => handleDeleteManyProducts(selectedProducts)}
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete {selectedProducts.length}{" "}
+									{selectedProducts.length === 1 ? "Product" : "Products"}
+								</Button>
+							) : null}
+						</div>
 					</div>
 					<div className="mt-4">
 						<ProductsTable
 							onEdit={handleEditProduct}
 							onDelete={handleDeleteProduct}
 							onAddBrand={handleAddBrand}
+							onSelectionChange={setSelectedProducts}
+							selectionClearKey={selectionClearKey}
 						/>
 					</div>
 				</CardContent>
@@ -707,10 +857,10 @@ export function OwnerProductSection() {
 					</DialogHeader>
 					<p className="text-muted-foreground text-sm">
 						{editing
-							? "Update product details below, then use Save product. Set stock and price per variant — each option has its own Save inventory button."
+							? "Update product details below, then use Save product. Per variant, set unit, stock, and price — each option has its own Save inventory button (saves variant details and pharmacy stock together)."
 							: addBrandSource
 								? "This creates a new product row for your pharmacy with the same medicine details. Choose or create the new brand, adjust manufacturer and variants as needed, then save."
-								: "Fill in product details and set initial inventory. Name, category, pharmacy, variant label, and unit are required for the first sellable option. Label and strength are separate fields. Open Edit to add more variants."}
+								: "Fill in product details and set initial inventory. Name, category, variant label, and unit are required for the first sellable option. Your pharmacy is applied automatically when you have one location. Label and strength are separate fields. Open Edit to add more variants."}
 					</p>
 					{addBrandSource && !editing && addBrandVariantsData && addBrandVariantsData.length > 0 ? (
 						<p className="text-muted-foreground text-xs">
@@ -724,11 +874,13 @@ export function OwnerProductSection() {
 							<select
 								id="pharmacy"
 								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-								value={form.pharmacyId ?? ""}
+								value={(form.pharmacyId || solePharmacyId) ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, pharmacyId: e.target.value }))}
-								disabled={!pharmacies?.length}
+								disabled={!pharmacies?.length || pharmacies.length === 1}
 							>
-								<option value="">Select pharmacy</option>
+								{pharmacies && pharmacies.length > 1 ? (
+									<option value="">Choose pharmacy…</option>
+								) : null}
 								{pharmacies?.map(ph => (
 									<option key={ph.id} value={ph.id}>
 										{ph.name}
@@ -753,7 +905,7 @@ export function OwnerProductSection() {
 								value={form.categoryId ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
 							>
-								<option value="">Select category</option>
+								<option value="">Choose category…</option>
 								{categories?.map(c => (
 									<option key={c.id} value={c.id}>
 										{c.name}
@@ -768,6 +920,7 @@ export function OwnerProductSection() {
 								className="border-input w-full rounded-md border bg-transparent px-3 py-2 text-sm"
 								value={form.requiresPrescription ? "true" : "false"}
 								disabled
+								aria-label="Requires prescription (follows category)"
 							>
 								<option value="false">No</option>
 								<option value="true">Yes</option>
@@ -777,6 +930,7 @@ export function OwnerProductSection() {
 						<div className="space-y-1">
 							<Label>Brand</Label>
 							<ProductBrandCombobox
+								placeholder="Search or choose brand (optional)"
 								value={{
 									brandId: form.brandId,
 									brandName: form.brandName ?? "",
@@ -797,6 +951,7 @@ export function OwnerProductSection() {
 								id="genericName"
 								value={form.genericName ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, genericName: e.target.value }))}
+								placeholder="e.g. acetaminophen"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -805,6 +960,7 @@ export function OwnerProductSection() {
 								id="manufacturer"
 								value={form.manufacturer ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, manufacturer: e.target.value }))}
+								placeholder="e.g. PharmaCo Ltd."
 							/>
 						</div>
 						<div className="space-y-1">
@@ -813,6 +969,7 @@ export function OwnerProductSection() {
 								id="supplier"
 								value={form.supplier ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, supplier: e.target.value }))}
+								placeholder="e.g. regional distributor name"
 							/>
 						</div>
 						{!editing ? (
@@ -841,6 +998,7 @@ export function OwnerProductSection() {
 										id="strength"
 										value={form.strength ?? ""}
 										onChange={e => setForm(prev => ({ ...prev, strength: e.target.value }))}
+										placeholder="e.g. 500 mg"
 									/>
 								</div>
 								<div className="space-y-1">
@@ -849,6 +1007,7 @@ export function OwnerProductSection() {
 										id="dosageForm"
 										value={form.dosageForm ?? ""}
 										onChange={e => setForm(prev => ({ ...prev, dosageForm: e.target.value }))}
+										placeholder="e.g. tablet, syrup, injection"
 									/>
 								</div>
 							</>
@@ -867,6 +1026,7 @@ export function OwnerProductSection() {
 										lowStockThreshold: v === "" ? undefined : Number(v),
 									}))
 								}}
+								placeholder="e.g. 10"
 							/>
 						</div>
 						<div className="sm:col-span-2">
@@ -908,7 +1068,7 @@ export function OwnerProductSection() {
 								<div>
 									<h3 className="text-foreground text-sm font-semibold">Product variants (sizes / volumes)</h3>
 									<p className="text-muted-foreground mt-0.5 text-xs">
-										All sellable options are variants (including the first). Add more labels like 2mg or 100ml; set stock and price for each in the inventory section below.
+										All sellable options are variants (including the first). Add more labels like 2mg or 100ml; for each option, set unit, stock, and price and use Save inventory.
 									</p>
 								</div>
 								{variants.length === 0 ? (
@@ -1015,112 +1175,19 @@ export function OwnerProductSection() {
 											</div>
 											{editingVariant?.id !== v.id && editing?.id ? (
 												<div className="border-muted space-y-2 border-t pt-2">
-													<div className="flex flex-wrap gap-2">
-														<Input
-															className="max-w-[120px]"
-															placeholder="Unit"
-															value={variantExtras[v.id]?.unit ?? ""}
-															onChange={e =>
-																setVariantExtras(prev => ({
-																	...prev,
-																	[v.id]: {
-																		unit: e.target.value,
-																		strength: prev[v.id]?.strength ?? "",
-																		dosageForm: prev[v.id]?.dosageForm ?? "",
-																	},
-																}))
-															}
-														/>
-														<Input
-															className="max-w-[140px]"
-															placeholder="Strength"
-															value={variantExtras[v.id]?.strength ?? ""}
-															onChange={e =>
-																setVariantExtras(prev => ({
-																	...prev,
-																	[v.id]: {
-																		strength: e.target.value,
-																		unit: prev[v.id]?.unit ?? "piece",
-																		dosageForm: prev[v.id]?.dosageForm ?? "",
-																	},
-																}))
-															}
-														/>
-														<Input
-															className="max-w-[180px]"
-															placeholder="Dosage form"
-															value={variantExtras[v.id]?.dosageForm ?? ""}
-															onChange={e =>
-																setVariantExtras(prev => ({
-																	...prev,
-																	[v.id]: {
-																		strength: prev[v.id]?.strength ?? "",
-																		unit: prev[v.id]?.unit ?? "piece",
-																		dosageForm: e.target.value,
-																	},
-																}))
-															}
-														/>
-													</div>
-													<div className="flex flex-wrap items-center gap-2">
-														<Field
-															className={cn(
-																"max-w-xs shrink-0",
-																isImageBusy && "pointer-events-none opacity-70"
-															)}
-														>
-															<FieldLabel htmlFor={`variant-picture-${v.id}`}>
-																Add picture (upload)
-															</FieldLabel>
-															<Input
-																id={`variant-picture-${v.id}`}
-																type="file"
-																accept="image/jpeg,image/png,image/webp,image/gif"
-																onChange={e => {
-																	const f = e.target.files?.[0]
-																	if (f) void handleVariantImageFile(v.id, f)
-																	e.target.value = ""
-																}}
-															/>
-															<FieldDescription>
-																Uploads immediately and appends to the gallery. First image is the
-																primary thumbnail.
-															</FieldDescription>
-														</Field>
-														<Button
-															size="sm"
-															variant="outline"
-															disabled={isImageBusy}
-															onClick={async () => {
-																if (!editing?.id) return
-																const ex = variantExtras[v.id] ?? {
-																	strength: "",
-																	dosageForm: "",
-																	unit: "piece",
-																}
-																try {
-																	await variantUpdateMutation.mutateAsync({
-																		productId: editing.id,
-																		variantId: v.id,
-																		strength: ex.strength,
-																		dosageForm: ex.dosageForm,
-																		unit: ex.unit.trim() || "piece",
-																	})
-																	toast({ title: "Variant details saved" })
-																} catch (e) {
-																	toast({
-																		title: "Save failed",
-																		description: e instanceof Error ? e.message : "Unknown error",
-																		variant: "destructive",
-																	})
-																}
-															}}
-														>
-															Save unit / strength / dosage
-														</Button>
-													</div>
 													<div className="space-y-2 sm:col-span-2">
-														<p className="text-muted-foreground text-xs font-medium">Image gallery</p>
+														<div className="space-y-1">
+															<p className="text-muted-foreground text-xs font-medium">
+																Image gallery
+															</p>
+															<p className="text-muted-foreground max-w-xl text-xs leading-relaxed">
+																Add images with a public URL or a file upload; each image is saved
+																to this variant&apos;s gallery as soon as you add it. Unit, strength,
+																dosage form, and stock are saved together with{" "}
+																<span className="text-foreground/90 font-medium">Save inventory</span>{" "}
+																below.
+															</p>
+														</div>
 														{variantGalleryUrls(v).length > 0 ? (
 															<ul className="flex flex-col gap-2">
 																{variantGalleryUrls(v).map((url, idx) => (
@@ -1188,7 +1255,6 @@ export function OwnerProductSection() {
 																					)
 																				}
 																			>
-																				<Trash2 className="h-4 w-4" />
 																			</Button>
 																		</div>
 																	</li>
@@ -1197,62 +1263,110 @@ export function OwnerProductSection() {
 														) : (
 															<p className="text-muted-foreground text-xs">No images yet.</p>
 														)}
-														<div className="flex max-w-xl flex-wrap items-end gap-2">
-															<div className="min-w-0 flex-1 space-y-1">
+														<div className="max-w-xl space-y-4">
+															<div className="space-y-1.5">
 																<Label htmlFor={`add-url-${v.id}`} className="text-xs">
 																	Add image URL
 																</Label>
-																<Input
-																	id={`add-url-${v.id}`}
-																	placeholder="https://…"
-																	value={addGalleryUrlDraft[v.id] ?? ""}
-																	onChange={e =>
-																		setAddGalleryUrlDraft(prev => ({
-																			...prev,
-																			[v.id]: e.target.value,
-																		}))
-																	}
-																/>
+																<div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+																	<Input
+																		id={`add-url-${v.id}`}
+																		className="min-w-0 flex-1"
+																		placeholder="https://…"
+																		value={addGalleryUrlDraft[v.id] ?? ""}
+																		onChange={e =>
+																			setAddGalleryUrlDraft(prev => ({
+																				...prev,
+																				[v.id]: e.target.value,
+																			}))
+																		}
+																	/>
+																	<Button
+																		type="button"
+																		size="sm"
+																		variant="secondary"
+																		className="w-full shrink-0 sm:w-auto"
+																		disabled={variantUpdateMutation.isPending}
+																		onClick={() => {
+																			const raw = (addGalleryUrlDraft[v.id] ?? "").trim()
+																			if (!raw) {
+																				toast({
+																					title: "Enter a URL",
+																					variant: "destructive",
+																				})
+																				return
+																			}
+																			try {
+																				new URL(raw)
+																			} catch {
+																				toast({
+																					title: "Invalid URL",
+																					variant: "destructive",
+																				})
+																				return
+																			}
+																			const cur = variantGalleryUrls(v)
+																			if (cur.includes(raw)) {
+																				toast({
+																					title: "Already in gallery",
+																					variant: "destructive",
+																				})
+																				return
+																			}
+																			void persistVariantGallery(v, [...cur, raw])
+																			setAddGalleryUrlDraft(prev => ({ ...prev, [v.id]: "" }))
+																		}}
+																	>
+																		Add URL
+																	</Button>
+																</div>
 															</div>
-															<Button
-																type="button"
-																size="sm"
-																variant="secondary"
-																disabled={variantUpdateMutation.isPending}
-																onClick={() => {
-																	const raw = (addGalleryUrlDraft[v.id] ?? "").trim()
-																	if (!raw) {
-																		toast({
-																			title: "Enter a URL",
-																			variant: "destructive",
-																		})
-																		return
-																	}
-																	try {
-																		new URL(raw)
-																	} catch {
-																		toast({
-																			title: "Invalid URL",
-																			variant: "destructive",
-																		})
-																		return
-																	}
-																	const cur = variantGalleryUrls(v)
-																	if (cur.includes(raw)) {
-																		toast({
-																			title: "Already in gallery",
-																			variant: "destructive",
-																		})
-																		return
-																	}
-																	void persistVariantGallery(v, [...cur, raw])
-																	setAddGalleryUrlDraft(prev => ({ ...prev, [v.id]: "" }))
-																}}
-															>
-																Add URL
-															</Button>
+															<div className="border-border space-y-3 border-t pt-4">
+																<div
+																	className={cn(
+																		"space-y-1.5",
+																		isImageBusy && "pointer-events-none opacity-70"
+																	)}
+																>
+																	<Label htmlFor={`variant-picture-${v.id}`} className="text-xs">
+																		Add picture (upload)
+																	</Label>
+																	<Input
+																		id={`variant-picture-${v.id}`}
+																		type="file"
+																		accept="image/jpeg,image/png,image/webp,image/gif"
+																		className="w-full cursor-pointer file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
+																		onChange={e => {
+																			const f = e.target.files?.[0]
+																			if (f) void handleVariantImageFile(v.id, f)
+																			e.target.value = ""
+																		}}
+																	/>
+																</div>
+															</div>
 														</div>
 													</div>
+													<VariantInventoryEditor
+														productId={editing.id}
+														variantId={v.id}
+														title={`${v.label} — stock & pricing`}
+														row={inventoryRowFor(inventoryList, v.id)}
+														lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
+														unit={variantExtras[v.id]?.unit ?? "piece"}
+														strength={variantExtras[v.id]?.strength ?? ""}
+														dosageForm={variantExtras[v.id]?.dosageForm ?? ""}
+														onVariantDetailChange={patch =>
+															setVariantExtras(prev => ({
+																...prev,
+																[v.id]: {
+																	unit: patch.unit ?? prev[v.id]?.unit ?? "piece",
+																	strength: patch.strength ?? prev[v.id]?.strength ?? "",
+																	dosageForm: patch.dosageForm ?? prev[v.id]?.dosageForm ?? "",
+																},
+															}))
+														}
+														onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
+													/>
 												</div>
 											) : null}
 										</li>
@@ -1318,33 +1432,11 @@ export function OwnerProductSection() {
 								</div>
 							</div>
 						)}
-						<div className="space-y-1 sm:col-span-2">
-							<h3 className="text-muted-foreground text-sm font-medium">
-								{editing ? "Inventory at your pharmacy" : "Initial inventory"}
-							</h3>
-						</div>
-						{editing && editing.id ? (
-							<div className="space-y-4 sm:col-span-2">
-								{variants.length === 0 ? (
-									<div className="text-muted-foreground rounded-md border border-dashed bg-background/50 px-3 py-4 text-sm">
-										Add at least one variant in the section above to edit inventory. If stock already exists from an older setup, run the backfill script once (see packages/scripts/backfill-default-variants.ts).
-									</div>
-								) : (
-									variants.map(v => (
-										<VariantInventoryEditor
-											key={`${v.id}-${editing.id}`}
-											productId={editing.id}
-											variantId={v.id}
-											title={v.label}
-											row={inventoryRowFor(inventoryList, v.id)}
-											lowStockThreshold={form.lowStockThreshold ?? editing.lowStockThreshold ?? 5}
-											onSaved={() => void queryClient.invalidateQueries({ queryKey: ["inventory"] })}
-										/>
-									))
-								)}
-							</div>
-						) : (
+						{!editing ? (
 							<>
+								<div className="space-y-1 sm:col-span-2">
+									<h3 className="text-muted-foreground text-sm font-medium">Initial inventory</h3>
+								</div>
 								<div className="space-y-1">
 									<Label htmlFor="quantity">Quantity in stock</Label>
 									<Input
@@ -1403,6 +1495,7 @@ export function OwnerProductSection() {
 										id="batchNumber"
 										value={form.batchNumber ?? ""}
 										onChange={e => setForm(prev => ({ ...prev, batchNumber: e.target.value }))}
+										placeholder="e.g. LOT-2024-001"
 									/>
 								</div>
 								<div className="space-y-1">
@@ -1414,14 +1507,15 @@ export function OwnerProductSection() {
 										onChange={e =>
 											setForm(prev => ({ ...prev, isAvailable: e.target.value === "true" }))
 										}
+										aria-label="Available for sale"
 									>
 										<option value="true">Yes</option>
 										<option value="false">No</option>
 									</select>
 								</div>
 							</>
-						)}
-					
+						) : null}
+
 						<div className="space-y-1 sm:col-span-2">
 							<Label htmlFor="description">Description</Label>
 							<textarea
@@ -1430,6 +1524,7 @@ export function OwnerProductSection() {
 								value={form.description ?? ""}
 								onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
 								rows={3}
+								placeholder="Short description, packaging, or notes for staff (optional)"
 							/>
 						</div>
 					</div>
@@ -1448,19 +1543,35 @@ export function OwnerProductSection() {
 				</DialogContent>
 			</Dialog>
 
-			<AlertDialog open={!!productToDelete} onOpenChange={open => !open && setProductToDelete(null)}>
+			<AlertDialog
+				open={!!productDeleteState}
+				onOpenChange={open => !open && setProductDeleteState(null)}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete product</AlertDialogTitle>
+						<AlertDialogTitle>
+							{productDeleteState?.kind === "many"
+								? `Delete ${productDeleteState.products.length} products`
+								: "Delete product"}
+						</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete this product? This also deletes all inventory rows for
-							this product and cannot be undone.
+							{productDeleteState?.kind === "many" ? (
+								<>
+									Are you sure you want to delete {productDeleteState.products.length} selected
+									products? This also removes all related inventory and cannot be undone.
+								</>
+							) : (
+								<>
+									Are you sure you want to delete this product? This also deletes all inventory rows for
+									this product and cannot be undone.
+								</>
+							)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
-							onClick={confirmDelete}
+							onClick={() => void confirmDelete()}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							Delete

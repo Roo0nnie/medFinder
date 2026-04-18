@@ -11,9 +11,15 @@ export const PlatformStatsSchema = z.object({
 })
 
 export const OwnerStatsSchema = z.object({
-	pharmaciesCount: z.number().int(),
-	inventoryItemsCount: z.number().int(),
-	reservationsCount: z.number().int(),
+	productsAndVariantsCount: z.number().int(),
+	staffActiveCount: z.number().int(),
+	staffInactiveCount: z.number().int(),
+	inventoryInStockCount: z.number().int(),
+	inventoryLowStockCount: z.number().int(),
+	inventoryOutOfStockCount: z.number().int(),
+	pendingDeletionRequestsCount: z.number().int(),
+	categoriesCount: z.number().int(),
+	brandsCount: z.number().int(),
 })
 
 export const StaffStatsSchema = z.object({
@@ -29,6 +35,26 @@ export const MonthlySalesPointSchema = z.object({
 export const TopProductSchema = z.object({
 	name: z.string(),
 	value: z.number(),
+})
+
+export const ReviewRatingPointSchema = z.object({
+	name: z.string(),
+	value: z.number(),
+})
+
+export const SearchTrendPointSchema = z.object({
+	name: z.string(),
+	count: z.number().int(),
+})
+
+export const PeakHourPointSchema = z.object({
+	hour: z.number().int().min(0).max(23),
+	count: z.number().int(),
+})
+
+export const OwnerSearchTrendsParamsSchema = z.object({
+	ownerId: z.string().optional(),
+	granularity: z.enum(["daily", "weekly"]).optional(),
 })
 
 export const OwnerStatsParamsSchema = z.object({
@@ -48,6 +74,46 @@ export const TopProductsParamsSchema = z.object({
 	limit: z.number().int().positive().max(100).optional(),
 })
 
+export const SearchQueryCountItemSchema = z.object({
+	query: z.string(),
+	count: z.number().int(),
+})
+
+export const OwnerTopSearchesResponseSchema = z.object({
+	items: z.array(SearchQueryCountItemSchema),
+})
+
+export const OwnerTopSearchesParamsSchema = z.object({
+	ownerId: z.string().optional(),
+	limit: z.number().int().positive().max(100).optional(),
+})
+
+export const ProductEngagementCreateSchema = z.object({
+	productId: z.string().min(1),
+	dwellSeconds: z.number().int().min(0).max(86400).optional(),
+	sessionId: z.string().optional(),
+})
+
+export const ProductSearchSelectionCreateSchema = z.object({
+	productId: z.string().min(1),
+	pharmacyId: z.string().optional(),
+	searchQuery: z.string().optional(),
+})
+
+export const AuditEventItemSchema = z.object({
+	id: z.string(),
+	createdAt: z.string(),
+	actorRole: z.enum(["owner", "staff", "admin", "customer"]).nullable().optional(),
+	actor: z.string(),
+	action: z.string(),
+	resource: z.string(),
+	details: z.string(),
+})
+
+export const AuditEventsResponseSchema = z.object({
+	items: z.array(AuditEventItemSchema),
+})
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -57,8 +123,19 @@ export type OwnerStats = z.infer<typeof OwnerStatsSchema>
 export type StaffStats = z.infer<typeof StaffStatsSchema>
 export type MonthlySalesPoint = z.infer<typeof MonthlySalesPointSchema>
 export type TopProduct = z.infer<typeof TopProductSchema>
+export type ReviewRatingPoint = z.infer<typeof ReviewRatingPointSchema>
+export type SearchTrendPoint = z.infer<typeof SearchTrendPointSchema>
+export type PeakHourPoint = z.infer<typeof PeakHourPointSchema>
+export type OwnerSearchTrendsParams = z.infer<typeof OwnerSearchTrendsParamsSchema>
 export type OwnerStatsParams = z.infer<typeof OwnerStatsParamsSchema>
 export type StaffStatsParams = z.infer<typeof StaffStatsParamsSchema>
 export type MonthlySalesParams = z.infer<typeof MonthlySalesParamsSchema>
 export type TopProductsParams = z.infer<typeof TopProductsParamsSchema>
+export type SearchQueryCountItem = z.infer<typeof SearchQueryCountItemSchema>
+export type OwnerTopSearchesResponse = z.infer<typeof OwnerTopSearchesResponseSchema>
+export type OwnerTopSearchesParams = z.infer<typeof OwnerTopSearchesParamsSchema>
+export type ProductEngagementCreate = z.infer<typeof ProductEngagementCreateSchema>
+export type ProductSearchSelectionCreate = z.infer<typeof ProductSearchSelectionCreateSchema>
+export type AuditEventItem = z.infer<typeof AuditEventItemSchema>
+export type AuditEventsResponse = z.infer<typeof AuditEventsResponseSchema>
 

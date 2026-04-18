@@ -16,10 +16,11 @@ export const users = createTable("users", t => ({
 	emailVerified: t.boolean("email_verified").default(false).notNull(),
 	image: t.text("image"),
 	profile_image_url: t.text("profile_image_url"),
-	name: t.text("name"), // Better Auth default; app uses first_name + last_name
+	name: t.text("name"),
 	first_name: t.text("first_name"),
 	last_name: t.text("last_name").notNull(),
 	middle_name: t.text("middle_name"),
+	phone: t.text("phone"),
 	role: t.text("role").notNull().default("customer"),
 	createdAt: t.timestamp("created_at").notNull().defaultNow(),
 	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
@@ -349,11 +350,59 @@ export const productSearches = createTable(
 		searchQuery: t.text("search_query").notNull(),
 		resultsCount: t.integer("results_count").notNull().default(0),
 		searchedAt: t.timestamp("searched_at").notNull().defaultNow(),
+		/** Distinct pharmacy owner user IDs whose products appeared in this search result set. */
+		matchedOwnerIds: jsonb("matched_owner_ids").$type<string[] | null>(),
 	}),
 	t => [
 		index("product_searches_customer_id_idx").on(t.customerId),
 		index("product_searches_searched_at_idx").on(t.searchedAt),
 	]
+)
+
+export const productPageEngagements = createTable(
+	"product_page_engagements",
+	t => ({
+		id: t.text("id").primaryKey(),
+		productId: t.text("product_id").notNull(),
+		userId: t.text("user_id"),
+		sessionId: t.text("session_id"),
+		dwellSeconds: t.integer("dwell_seconds").notNull().default(0),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	}),
+	t => [
+		index("product_page_engagements_product_id_idx").on(t.productId),
+		index("product_page_engagements_product_created_idx").on(t.productId, t.createdAt),
+	]
+)
+
+export const auditEvents = createTable(
+	"audit_events",
+	t => ({
+		id: t.text("id").primaryKey(),
+		ownerId: t.text("owner_id").notNull(),
+		actorUserId: t.text("actor_user_id"),
+		actorRole: t.text("actor_role").notNull(),
+		action: t.text("action").notNull(),
+		resourceType: t.text("resource_type").notNull(),
+		resourceId: t.text("resource_id"),
+		details: t.text("details"),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	}),
+	t => [index("audit_events_owner_created_idx").on(t.ownerId, t.createdAt)]
+)
+
+export const productSearchSelections = createTable(
+	"product_search_selections",
+	t => ({
+		id: t.text("id").primaryKey(),
+		productId: t.text("product_id").notNull(),
+		pharmacyId: t.text("pharmacy_id"),
+		ownerId: t.text("owner_id").notNull(),
+		searchQuery: t.text("search_query"),
+		customerId: t.text("customer_id"),
+		createdAt: t.timestamp("created_at").notNull().defaultNow(),
+	}),
+	t => [index("prod_search_sel_owner_prod_idx").on(t.ownerId, t.productId)]
 )
 
 export const productReservations = createTable(
@@ -487,6 +536,7 @@ export const relations = defineRelations(
 		medicalProductVariants,
 		pharmacyInventory,
 		productSearches,
+		productPageEngagements,
 		productReservations,
 		pharmacyReviews,
 		productReviews,
@@ -610,6 +660,7 @@ export const relations = defineRelations(
 				to: r.users.id,
 			}),
 		},
+		productPageEngagements: {},
 		productReservations: {
 			customer: r.one.users({
 				from: r.productReservations.customerId,
@@ -680,6 +731,7 @@ export const schema = Object.assign(
 		medicalProductVariants,
 		pharmacyInventory,
 		productSearches,
+		productPageEngagements,
 		productReservations,
 		pharmacyReviews,
 		productReviews,

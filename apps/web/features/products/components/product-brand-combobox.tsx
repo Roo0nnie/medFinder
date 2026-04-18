@@ -31,6 +31,8 @@ type ProductBrandComboboxProps = {
 	value: BrandSelection
 	onChange: (next: BrandSelection) => void
 	disabled?: boolean
+	/** Shown when no brand is selected (trigger button). */
+	placeholder?: string
 }
 
 function mergeUniqueById(a: Brand[], b: Brand[]): Brand[] {
@@ -40,7 +42,12 @@ function mergeUniqueById(a: Brand[], b: Brand[]): Brand[] {
 	return [...map.values()]
 }
 
-export function ProductBrandCombobox({ value, onChange, disabled }: ProductBrandComboboxProps) {
+export function ProductBrandCombobox({
+	value,
+	onChange,
+	disabled,
+	placeholder = "Select brand…",
+}: ProductBrandComboboxProps) {
 	const { toast } = useToast()
 	const [open, setOpen] = useState(false)
 	const [q, setQ] = useState("")
@@ -102,15 +109,20 @@ export function ProductBrandCombobox({ value, onChange, disabled }: ProductBrand
 				)}
 				disabled={disabled}
 			>
-				<span className="truncate">{displayLabel || "Select brand…"}</span>
+				<span className={cn("truncate", !displayLabel.trim() && "text-muted-foreground")}>
+					{displayLabel.trim() || placeholder}
+				</span>
 				<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 			</PopoverTrigger>
-			<PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+			<PopoverContent className="gap-0 p-0" align="start">
 				<Command shouldFilter={false}>
 					<CommandInput placeholder="Search or create…" value={q} onValueChange={setQ} />
 					<CommandList>
 						<CommandEmpty>No matches.</CommandEmpty>
-						<CommandGroup heading="Brands">
+						<CommandGroup
+							heading="Brands"
+							className="[&_[data-slot=command-item]:not(:last-child)]:mb-1.5"
+						>
 							{merged.map(b => (
 								<CommandItem
 									key={b.id}
@@ -128,7 +140,7 @@ export function ProductBrandCombobox({ value, onChange, disabled }: ProductBrand
 							))}
 						</CommandGroup>
 						{trimmed && !nameExists && (
-							<CommandGroup heading="New">
+							<CommandGroup heading="New" className="[&_[data-slot=command-item]:not(:last-child)]:mb-1.5">
 								<CommandItem
 									value={`__create__${trimmed}`}
 									onSelect={() => void createAndLink()}

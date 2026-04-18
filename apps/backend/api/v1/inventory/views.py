@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, owner_id_from_pharmacy_id, safe_log_audit_event
 from api.v1.pharmacies.models import Pharmacy, PharmacyStaff
 from api.v1.staff.models import Staff
 
@@ -95,6 +96,19 @@ class InventoryListView(APIView):
             last_restocked=data.get("lastRestocked"),
         )
 
+        oid = owner_id_from_pharmacy_id(data["pharmacyId"])
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="CREATE",
+                resource_type="PharmacyInventory",
+                resource_id=record.id,
+                details=f"product={record.product_id}",
+            )
+
         out_serializer = PharmacyInventorySerializer(record)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -153,6 +167,19 @@ class InventoryDetailView(APIView):
             last_restocked=data.get("lastRestocked"),
         )
 
+        oid = owner_id_from_pharmacy_id(record.pharmacy_id)
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="UPDATE",
+                resource_type="PharmacyInventory",
+                resource_id=record.id,
+                details=f"product={record.product_id}",
+            )
+
         out_serializer = PharmacyInventorySerializer(record)
         return Response(out_serializer.data)
 
@@ -171,7 +198,21 @@ class InventoryDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        oid = owner_id_from_pharmacy_id(record.pharmacy_id)
+        iid = record.id
+        pid = record.product_id
+        actor_uid, actor_role = audit_actor_from_request(request)
         result = services.delete_inventory(pk)
+        if oid:
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="DELETE",
+                resource_type="PharmacyInventory",
+                resource_id=iid,
+                details=f"product={pid}",
+            )
         return Response(result)
 
 

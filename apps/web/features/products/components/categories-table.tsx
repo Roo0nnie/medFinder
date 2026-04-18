@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
@@ -33,14 +33,41 @@ import {
 	type ProductCategory,
 } from "@/features/products/api/products.hooks"
 
-type CategoryRow = ProductCategory & {
+export type CategoryRow = ProductCategory & {
 	parentName?: string
 }
 
-export function CategoriesTable() {
+export type CategoriesTableHandle = {
+	openCreate: () => void
+	/** Opens bulk-delete confirmation when there is a selection. */
+	requestBulkDelete: () => void
+}
+
+export type CategoriesTableProps = {
+	onSelectionChange?: (rows: CategoryRow[]) => void
+}
+
+export const CategoriesTable = forwardRef<CategoriesTableHandle, CategoriesTableProps>(
+	function CategoriesTable({ onSelectionChange }, ref) {
 	const { toast } = useToast()
 
 	const categoriesQuery = useProductCategoriesQuery()
+	const categoriesLoadErrorNotified = useRef(false)
+	useEffect(() => {
+		if (categoriesQuery.isError) {
+			if (!categoriesLoadErrorNotified.current) {
+				categoriesLoadErrorNotified.current = true
+				toast({
+					title: "Failed to load categories",
+					description: "Could not load categories from the API.",
+					variant: "destructive",
+				})
+			}
+		} else {
+			categoriesLoadErrorNotified.current = false
+		}
+	}, [categoriesQuery.isError, toast])
+
 	const createMutation = useCategoryCreateMutation()
 	const updateMutation = useCategoryUpdateMutation()
 	const deleteMutation = useCategoryDeleteMutation()
@@ -49,6 +76,9 @@ export function CategoriesTable() {
 	const [isEditOpen, setIsEditOpen] = useState(false)
 	const [editing, setEditing] = useState<ProductCategory | null>(null)
 	const [deleteTarget, setDeleteTarget] = useState<ProductCategory | null>(null)
+	const [bulkDeleteTargets, setBulkDeleteTargets] = useState<ProductCategory[] | null>(null)
+	const [selectedRows, setSelectedRows] = useState<CategoryRow[]>([])
+	const [selectionClearKey, setSelectionClearKey] = useState(0)
 
 	const [name, setName] = useState("")
 	const [description, setDescription] = useState("")
@@ -68,13 +98,23 @@ export function CategoriesTable() {
 		}))
 	}, [categoriesQuery.data, parentMap])
 
-	const openCreate = () => {
+	const openCreate = useCallback(() => {
 		setName("")
 		setDescription("")
 		setParentCategoryId("")
 		setRequiresPrescription(false)
 		setIsCreateOpen(true)
-	}
+	}, [])
+
+	const requestBulkDelete = useCallback(() => {
+		if (selectedRows.length > 0) setBulkDeleteTargets(selectedRows)
+	}, [selectedRows])
+
+	useImperativeHandle(
+		ref,
+		() => ({ openCreate, requestBulkDelete }),
+		[openCreate, requestBulkDelete]
+	)
 
 	const openEdit = (cat: ProductCategory) => {
 		setEditing(cat)
@@ -142,6 +182,25 @@ export function CategoriesTable() {
 			await deleteMutation.mutateAsync(deleteTarget.id)
 			toast({ title: "Category deleted" })
 			setDeleteTarget(null)
+			setSelectionClearKey(k => k + 1)
+		} catch (e) {
+			toast({
+				title: "Delete failed",
+				description: e instanceof Error ? e.message : "Unknown error",
+				variant: "destructive",
+			})
+		}
+	}
+
+	const confirmBulkDelete = async () => {
+		if (!bulkDeleteTargets?.length) return
+		try {
+			for (const c of bulkDeleteTargets) {
+				await deleteMutation.mutateAsync(c.id)
+			}
+			toast({ title: "Categories deleted" })
+			setBulkDeleteTargets(null)
+			setSelectionClearKey(k => k + 1)
 		} catch (e) {
 			toast({
 				title: "Delete failed",
@@ -175,7 +234,25 @@ export function CategoriesTable() {
 			{
 				accessorKey: "name",
 				header: ({ column }) => <SortableHeader column={column} label="Name" />,
-				cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+				cell: ({ row }) => (
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 truncate font-medium">{row.original.name}</span>
+						{row.getIsSelected() ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+								aria-label="Delete category"
+								onClick={e => {
+									e.stopPropagation()
+									setDeleteTarget(row.original)
+								}}
+							>
+							</Button>
+						) : null}
+					</div>
+				),
 			},
 			{
 				accessorKey: "parentName",
@@ -200,6 +277,12 @@ export function CategoriesTable() {
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const c = row.original
 					return (
@@ -231,22 +314,20 @@ export function CategoriesTable() {
 		[]
 	)
 
-	const toolbarLeft = (
-		<Button size="sm" className="h-8" onClick={openCreate}>
-			<Plus className="mr-2 h-4 w-4" />
-			Add category
-		</Button>
-	)
-
 	return (
 		<>
 			<DataTable
 				data={rows}
 				columns={columns}
-				toolbarLeft={toolbarLeft}
 				isLoading={categoriesQuery.isLoading}
 				errorText={categoriesQuery.isError ? "Failed to load categories." : null}
 				searchPlaceholder="Search categories..."
+				getRowId={row => row.id}
+				onSelectedRowsChange={rows => {
+					setSelectedRows(rows)
+					onSelectionChange?.(rows)
+				}}
+				selectionClearKey={selectionClearKey}
 			/>
 
 			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -257,7 +338,12 @@ export function CategoriesTable() {
 					<div className="grid gap-4">
 						<div className="space-y-1">
 							<Label htmlFor="cat-name">Name *</Label>
-							<Input id="cat-name" value={name} onChange={e => setName(e.target.value)} />
+							<Input
+								id="cat-name"
+								value={name}
+								onChange={e => setName(e.target.value)}
+								placeholder="e.g. Pain relief"
+							/>
 						</div>
 						<div className="space-y-1">
 							<Label htmlFor="cat-parent">Parent (optional)</Label>
@@ -267,7 +353,7 @@ export function CategoriesTable() {
 								value={parentCategoryId}
 								onChange={e => setParentCategoryId(e.target.value)}
 							>
-								<option value="">No parent</option>
+								<option value="">No parent (top-level)</option>
 								{(categoriesQuery.data ?? []).map(c => (
 									<option key={c.id} value={c.id}>
 										{c.name}
@@ -283,6 +369,7 @@ export function CategoriesTable() {
 								value={description}
 								onChange={e => setDescription(e.target.value)}
 								rows={3}
+								placeholder="Brief description shown to customers (optional)"
 							/>
 						</div>
 						<div className="space-y-1">
@@ -404,7 +491,36 @@ export function CategoriesTable() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			<Dialog
+				open={!!bulkDeleteTargets?.length}
+				onOpenChange={open => {
+					if (!open) setBulkDeleteTargets(null)
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Delete {bulkDeleteTargets?.length ?? 0} categories?</DialogTitle>
+					</DialogHeader>
+					<p className="text-muted-foreground text-sm">
+						This action cannot be undone. Child categories or products may block deletion for some rows.
+					</p>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setBulkDeleteTargets(null)}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => void confirmBulkDelete()}
+							disabled={deleteMutation.isPending}
+						>
+							Delete all
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</>
 	)
-}
+})
 
+CategoriesTable.displayName = "CategoriesTable"

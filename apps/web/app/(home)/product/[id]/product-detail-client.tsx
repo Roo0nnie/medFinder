@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Star, MessageSquare } from "lucide-react"
 
+import { env } from "@/env"
 import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Textarea } from "@/core/components/ui/textarea"
@@ -36,6 +37,39 @@ export function ProductDetailClient({
 	useEffect(() => {
 		load()
 	}, [load])
+
+	useEffect(() => {
+		const started = Date.now()
+		let sessionId: string
+		try {
+			const existing = sessionStorage.getItem("mf_product_session")
+			sessionId = existing ?? crypto.randomUUID()
+			if (!existing) sessionStorage.setItem("mf_product_session", sessionId)
+		} catch {
+			sessionId = `anon-${productId}`
+		}
+		const base = env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")
+		return () => {
+			const dwellSeconds = Math.min(
+				86400,
+				Math.max(0, Math.round((Date.now() - started) / 1000))
+			)
+			const body = JSON.stringify({
+				productId,
+				dwellSeconds,
+				sessionId,
+			})
+			void fetch(`${base}/v1/analytics/product-engagement/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body,
+				keepalive: true,
+			}).catch(() => {
+				/* ignore analytics failures */
+			})
+		}
+	}, [productId])
 
 	async function handleSubmit(e: React.FormEvent) {
 		e.preventDefault()

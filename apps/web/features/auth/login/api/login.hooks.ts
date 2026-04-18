@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
+import { postSessionAuditEvent } from "@/features/dashboard/api/analytics.hooks"
 import { authClient } from "@/services/better-auth/auth-client"
 import { sessionKeys } from "@/features/auth/api/session.hooks"
 
@@ -24,7 +25,9 @@ export function useLoginMutation() {
 			queryClient.invalidateQueries({ queryKey: sessionKeys.all })
 
 			const session = await authClient.getSession()
-			const role = session?.data?.user?.email
+			const role = (session?.data?.user as { role?: string } | undefined)?.role
+
+			await postSessionAuditEvent("login")
 
 			if (role === "admin") {
 				router.push("/dashboard/admin")

@@ -12,7 +12,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/core/components/ui/alert-dialog"
-import { Button } from "@/core/components/ui/button"
 import {
 	Dialog,
 	DialogContent,
@@ -26,6 +25,7 @@ import { StaffForm } from "@/features/staff/components/staff-form"
 import { StaffTable } from "@/features/staff/components/staff-table"
 
 import { DashboardLayout } from "../../../../features/dashboard/components/DashboardLayout"
+import { Card, CardContent } from "@/core/components/ui/card"
 
 type StaffWithOptionalUser = {
 	id: string
@@ -42,11 +42,16 @@ type StaffWithOptionalUser = {
 	email?: string | null
 }
 
+type StaffDeleteState =
+	| { kind: "one"; staff: StaffWithOptionalUser }
+	| { kind: "many"; staff: StaffWithOptionalUser[] }
+
 export default function OwnerStaffPage() {
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [isEditOpen, setIsEditOpen] = useState(false)
 	const [selectedStaff, setSelectedStaff] = useState<StaffWithOptionalUser | null>(null)
-	const [staffToDelete, setStaffToDelete] = useState<StaffWithOptionalUser | null>(null)
+	const [deleteState, setDeleteState] = useState<StaffDeleteState | null>(null)
+	const [selectionClearKey, setSelectionClearKey] = useState(0)
 	const [viewStaffId, setViewStaffId] = useState<string | null>(null)
 	const [isViewOpen, setIsViewOpen] = useState(false)
 
@@ -68,37 +73,57 @@ export default function OwnerStaffPage() {
 	}
 
 	const handleDelete = (staff: StaffWithOptionalUser) => {
-		setStaffToDelete(staff)
+		setDeleteState({ kind: "one", staff })
+	}
+
+	const handleDeleteMany = (staff: StaffWithOptionalUser[]) => {
+		if (staff.length === 0) return
+		setDeleteState({ kind: "many", staff })
 	}
 
 	const handleConfirmDelete = async () => {
-		if (!staffToDelete) return
-		await deleteStaffMutation.mutateAsync({ id: staffToDelete.id } as any)
-		setStaffToDelete(null)
+		if (!deleteState) return
+		if (deleteState.kind === "one") {
+			await deleteStaffMutation.mutateAsync({ id: deleteState.staff.id } as any)
+		} else {
+			await Promise.all(
+				deleteState.staff.map(s => deleteStaffMutation.mutateAsync({ id: s.id } as any))
+			)
+		}
+		setDeleteState(null)
+		setSelectionClearKey(k => k + 1)
 	}
 
 	return (
 		<DashboardLayout role="owner">
 			<div className="space-y-6">
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<h1 className="text-foreground text-3xl font-bold tracking-tight">Staff Management</h1>
-						<p className="text-muted-foreground mt-2 text-sm">
-							Manage staff connected to your pharmacies. You can add, update, and deactivate staff
-							members here.
-						</p>
-					</div>
-					<Button onClick={handleCreateOpen} className="mt-2 sm:mt-0">
-						Add staff
-					</Button>
+				<div>
+					<h1 className="text-foreground text-3xl font-bold tracking-tight">Staff Management</h1>
+					<p className="text-muted-foreground mt-2 text-sm">
+						Manage staff connected to your pharmacies. You can add, update, and deactivate staff
+						members here.
+					</p>
 				</div>
 
-				<div className="border-border bg-card rounded-xl border p-4 shadow-sm">
-					<StaffTable onView={handleView} onEdit={handleEdit} onDelete={handleDelete} />
-				</div>
+				<Card>
+					<CardContent className="space-y-3 p-4 sm:p-6">
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+							<h2 className="text-lg font-semibold">Staff Management</h2>
+						</div>
+
+						<StaffTable
+						onView={handleView}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+						onDeleteMany={handleDeleteMany}
+						onAddStaff={handleCreateOpen}
+						selectionClearKey={selectionClearKey}
+					/>
+					</CardContent>
+				</Card>
 
 				<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-					<DialogContent>
+					<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
 						<DialogHeader>
 							<DialogTitle>Add staff member</DialogTitle>
 						</DialogHeader>
@@ -112,7 +137,7 @@ export default function OwnerStaffPage() {
 				</Dialog>
 
 				<Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-					<DialogContent>
+					<DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
 						<DialogHeader>
 							<DialogTitle>Edit staff member</DialogTitle>
 						</DialogHeader>
@@ -129,12 +154,23 @@ export default function OwnerStaffPage() {
 					</DialogContent>
 				</Dialog>
 
-				<AlertDialog open={!!staffToDelete} onOpenChange={open => !open && setStaffToDelete(null)}>
+				<AlertDialog open={!!deleteState} onOpenChange={open => !open && setDeleteState(null)}>
 					<AlertDialogContent>
 						<AlertDialogHeader>
-							<AlertDialogTitle>Delete staff member</AlertDialogTitle>
+							<AlertDialogTitle>
+								{deleteState?.kind === "many"
+									? `Delete ${deleteState.staff.length} staff members`
+									: "Delete staff member"}
+							</AlertDialogTitle>
 							<AlertDialogDescription>
-								Are you sure you want to delete this staff profile? This action cannot be undone.
+								{deleteState?.kind === "many" ? (
+									<>
+										Are you sure you want to delete {deleteState.staff.length} selected staff
+										profiles? This action cannot be undone.
+									</>
+								) : (
+									"Are you sure you want to delete this staff profile? This action cannot be undone."
+								)}
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>

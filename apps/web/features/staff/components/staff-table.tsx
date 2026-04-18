@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Badge } from "@/core/components/ui/badge"
 import { Button } from "@/core/components/ui/button"
@@ -47,6 +47,11 @@ interface StaffTableProps {
 	onView?: (staff: StaffWithUser) => void
 	onEdit?: (staff: StaffWithUser) => void
 	onDelete?: (staff: StaffWithUser) => void
+	/** Delete several selected rows at once (toolbar + confirm in parent). */
+	onDeleteMany?: (staff: StaffWithUser[]) => void
+	onAddStaff?: () => void
+	/** Increment after deletes so the table clears row selection. */
+	selectionClearKey?: number | string
 }
 
 function StatusBadge({ isActive }: { isActive: boolean }) {
@@ -68,11 +73,19 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 	)
 }
 
-export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
+export function StaffTable({
+	onView,
+	onEdit,
+	onDelete,
+	onDeleteMany,
+	onAddStaff,
+	selectionClearKey,
+}: StaffTableProps) {
 	const [pageSize, setPageSize] = useState(10)
 	const [pageIndex, setPageIndex] = useState(0)
 	const [activeFilter, setActiveFilter] = useState<"active" | "inactive" | "all">("active")
 	const [search, setSearch] = useState("")
+	const [selectedRows, setSelectedRows] = useState<StaffWithUser[]>([])
 
 	const isActiveFilterValue = activeFilter === "all" ? undefined : activeFilter === "active"
 
@@ -131,7 +144,25 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 				accessorKey: "userName",
 				header: ({ column }) => <SortableHeader column={column} label="Name" />,
 				cell: ({ row }) => (
-					<span className="font-medium">{row.original.userName || row.original.id}</span>
+					<div className="flex min-w-0 items-center gap-2">
+						<span className="min-w-0 truncate font-medium">
+							{row.original.userName || row.original.id}
+						</span>
+						{row.getIsSelected() && onDelete ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+								aria-label="Delete staff member"
+								onClick={e => {
+									e.stopPropagation()
+									onDelete(row.original)
+								}}
+							>
+							</Button>
+						) : null}
+					</div>
 				),
 			},
 			{
@@ -158,6 +189,12 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 			},
 			{
 				id: "actions",
+				header: () => (
+					<div className="text-right">
+						<span className="text-xs font-semibold">Action</span>
+					</div>
+				),
+				enableSorting: false,
 				cell: ({ row }) => {
 					const staff = row.original
 					return (
@@ -208,6 +245,31 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 		console.error("Failed to load staff list:", error)
 	}
 
+	const showBulkDelete = Boolean(onDeleteMany && selectedRows.length > 0)
+	const toolbarAboveSearch =
+		onAddStaff || showBulkDelete ? (
+			<div className="flex flex-wrap items-center justify-end gap-2">
+				{onAddStaff ? (
+					<Button size="sm" className="h-8" onClick={onAddStaff}>
+						<Plus className="mr-2 h-4 w-4" />
+						Add staff
+					</Button>
+				) : null}
+				{showBulkDelete ? (
+					<Button
+						variant="destructive"
+						size="sm"
+						className="h-8"
+						onClick={() => onDeleteMany?.(selectedRows)}
+					>
+						<Trash2 className="mr-2 h-4 w-4" />
+						Delete {selectedRows.length}{" "}
+						{selectedRows.length === 1 ? "staff member" : "staff members"}
+					</Button>
+				) : null}
+			</div>
+		) : null
+
 	const toolbarRight = (
 		<Select
 			value={activeFilter}
@@ -231,6 +293,7 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 		<DataTable
 			data={items}
 			columns={columns}
+			toolbarAboveSearch={toolbarAboveSearch}
 			toolbarRight={toolbarRight}
 			onDebouncedSearchChange={value => {
 				setSearch(value)
@@ -254,6 +317,9 @@ export function StaffTable({ onView, onEdit, onDelete }: StaffTableProps) {
 					setPageIndex(0)
 				},
 			}}
+			getRowId={row => row.id}
+			onSelectedRowsChange={setSelectedRows}
+			selectionClearKey={selectionClearKey}
 		/>
 	)
 }

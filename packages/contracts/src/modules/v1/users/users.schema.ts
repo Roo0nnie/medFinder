@@ -16,6 +16,7 @@ const baseUserSchema = z.object({
 	firstName: z.string().nullable().optional(),
 	lastName: z.string(),
 	middleName: z.string().nullable().optional(),
+	phone: z.string().nullable().optional(),
 	role: userRoleSchema,
 	createdAt: z
 		.union([z.date(), z.string()])
@@ -43,6 +44,7 @@ export const UpdateUserSchema = z.object({
 	role: userRoleSchema.optional(),
 	email: z.string().email().optional(),
 	profileImageUrl: z.string().optional(),
+	phone: z.string().optional(),
 })
 
 export const UserIdSchema = z.object({

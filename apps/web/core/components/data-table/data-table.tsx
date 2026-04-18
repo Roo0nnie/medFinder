@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
 	flexRender,
 	getCoreRowModel,
@@ -9,6 +9,7 @@ import {
 	getSortedRowModel,
 	useReactTable,
 	type ColumnDef,
+	type RowSelectionState,
 	type SortingState,
 } from "@tanstack/react-table"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
@@ -45,6 +46,8 @@ export type DataTableProps<TData> = {
 	/** Optional top-right / top-left extra controls (filters, selects, etc). */
 	toolbarRight?: ReactNode
 	toolbarLeft?: ReactNode
+	/** Renders above the search (and `toolbarRight`) in the right column stack. */
+	toolbarAboveSearch?: ReactNode
 
 	searchPlaceholder?: string
 	debounceMs?: number
@@ -61,6 +64,13 @@ export type DataTableProps<TData> = {
 	totalCount?: number
 	pagination?: PaginationControls
 	pageSizeOptions?: number[]
+
+	/** Stable row id for selection (required when using manual pagination + row selection). */
+	getRowId?: (originalRow: TData, index: number) => string
+	/** Called when row selection changes; use for bulk actions. */
+	onSelectedRowsChange?: (rows: TData[]) => void
+	/** When this value changes, row selection is cleared (e.g. after a successful bulk delete). */
+	selectionClearKey?: number | string
 }
 
 export function DataTable<TData>({
@@ -68,6 +78,7 @@ export function DataTable<TData>({
 	columns,
 	toolbarLeft,
 	toolbarRight,
+	toolbarAboveSearch,
 	searchPlaceholder = "Search...",
 	debounceMs = 300,
 	onDebouncedSearchChange,
@@ -77,9 +88,12 @@ export function DataTable<TData>({
 	totalCount,
 	pagination,
 	pageSizeOptions = [5, 10, 20],
+	getRowId,
+	onSelectedRowsChange,
+	selectionClearKey,
 }: DataTableProps<TData>) {
 	const [sorting, setSorting] = useState<SortingState>([])
-	const [rowSelection, setRowSelection] = useState({})
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 	const [searchInput, setSearchInput] = useState("")
 	const [globalFilter, setGlobalFilter] = useState("")
 
@@ -107,9 +121,20 @@ export function DataTable<TData>({
 		return () => clearTimeout(timeout)
 	}, [searchInput, debounceMs, onDebouncedSearchChange])
 
+	const selectionClearDidInit = useRef(false)
+	useEffect(() => {
+		if (selectionClearKey === undefined) return
+		if (!selectionClearDidInit.current) {
+			selectionClearDidInit.current = true
+			return
+		}
+		setRowSelection({})
+	}, [selectionClearKey])
+
 	const table = useReactTable({
 		data,
 		columns,
+		...(getRowId ? { getRowId } : {}),
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
@@ -130,6 +155,18 @@ export function DataTable<TData>({
 				? Math.ceil(totalCount / pageSize) || 0
 				: undefined,
 	})
+
+	const tableRef = useRef(table)
+	tableRef.current = table
+
+	const onSelectedRowsChangeRef = useRef(onSelectedRowsChange)
+	onSelectedRowsChangeRef.current = onSelectedRowsChange
+
+	useEffect(() => {
+		const cb = onSelectedRowsChangeRef.current
+		if (!cb) return
+		cb(tableRef.current.getSelectedRowModel().rows.map(row => row.original))
+	}, [rowSelection, data])
 
 	const filteredRowCount = table.getFilteredRowModel().rows.length
 	const effectiveTotalCount = useMemo(() => {
@@ -174,19 +211,24 @@ export function DataTable<TData>({
 					{toolbarLeft ? <div className="min-w-0">{toolbarLeft}</div> : null}
 				</div>
 
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-					{toolbarRight ? <div className="min-w-0">{toolbarRight}</div> : null}
-					<div className="relative w-full sm:w-64">
-						<Search className="text-muted-foreground pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2" />
-						<Input
-							placeholder={searchPlaceholder}
-							value={searchInput}
-							onChange={e => {
-								setSearchInput(e.target.value)
-								setPageIndex(0)
-							}}
-							className="h-8 w-full pl-8"
-						/>
+				<div className="flex flex-col gap-2 sm:items-end">
+					{toolbarAboveSearch ? (
+						<div className="flex w-full justify-start sm:justify-end">{toolbarAboveSearch}</div>
+					) : null}
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+						{toolbarRight ? <div className="min-w-0">{toolbarRight}</div> : null}
+						<div className="relative w-full sm:w-64">
+							<Search className="text-muted-foreground pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2" />
+							<Input
+								placeholder={searchPlaceholder}
+								value={searchInput}
+								onChange={e => {
+									setSearchInput(e.target.value)
+									setPageIndex(0)
+								}}
+								className="h-8 w-full pl-8"
+							/>
+						</div>
 					</div>
 				</div>
 			</div>

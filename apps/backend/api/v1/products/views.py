@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, owner_id_from_pharmacy_id, owner_id_from_product_id, safe_log_audit_event
 from api.v1.inventory import services as inventory_services
 from api.v1.inventory.models import PharmacyInventory
 from api.v1.pharmacies.models import Pharmacy
@@ -16,6 +17,19 @@ from api.v1.users.permissions import IsOwner
 
 from . import services
 from .models import MedicalProduct, MedicalProductVariant, ProductCategory
+from .serializers import (
+    MedicalProductCreateSerializer,
+    MedicalProductSerializer,
+    MedicalProductUpdateSerializer,
+    MedicalProductVariantSerializer,
+    ProductBrandAvailabilitySerializer,
+    ProductCategoryCreateSerializer,
+    ProductCategorySerializer,
+    ProductCategoryUpdateSerializer,
+    ProductPharmacyForBrandSerializer,
+    ProductVariantCreateSerializer,
+    ProductVariantUpdateSerializer,
+)
 
 _APPROVED_PHARMACY_IDS_CACHE_KEY = "v1:approved_active_pharmacy_ids"
 _APPROVED_PHARMACY_IDS_CACHE_TTL = 60
@@ -31,19 +45,6 @@ def _get_cached_approved_pharmacy_ids():
     )
     cache.set(_APPROVED_PHARMACY_IDS_CACHE_KEY, ids, _APPROVED_PHARMACY_IDS_CACHE_TTL)
     return ids
-from .serializers import (
-    MedicalProductCreateSerializer,
-    MedicalProductSerializer,
-    MedicalProductUpdateSerializer,
-    MedicalProductVariantSerializer,
-    ProductBrandAvailabilitySerializer,
-    ProductCategoryCreateSerializer,
-    ProductCategorySerializer,
-    ProductCategoryUpdateSerializer,
-    ProductPharmacyForBrandSerializer,
-    ProductVariantCreateSerializer,
-    ProductVariantUpdateSerializer,
-)
 
 
 def _is_public_request(request) -> bool:
@@ -164,10 +165,22 @@ class ProductListView(APIView):
             customer_id = None
             if request.user and request.user.is_authenticated:
                 customer_id = str(getattr(request.user, "id", None))
+            matched_owner_ids: list[str] = []
+            if product_list:
+                pharmacy_ids = {
+                    getattr(p, "pharmacy_id", None) for p in product_list if getattr(p, "pharmacy_id", None)
+                }
+                if pharmacy_ids:
+                    matched_owner_ids = list(
+                        Pharmacy.objects.filter(id__in=pharmacy_ids)
+                        .values_list("owner_id", flat=True)
+                        .distinct()
+                    )
             services.log_product_search(
                 search_query=query,
                 customer_id=customer_id,
                 results_count=len(product_list),
+                matched_owner_ids=matched_owner_ids,
             )
 
         serializer = MedicalProductSerializer(product_list, many=True)
@@ -447,6 +460,18 @@ class ProductVariantsListView(APIView):
             image_url=data.get("imageUrl"),
             image_urls=data.get("imageUrls"),
         )
+        oid = owner_id_from_product_id(pk)
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="CREATE",
+                resource_type="MedicalProductVariant",
+                resource_id=variant.id,
+                details=f"product={pk}",
+            )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -510,6 +535,18 @@ class ProductVariantDetailView(APIView):
             image_url=data.get("imageUrl"),
             image_urls=data.get("imageUrls"),
         )
+        oid = owner_id_from_product_id(pk)
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="UPDATE",
+                resource_type="MedicalProductVariant",
+                resource_id=variant.id,
+                details=f"product={pk}",
+            )
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data)
 
@@ -536,10 +573,23 @@ class ProductVariantDetailView(APIView):
                 {"detail": "You do not have permission to delete this variant."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        oid = owner_id_from_product_id(pk)
+        vid = variant_pk
+        actor_uid, actor_role = audit_actor_from_request(request)
         try:
             result = services.delete_variant(variant_pk)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if oid:
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="DELETE",
+                resource_type="MedicalProductVariant",
+                resource_id=str(vid),
+                details=f"product={pk}",
+            )
         return Response(result)
 
 
@@ -589,6 +639,16 @@ class ProductCategoryListView(APIView):
             description=data.get("description"),
             parent_category_id=data.get("parentCategoryId"),
             requires_prescription=data.get("requiresPrescription"),
+        )
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(category.owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="CREATE",
+            resource_type="ProductCategory",
+            resource_id=category.id,
+            details=category.name or "",
         )
         out_serializer = ProductCategorySerializer(category)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -641,6 +701,16 @@ class ProductCategoryDetailView(APIView):
             parent_category_id=data.get("parentCategoryId"),
             requires_prescription=data.get("requiresPrescription"),
         )
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(category.owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="UPDATE",
+            resource_type="ProductCategory",
+            resource_id=category.id,
+            details=category.name or "",
+        )
         out_serializer = ProductCategorySerializer(category)
         return Response(out_serializer.data)
 
@@ -659,7 +729,18 @@ class ProductCategoryDetailView(APIView):
                 {"detail": "Cannot delete category because it is used by existing products."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        oid = str(category.owner_id)
+        actor_uid, actor_role = audit_actor_from_request(request)
         services.delete_category(pk)
+        safe_log_audit_event(
+            owner_id=oid,
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="DELETE",
+            resource_type="ProductCategory",
+            resource_id=pk,
+            details="",
+        )
         return Response({"success": True, "id": pk})
 
 
@@ -756,6 +837,17 @@ class ProductManageView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="CREATE",
+            resource_type="MedicalProduct",
+            resource_id=product.id,
+            details=product.name or "",
+        )
 
         out_serializer = MedicalProductSerializer(product)
         out_data = dict(out_serializer.data)
@@ -883,6 +975,18 @@ class ProductManageDetailView(APIView):
                         is_available=inv_data["isAvailable"] if inv_data["isAvailable"] is not None else True,
                         last_restocked=inv_data["lastRestocked"],
                     )
+        oid_put = owner_id_from_pharmacy_id(product.pharmacy_id)
+        if oid_put:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid_put,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="UPDATE",
+                resource_type="MedicalProduct",
+                resource_id=product.id,
+                details=product.name or "",
+            )
         out_serializer = MedicalProductSerializer(product)
         return Response(out_serializer.data)
 
@@ -897,7 +1001,21 @@ class ProductManageDetailView(APIView):
                 {"detail": "You do not have permission to delete this product."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        oid_del = owner_id_from_pharmacy_id(product.pharmacy_id)
+        pid = pk
+        pname = product.name or ""
+        actor_uid, actor_role = audit_actor_from_request(request)
         services.delete_product(pk)
+        if oid_del:
+            safe_log_audit_event(
+                owner_id=oid_del,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="DELETE",
+                resource_type="MedicalProduct",
+                resource_id=str(pid),
+                details=pname,
+            )
         return Response({"success": True, "id": pk})
 
 
@@ -945,6 +1063,20 @@ class ProductManageVariantImageUploadView(APIView):
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        oid_img = owner_id_from_product_id(pk)
+        if oid_img:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            fname = getattr(upload, "name", "") or ""
+            safe_log_audit_event(
+                owner_id=oid_img,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="UPDATE",
+                resource_type="MedicalProductVariant",
+                resource_id=str(variant_pk),
+                details=f"image_upload file={fname[:200]} product={pk}",
+            )
 
         out_serializer = MedicalProductVariantSerializer(variant)
         return Response(out_serializer.data, status=status.HTTP_200_OK)

@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, safe_log_audit_event
 from api.v1.users.permissions import IsOwner
 
 from .models import Staff
@@ -112,6 +113,16 @@ class StaffCreateView(APIView):
             is_active=data.get("isActive", True),
         )
 
+        safe_log_audit_event(
+            owner_id=str(staff.owner_id),
+            actor_user_id=str(request.user.id),
+            actor_role=str(getattr(request.user, "role", "") or "owner"),
+            action="CREATE",
+            resource_type="Staff",
+            resource_id=staff.id,
+            details=f"{staff.department} · {staff.position}",
+        )
+
         out_serializer = StaffDetailSerializer(staff)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -181,6 +192,17 @@ class StaffDetailView(APIView):
             is_active=data.get("isActive"),
         )
 
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=str(staff.owner_id),
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="UPDATE",
+            resource_type="Staff",
+            resource_id=staff.id,
+            details=f"{staff.department} · {staff.position}",
+        )
+
         out_serializer = StaffDetailSerializer(staff)
         return Response(out_serializer.data)
 
@@ -203,5 +225,17 @@ class StaffDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        owner_id = str(staff.owner_id)
+        sid = staff.id
+        actor_uid, actor_role = audit_actor_from_request(request)
         result = services.delete_staff(pk)
+        safe_log_audit_event(
+            owner_id=owner_id,
+            actor_user_id=actor_uid,
+            actor_role=actor_role,
+            action="DELETE",
+            resource_type="Staff",
+            resource_id=sid,
+            details="",
+        )
         return Response(result)
