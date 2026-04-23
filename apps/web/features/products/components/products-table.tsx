@@ -242,13 +242,20 @@ export function ProductsTable({
 		[]
 	)
 
+	const selectedBrandLabel =
+		!filterBrandId ? "All brands" : (myBrands ?? []).find(b => b.id === filterBrandId)?.name ?? "Brand"
+	const selectedCategoryLabel =
+		!filterCategoryId
+			? "All categories"
+			: (categories ?? []).find(c => c.id === filterCategoryId)?.name ?? "Category"
+
 	const toolbarRight = (
 		<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 			<Select value={filterBrandId} onValueChange={v => setFilterBrandId(v ?? "")}>
 				<SelectTrigger className="h-8 w-full min-w-40 sm:w-48">
 					<div className="flex min-w-0 items-center gap-2">
 						<Tag className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
-						<SelectValue />
+						<span className="truncate">{selectedBrandLabel}</span>
 					</div>
 				</SelectTrigger>
 				<SelectContent>
@@ -264,7 +271,7 @@ export function ProductsTable({
 				<SelectTrigger className="h-8 w-full min-w-40 sm:w-48">
 					<div className="flex min-w-0 items-center gap-2">
 						<FolderTree className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden />
-						<SelectValue />
+						<span className="truncate">{selectedCategoryLabel}</span>
 					</div>
 				</SelectTrigger>
 				<SelectContent>

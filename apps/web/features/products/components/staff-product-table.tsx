@@ -32,6 +32,7 @@ import {
 	TableRow,
 } from "@/core/components/ui/table"
 
+import { postAuditEvent } from "@/features/dashboard/api/analytics.hooks"
 import type { Product, ProductCategory } from "../api/products.hooks"
 
 function isLowStock(product: Product): boolean {
@@ -102,22 +103,7 @@ export function StaffProductTable({
 					<span className="font-semibold">{row.original.name}</span>
 				),
 			},
-			{
-				id: "pharmacy",
-				accessorFn: row => {
-					const pid = row.pharmacyId
-					return pid ? (pharmacyMap.get(pid) ?? pid) : ""
-				},
-				header: ({ column }) => <SortableHeader column={column} label="Pharmacy" />,
-				cell: ({ row }) => {
-					const pid = row.original.pharmacyId
-					return (
-						<span className="text-muted-foreground">
-							{pid ? pharmacyMap.get(pid) ?? pid : "—"}
-						</span>
-					)
-				},
-			},
+		
 			{
 				id: "brandGeneric",
 				accessorFn: row => (row.brandName || row.genericName || "").toLowerCase(),
@@ -182,7 +168,15 @@ export function StaffProductTable({
 							variant="link"
 							size="sm"
 							className="h-auto p-0 text-primary"
-							onClick={() => onView(row.original)}
+							onClick={() => {
+								void postAuditEvent({
+									action: "VIEW",
+									resourceType: "MedicalProduct",
+									resourceId: row.original.id,
+									details: row.original.name ?? "",
+								})
+								onView(row.original)
+							}}
 						>
 							View
 						</Button>
@@ -203,15 +197,12 @@ export function StaffProductTable({
 		onSortingChange: setSorting,
 		onGlobalFilterChange: setGlobalFilter,
 		onPaginationChange: updater => {
-			const next = updater({
-				sorting,
-				globalFilter,
-				pagination: { pageIndex, pageSize },
-			})
-			if (next?.pagination) {
-				setPageIndex(next.pagination.pageIndex)
-				setPageSize(next.pagination.pageSize)
-			}
+			const next =
+				typeof updater === "function"
+					? updater({ pageIndex, pageSize })
+					: updater
+			setPageIndex(next.pageIndex)
+			setPageSize(next.pageSize)
 		},
 		globalFilterFn: (row, _columnId, filterValue) => {
 			if (!filterValue || typeof filterValue !== "string") return true
@@ -229,6 +220,17 @@ export function StaffProductTable({
 			pagination: { pageIndex, pageSize },
 		},
 	})
+
+	const selectedCategoryLabel =
+		categoryFilter === "all"
+			? "All categories"
+			: categoryMap.get(categoryFilter) ?? "Category"
+	const selectedStockLabel =
+		stockFilter === "all"
+			? "All stock"
+			: stockFilter === "low"
+				? "Low stock"
+				: "High stock"
 
 	useEffect(() => {
 		const t = setTimeout(() => setGlobalFilter(searchInput), 300)
@@ -271,12 +273,12 @@ export function StaffProductTable({
 					<Select
 						value={categoryFilter}
 						onValueChange={v => {
-							setCategoryFilter(v)
+							setCategoryFilter(v ?? "all")
 							setPageIndex(0)
 						}}
 					>
 						<SelectTrigger className="h-8 w-full min-w-32 sm:w-40">
-							<SelectValue placeholder="Category" />
+							<span className="truncate">{selectedCategoryLabel}</span>
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="all">All categories</SelectItem>
@@ -290,12 +292,12 @@ export function StaffProductTable({
 					<Select
 						value={stockFilter}
 						onValueChange={v => {
-							setStockFilter(v as "all" | "low" | "high")
+							setStockFilter((v ?? "all") as "all" | "low" | "high")
 							setPageIndex(0)
 						}}
 					>
 						<SelectTrigger className="h-8 w-full min-w-32 sm:w-40">
-							<SelectValue placeholder="Stock" />
+							<span className="truncate">{selectedStockLabel}</span>
 						</SelectTrigger>
 						<SelectContent>
 							<SelectItem value="all">All stock</SelectItem>

@@ -169,6 +169,27 @@ export function useOwnerAuditEventsQuery(limit = 200) {
 	})
 }
 
+export async function postAuditEvent(input: {
+	action: "VIEW" | "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "LOGOUT" | "APPROVE" | "REJECT"
+	resourceType: string
+	resourceId?: string | null
+	details?: string | null
+}): Promise<void> {
+	try {
+		await apiFetch<{ success: boolean }>("/v1/analytics/audit-events/", {
+			method: "POST",
+			body: JSON.stringify({
+				action: input.action,
+				resourceType: input.resourceType,
+				resourceId: input.resourceId ?? undefined,
+				details: input.details ?? undefined,
+			}),
+		})
+	} catch {
+		/* non-fatal */
+	}
+}
+
 /** Owner/staff session telemetry for audit log (best-effort; failures ignored). */
 export async function postSessionAuditEvent(event: "login" | "logout"): Promise<void> {
 	try {

@@ -543,7 +543,7 @@ export function LandingProductSection({ isCustomer = false }: { isCustomer?: boo
 	}, [brandKey, brandOptions])
 
 	return (
-		<div className="w-full space-y-6">
+		<div id="find-product" className="w-full space-y-6">
 			<section
 				ref={headingRef}
 				className={`space-y-2 transition-all duration-700 ${headingInView ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}

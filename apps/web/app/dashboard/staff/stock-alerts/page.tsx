@@ -11,7 +11,7 @@ import {
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table"
-import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Search, Trash2 } from "lucide-react"
 
 import {
 	AlertDialog,
@@ -94,7 +94,6 @@ export default function StaffStockAlertsPage() {
 	const [globalFilter, setGlobalFilter] = useState("")
 	const [pageSize, setPageSize] = useState(10)
 	const [pageIndex, setPageIndex] = useState(0)
-	const [pharmacyFilter, setPharmacyFilter] = useState<string>("all")
 	const [categoryFilter, setCategoryFilter] = useState<string>("all")
 	const [stockFilter, setStockFilter] = useState<
 		"all" | "low" | "ok" | "out" | "unavailable"
@@ -147,16 +146,8 @@ export default function StaffStockAlertsPage() {
 		})
 	}, [inventory, productMap, categoryMap])
 
-	const pharmacyOptions = useMemo(() => {
-		const ids = new Set(rows.map(r => r.pharmacyId))
-		return pharmacies.filter(p => ids.has(p.id))
-	}, [rows, pharmacies])
-
 	const filteredRows = useMemo(() => {
 		let list = rows
-		if (pharmacyFilter !== "all") {
-			list = list.filter(r => r.pharmacyId === pharmacyFilter)
-		}
 		if (categoryFilter !== "all") {
 			list = list.filter(r => productMap.get(r.productId)?.categoryId === categoryFilter)
 		}
@@ -170,7 +161,7 @@ export default function StaffStockAlertsPage() {
 			list = list.filter(r => r.stockKind === "not_for_sale")
 		}
 		return list
-	}, [rows, pharmacyFilter, categoryFilter, stockFilter, productMap])
+	}, [rows, categoryFilter, stockFilter, productMap])
 
 	const columns = useMemo<ColumnDef<StockAlertRow>[]>(
 		() => [
@@ -181,16 +172,7 @@ export default function StaffStockAlertsPage() {
 					<span className="font-medium">{row.original.productName}</span>
 				),
 			},
-			{
-				id: "pharmacy",
-				header: "Pharmacy",
-				accessorFn: row => pharmacyMap.get(row.pharmacyId) ?? row.pharmacyId,
-				cell: ({ row }) => (
-					<span className="text-muted-foreground">
-						{pharmacyMap.get(row.original.pharmacyId) ?? row.original.pharmacyId}
-					</span>
-				),
-			},
+			
 			{
 				id: "category",
 				header: "Category",
@@ -321,6 +303,21 @@ export default function StaffStockAlertsPage() {
 		},
 	})
 
+	const selectedCategoryLabel =
+		categoryFilter === "all"
+			? "All categories"
+			: categoryMap.get(categoryFilter) ?? "Category"
+	const selectedStockLabel =
+		stockFilter === "all"
+			? "All stock"
+			: stockFilter === "low"
+				? "Low stock"
+				: stockFilter === "ok"
+					? "In stock"
+					: stockFilter === "out"
+						? "Out of stock"
+						: "Not for sale"
+
 	useEffect(() => {
 		const t = setTimeout(() => setGlobalFilter(searchInput), 300)
 		return () => clearTimeout(t)
@@ -328,7 +325,7 @@ export default function StaffStockAlertsPage() {
 
 	useEffect(() => {
 		table.setPageIndex(0)
-	}, [pharmacyFilter, categoryFilter, stockFilter])
+	}, [categoryFilter, stockFilter])
 
 	const handleSaveEdit = async () => {
 		if (!editingRow) return
@@ -418,35 +415,16 @@ export default function StaffStockAlertsPage() {
 							</Select>
 							<span className="text-muted-foreground text-sm">entries</span>
 						</div>
-						<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-							<Select
-								value={pharmacyFilter}
-								onValueChange={v => {
-									setPharmacyFilter(v)
-									setPageIndex(0)
-								}}
-							>
-								<SelectTrigger className="h-8 min-w-32 sm:w-40">
-									<SelectValue placeholder="Pharmacy" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All pharmacies</SelectItem>
-									{pharmacyOptions.map(p => (
-										<SelectItem key={p.id} value={p.id}>
-											{p.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 							<Select
 								value={categoryFilter}
 								onValueChange={v => {
-									setCategoryFilter(v)
+									setCategoryFilter(v ?? "all")
 									setPageIndex(0)
 								}}
 							>
 								<SelectTrigger className="h-8 min-w-32 sm:w-40">
-									<SelectValue placeholder="Category" />
+									<span className="truncate">{selectedCategoryLabel}</span>
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="all">All categories</SelectItem>
@@ -465,7 +443,7 @@ export default function StaffStockAlertsPage() {
 								}}
 							>
 								<SelectTrigger className="h-8 min-w-32 sm:w-40">
-									<SelectValue placeholder="Stock" />
+									<span className="truncate">{selectedStockLabel}</span>
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="all">All stock</SelectItem>
@@ -475,15 +453,18 @@ export default function StaffStockAlertsPage() {
 									<SelectItem value="unavailable">Not for sale</SelectItem>
 								</SelectContent>
 							</Select>
-							<Input
-								placeholder="Search products..."
-								value={searchInput}
-								onChange={e => {
-									setSearchInput(e.target.value)
-									setPageIndex(0)
-								}}
-								className="h-8 w-full sm:w-64"
-							/>
+							<div className="relative w-full sm:w-64">
+								<Search className="text-muted-foreground pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2" />
+								<Input
+									placeholder="Search products..."
+									value={searchInput}
+									onChange={e => {
+										setSearchInput(e.target.value)
+										setPageIndex(0)
+									}}
+									className="h-8 w-full pl-8"
+								/>
+							</div>
 						</div>
 					</div>
 
@@ -557,8 +538,8 @@ export default function StaffStockAlertsPage() {
 								variant="outline"
 								size="icon"
 								className="h-8 w-8"
-								onClick={() => setPageIndex(i => Math.max(i - 1, 0))}
-								disabled={pageIndex === 0}
+								onClick={() => table.previousPage()}
+								disabled={!table.getCanPreviousPage()}
 								aria-label="Previous page"
 							>
 								<ChevronLeft className="h-4 w-4" />
@@ -566,10 +547,10 @@ export default function StaffStockAlertsPage() {
 							{Array.from({ length: pageCount }, (_, i) => i + 1).map(p => (
 								<Button
 									key={p}
-									variant={pageIndex === p - 1 ? "default" : "outline"}
+									variant={table.getState().pagination.pageIndex === p - 1 ? "default" : "outline"}
 									size="icon"
 									className="h-8 w-8"
-									onClick={() => setPageIndex(p - 1)}
+									onClick={() => table.setPageIndex(p - 1)}
 									aria-label={`Page ${p}`}
 								>
 									{p}
@@ -579,8 +560,8 @@ export default function StaffStockAlertsPage() {
 								variant="outline"
 								size="icon"
 								className="h-8 w-8"
-								onClick={() => setPageIndex(i => Math.min(i + 1, pageCount - 1))}
-								disabled={pageIndex >= pageCount - 1 || pageCount === 0}
+								onClick={() => table.nextPage()}
+								disabled={!table.getCanNextPage()}
 								aria-label="Next page"
 							>
 								<ChevronRight className="h-4 w-4" />

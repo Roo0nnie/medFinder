@@ -145,6 +145,10 @@ class InventoryDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        prev_quantity = int(getattr(record, "quantity", 0) or 0)
+        prev_price = str(getattr(record, "price", "") or "")
+        prev_is_available = bool(getattr(record, "is_available", True))
+
         if not _can_modify_inventory(request.user, record.pharmacy_id):
             return Response(
                 {"detail": "You do not have permission to update this inventory record."},
@@ -170,6 +174,19 @@ class InventoryDetailView(APIView):
         oid = owner_id_from_pharmacy_id(record.pharmacy_id)
         if oid:
             actor_uid, actor_role = audit_actor_from_request(request)
+            changes = []
+            new_quantity = int(getattr(record, "quantity", 0) or 0)
+            new_price = str(getattr(record, "price", "") or "")
+            new_is_available = bool(getattr(record, "is_available", True))
+            if new_quantity != prev_quantity:
+                changes.append(f"quantity {prev_quantity}->{new_quantity}")
+            if new_price != prev_price:
+                changes.append(f"price {prev_price}->{new_price}")
+            if new_is_available != prev_is_available:
+                changes.append(f"isAvailable {str(prev_is_available).lower()}->{str(new_is_available).lower()}")
+            details = f"product={record.product_id}"
+            if changes:
+                details = f"{details} " + ", ".join(changes)
             safe_log_audit_event(
                 owner_id=oid,
                 actor_user_id=actor_uid,
@@ -177,7 +194,7 @@ class InventoryDetailView(APIView):
                 action="UPDATE",
                 resource_type="PharmacyInventory",
                 resource_id=record.id,
-                details=f"product={record.product_id}",
+                details=details,
             )
 
         out_serializer = PharmacyInventorySerializer(record)

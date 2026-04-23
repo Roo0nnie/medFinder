@@ -375,12 +375,22 @@ class AuditEventsListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            owner_id = authz.resolve_owner_id_for_owner_stats(request)
-        except ValidationError as e:
-            return Response(e.detail, status=400)
-        except PermissionDenied as e:
-            return Response({"detail": e.detail}, status=403)
+        owner_id = None
+        user = request.user
+        role = getattr(user, "role", None) or ""
+        if role == "staff":
+            from api.v1.analytics.audit_helpers import owner_id_for_staff_user
+
+            owner_id = owner_id_for_staff_user(str(getattr(user, "id", "") or ""))
+            if not owner_id:
+                return Response({"items": []})
+        else:
+            try:
+                owner_id = authz.resolve_owner_id_for_owner_stats(request)
+            except ValidationError as e:
+                return Response(e.detail, status=400)
+            except PermissionDenied as e:
+                return Response({"detail": e.detail}, status=403)
         try:
             limit = int(request.query_params.get("limit", "200"))
         except ValueError:
@@ -388,6 +398,63 @@ class AuditEventsListView(APIView):
         limit = max(1, min(limit, 500))
         rows = services.list_audit_events_for_owner(owner_id=owner_id, limit=limit)
         return Response({"items": rows})
+
+    def post(self, request):
+        """
+        POST an audit event for the current tenant owner.
+        Intended for staff/owner client-side events (e.g. VIEW).
+        """
+        from api.v1.analytics.audit_helpers import (
+            audit_actor_from_request,
+            owner_id_for_staff_user,
+            safe_log_audit_event,
+        )
+
+        raw = request.data if isinstance(request.data, dict) else {}
+        action = str(raw.get("action") or "").strip().upper()
+        resource_type = str(raw.get("resourceType") or raw.get("resource_type") or "").strip()
+        resource_id = raw.get("resourceId") or raw.get("resource_id")
+        details = str(raw.get("details") or "")
+
+        allowed_actions = {
+            "VIEW",
+            "CREATE",
+            "UPDATE",
+            "DELETE",
+            "LOGIN",
+            "LOGOUT",
+            "APPROVE",
+            "REJECT",
+        }
+        if action not in allowed_actions:
+            return Response({"detail": "Invalid action."}, status=400)
+        if not resource_type:
+            return Response({"detail": "resourceType is required."}, status=400)
+
+        user = request.user
+        role = getattr(user, "role", None)
+        owner_id = None
+        if role == "owner":
+            owner_id = str(user.id)
+        elif role == "staff":
+            owner_id = owner_id_for_staff_user(str(user.id))
+        else:
+            return Response({"detail": "Owner or staff access required."}, status=403)
+
+        if not owner_id:
+            return Response({"success": True}, status=200)
+
+        actor_uid, actor_role = audit_actor_from_request(request)
+        safe_log_audit_event(
+            owner_id=owner_id,
+            actor_user_id=actor_uid,
+            actor_role=actor_role or str(role or ""),
+            action=action,
+            resource_type=resource_type,
+            resource_id=str(resource_id) if resource_id else None,
+            details=details,
+        )
+        return Response({"success": True}, status=201)
 
 
 @method_decorator(csrf_exempt, name="dispatch")

@@ -117,6 +117,43 @@ export function AuditsTable() {
 	const [actorRoleFilter, setActorRoleFilter] = useState<ActorRoleFilter>("all")
 	const [actionFilter, setActionFilter] = useState<string>("all")
 
+	const periodLabel =
+		periodFilter === "all"
+			? "All time"
+			: periodFilter === "today"
+				? "Today"
+				: periodFilter === "week"
+					? "This week"
+					: periodFilter === "month"
+						? "This month"
+						: "This year"
+	const roleLabel =
+		actorRoleFilter === "all"
+			? "All roles"
+			: actorRoleFilter === "owner"
+				? "Owner"
+				: actorRoleFilter === "staff"
+					? "Staff"
+					: actorRoleFilter === "admin"
+						? "Admin"
+						: "Customer"
+	const actionLabel =
+		actionFilter === "all"
+			? "All actions"
+			: actionFilter === "CREATE"
+				? "Create"
+				: actionFilter === "UPDATE"
+					? "Update"
+					: actionFilter === "DELETE"
+						? "Delete"
+						: actionFilter === "LOGIN"
+							? "Login"
+							: actionFilter === "LOGOUT"
+								? "Logout"
+								: actionFilter === "APPROVE"
+									? "Approve"
+									: "Reject"
+
 	const rows: AuditRow[] = useMemo(() => {
 		const items = auditQ.data?.items ?? []
 		return items.map((e: AuditEventItem) => ({
@@ -212,7 +249,7 @@ export function AuditsTable() {
 				<SelectTrigger className="h-8 w-full min-w-40 sm:w-44">
 					<div className="flex min-w-0 items-center gap-2">
 						<CalendarRange className="text-muted-foreground h-4 w-4 shrink-0" />
-						<SelectValue />
+						<span className="truncate">{periodLabel}</span>
 					</div>
 				</SelectTrigger>
 				<SelectContent>
@@ -231,7 +268,7 @@ export function AuditsTable() {
 				<SelectTrigger className="h-8 w-full min-w-40 sm:w-40">
 					<div className="flex min-w-0 items-center gap-2">
 						<UserCog className="text-muted-foreground h-4 w-4 shrink-0" />
-						<SelectValue />
+						<span className="truncate">{roleLabel}</span>
 					</div>
 				</SelectTrigger>
 				<SelectContent>
@@ -245,7 +282,7 @@ export function AuditsTable() {
 
 			<Select value={actionFilter} onValueChange={v => setActionFilter(v ?? "all")}>
 				<SelectTrigger className="h-8 w-full min-w-40 sm:w-40">
-					<SelectValue />
+					<span className="truncate">{actionLabel}</span>
 				</SelectTrigger>
 				<SelectContent>
 					<SelectItem value="all">All actions</SelectItem>
