@@ -36,6 +36,14 @@ export type PharmacyReview = {
 	}
 }
 
+export function usePharmacyReviewQuery(id?: string, options?: { enabled?: boolean }) {
+	return useQuery({
+		queryKey: ["reviews", "pharmacy", "byId", id ?? ""],
+		queryFn: () => apiFetch<PharmacyReview>(`/v1/reviews/pharmacies/${id}/`),
+		enabled: options?.enabled ?? Boolean(id),
+	})
+}
+
 export function usePharmacyReviewsQuery(
 	pharmacyId?: string,
 	rating?: number,

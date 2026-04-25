@@ -203,4 +203,15 @@ class AdminBrandDetailView(APIView):
             services.admin_delete_brand_safe(pk)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        actor_uid, actor_role = audit_actor_from_request(request)
+        # No owner/business scope: store actor user id as owner_id for platform-wide admin audit views.
+        safe_log_audit_event(
+            owner_id=str(actor_uid or getattr(request.user, "id", "") or ""),
+            actor_user_id=actor_uid,
+            actor_role=actor_role or "admin",
+            action="DELETE",
+            resource_type="Brand",
+            resource_id=str(pk),
+            details="admin_catalog_delete",
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -14,6 +14,9 @@ class UserListSerializer(serializers.ModelSerializer):
     middleName = serializers.CharField(source="middle_name", read_only=True)
     emailVerified = serializers.BooleanField(source="email_verified", read_only=True)
     profileImageUrl = serializers.CharField(source="profile_image_url", read_only=True)
+    locationAccuracy = serializers.FloatField(source="location_accuracy", read_only=True, allow_null=True)
+    locationUpdatedAt = serializers.DateTimeField(source="location_updated_at", read_only=True, allow_null=True)
+    locationConsentAt = serializers.DateTimeField(source="location_consent_at", read_only=True, allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
 
@@ -29,6 +32,11 @@ class UserListSerializer(serializers.ModelSerializer):
             "lastName",
             "middleName",
             "phone",
+            "latitude",
+            "longitude",
+            "locationAccuracy",
+            "locationUpdatedAt",
+            "locationConsentAt",
             "role",
             "createdAt",
             "updatedAt",
@@ -43,3 +51,10 @@ class UserUpdateInputSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False)
     profileImageUrl = serializers.CharField(required=False, allow_blank=True)
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True, allow_null=True)
+
+
+class UserMeLocationInputSerializer(serializers.Serializer):
+    latitude = serializers.FloatField(min_value=-90.0, max_value=90.0)
+    longitude = serializers.FloatField(min_value=-180.0, max_value=180.0)
+    accuracy = serializers.FloatField(required=False, allow_null=True, min_value=0.0)
+    consent = serializers.BooleanField()

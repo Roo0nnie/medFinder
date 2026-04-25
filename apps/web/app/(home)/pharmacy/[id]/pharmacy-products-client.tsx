@@ -131,12 +131,14 @@ function PharmacyRatingRow({ rating }: { rating: number }) {
 
 function ProductCard({
 	product,
+	pharmacyName,
 	onSelectClick,
 	onVariantChange,
 	highlighted,
 	initialVariantId,
 }: {
 	product: LandingProduct
+	pharmacyName: string
 	onSelectClick?: (e: MouseEvent) => void
 	onVariantChange?: (variantId: string | null) => void
 	highlighted?: boolean
@@ -752,7 +754,7 @@ export function PharmacyProductsClient({
 				</div>
 			) : (
 				<>
-					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 						{paged.map((product, i) => (
 							<div
 								key={product.id}
@@ -781,6 +783,7 @@ export function PharmacyProductsClient({
 								>
 									<ProductCard
 										product={product}
+										pharmacyName={pharmacyName}
 										onSelectClick={e => e.stopPropagation()}
 										onVariantChange={variantId => {
 											setSelectedCardVariants(current => {

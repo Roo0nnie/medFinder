@@ -1,6 +1,6 @@
 /**
- * Seed script: creates users per role plus deterministic pharmacies, brands,
- * categories, products (24 total; 20 at owner1 HealthPlus), variants, and inventory.
+ * Seed script: creates deterministic owners/pharmacies plus brands, categories,
+ * 1000 medical products (with variants + inventory), and staff assignments.
  *
  * Run from repo root: pnpm db:seed
  * Requires: DATABASE_URL (packages/db/.env), BETTER_AUTH_SECRET + BETTER_AUTH_TRUSTED_ORIGINS (apps/web/.env)
@@ -17,13 +17,20 @@ import {
 	medicalProductVariants,
 	ownerBrands,
 	pharmacies,
+	pharmacyStaff,
 	pharmacyInventory,
 	productCategories,
+	staff,
 	users,
 } from "@repo/db/schema"
 
 const ROLES = ["admin", "customer", "staff", "owner"] as const
 type Role = (typeof ROLES)[number]
+
+const OWNER_COUNT = 20
+const STAFF_PER_OWNER = 5
+const CUSTOMERS_PER_OWNER = 5
+const PRODUCT_COUNT = 1000
 
 type SeedUser = {
 	email: string
@@ -38,8 +45,64 @@ function normalizedBrandName(name: string): string {
 	return name.trim().toLowerCase().replace(/\s+/g, " ")
 }
 
+function pad3(n: number) {
+	return String(n).padStart(3, "0")
+}
+
+function pad4(n: number) {
+	return String(n).padStart(4, "0")
+}
+
+function pickDeterministic<T>(items: T[], seed: number) {
+	if (items.length === 0) throw new Error("pickDeterministic: empty items")
+	const idx = Math.abs(seed) % items.length
+	return items[idx]!
+}
+
+function geoForCustomerEmail(email: string): {
+	latitude: number
+	longitude: number
+	locationAccuracy: number
+	locationUpdatedAt: Date
+	locationConsentAt: Date
+} | null {
+	// Expected: customer_owner{ownerN}_{customerN}@example.com
+	const m = /^customer_owner(\d+)_(\d+)@example\.com$/i.exec(email)
+	if (!m) return null
+	const ownerN = Number.parseInt(m[1]!, 10)
+	const customerN = Number.parseInt(m[2]!, 10)
+	if (!Number.isFinite(ownerN) || !Number.isFinite(customerN) || ownerN < 1) return null
+
+	// Mirror the pharmacy seed locations (NCR), then offset slightly per customer.
+	// This keeps customers clustered near their owner's pharmacy for "nearby" queries.
+	const cityDefs = [
+		{ lat: 14.5995, lon: 120.9842 }, // Manila
+		{ lat: 14.676, lon: 121.0437 }, // Quezon City
+		{ lat: 14.5547, lon: 121.0244 }, // Makati
+		{ lat: 14.5764, lon: 121.0851 }, // Pasig
+		{ lat: 14.5176, lon: 121.0509 }, // Taguig
+	] as const
+
+	const cd = cityDefs[(ownerN - 1) % cityDefs.length]!
+	const baseLat = cd.lat + ownerN * 0.001
+	const baseLon = cd.lon + ownerN * 0.001
+
+	// ~0.0003 deg ≈ 33m latitude; keep within a few hundred meters.
+	const jitter = 0.0003 * customerN
+	const now = new Date()
+
+	return {
+		latitude: baseLat + jitter,
+		longitude: baseLon - jitter,
+		locationAccuracy: 35,
+		locationUpdatedAt: now,
+		locationConsentAt: now,
+	}
+}
+
 async function seedUser(auth: ReturnType<typeof getAuth>, db: ReturnType<typeof createDBClient>, u: SeedUser) {
-	const existing = await db.select().from(users).where(eq(users.email, u.email)).limit(1)
+	const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, u.email)).limit(1)
+	const customerGeo = u.role === "customer" ? geoForCustomerEmail(u.email) : null
 	if (existing.length > 0) {
 		await db
 			.update(users)
@@ -48,6 +111,15 @@ async function seedUser(auth: ReturnType<typeof getAuth>, db: ReturnType<typeof 
 				last_name: u.lastName,
 				middle_name: u.middleName,
 				role: u.role,
+				...(customerGeo
+					? {
+							latitude: customerGeo.latitude,
+							longitude: customerGeo.longitude,
+							locationAccuracy: customerGeo.locationAccuracy,
+							locationUpdatedAt: customerGeo.locationUpdatedAt,
+							locationConsentAt: customerGeo.locationConsentAt,
+						}
+					: {}),
 				updatedAt: new Date(),
 			})
 			.where(eq(users.id, existing[0]!.id))
@@ -76,6 +148,15 @@ async function seedUser(auth: ReturnType<typeof getAuth>, db: ReturnType<typeof 
 				last_name: u.lastName,
 				middle_name: u.middleName,
 				role: u.role,
+				...(customerGeo
+					? {
+							latitude: customerGeo.latitude,
+							longitude: customerGeo.longitude,
+							locationAccuracy: customerGeo.locationAccuracy,
+							locationUpdatedAt: customerGeo.locationUpdatedAt,
+							locationConsentAt: customerGeo.locationConsentAt,
+						}
+					: {}),
 				updatedAt: new Date(),
 			})
 			.where(eq(users.id, userId))
@@ -99,66 +180,87 @@ function buildSeedUsers(): SeedUser[] {
 		role: "admin",
 	}
 
-	const owners: SeedUser[] = [
-		{ email: "owner1@example.com", password, firstName: "Owner", lastName: "One", middleName: "O1", role: "owner" },
-		{ email: "owner2@example.com", password, firstName: "Owner", lastName: "Two", middleName: "O2", role: "owner" },
-	]
-
-	const customers: SeedUser[] = Array.from({ length: 5 }, (_, idx) => {
+	const owners: SeedUser[] = Array.from({ length: OWNER_COUNT }, (_, idx) => {
 		const n = idx + 1
 		return {
-			email: `customer${n}@example.com`,
+			email: `owner${n}@example.com`,
 			password,
-			firstName: "Customer",
+			firstName: "Owner",
 			lastName: `User${n}`,
-			middleName: `C${n}`,
-			role: "customer",
+			middleName: `O${n}`,
+			role: "owner",
 		}
 	})
 
-	return [admin, ...owners, ...customers]
+	const staffUsers: SeedUser[] = owners.flatMap((_, ownerIdx) => {
+		const ownerN = ownerIdx + 1
+		return Array.from({ length: STAFF_PER_OWNER }, (_, staffIdx) => {
+			const s = staffIdx + 1
+			return {
+				email: `staff_owner${ownerN}_${s}@example.com`,
+				password,
+				firstName: "Staff",
+				lastName: `Owner${ownerN}_${s}`,
+				middleName: `S${ownerN}_${s}`,
+				role: "staff",
+			}
+		})
+	})
+
+	const customers: SeedUser[] = owners.flatMap((_, ownerIdx) => {
+		const ownerN = ownerIdx + 1
+		return Array.from({ length: CUSTOMERS_PER_OWNER }, (_, custIdx) => {
+			const c = custIdx + 1
+			return {
+				email: `customer_owner${ownerN}_${c}@example.com`,
+				password,
+				firstName: "Customer",
+				lastName: `Owner${ownerN}_${c}`,
+				middleName: `C${ownerN}_${c}`,
+				role: "customer",
+			}
+		})
+	})
+
+	return [admin, ...owners, ...staffUsers, ...customers]
 }
 
 async function seedPharmacies(db: ReturnType<typeof createDBClient>, ownerIds: Record<string, string>) {
 	const now = new Date()
-	const o1 = ownerIds["owner1@example.com"]
-	const o2 = ownerIds["owner2@example.com"]
-	if (!o1 || !o2) throw new Error("Expected owner1@example.com and owner2@example.com in seed users")
-
-	const rows = [
-		{
-			id: "seed-pharmacy-1",
-			ownerId: o1,
-			name: "HealthPlus Pharmacy",
-			description: "Seed pharmacy (owner1)",
-			address: "123 Rizal Ave, Manila",
-			city: "Manila",
-			municipality: null as string | null,
-			state: "NCR",
-			zipCode: "1000",
-			country: "PH",
-			certificateStatus: "approved" as const,
-			isActive: true,
-			latitude: 14.5995,
-			longitude: 120.9842,
-		},
-		{
-			id: "seed-pharmacy-2",
-			ownerId: o2,
-			name: "MediCare Drugstore",
-			description: "Seed pharmacy (owner2)",
-			address: "456 Commonwealth Ave, QC",
-			city: "Quezon City",
-			municipality: null as string | null,
-			state: "NCR",
-			zipCode: "1100",
-			country: "PH",
-			certificateStatus: "approved" as const,
-			isActive: true,
-			latitude: 14.676,
-			longitude: 121.0437,
-		},
+	const cityDefs = [
+		{ city: "Manila", state: "NCR", zipBase: "10", lat: 14.5995, lon: 120.9842 },
+		{ city: "Quezon City", state: "NCR", zipBase: "11", lat: 14.676, lon: 121.0437 },
+		{ city: "Makati", state: "NCR", zipBase: "12", lat: 14.5547, lon: 121.0244 },
+		{ city: "Pasig", state: "NCR", zipBase: "16", lat: 14.5764, lon: 121.0851 },
+		{ city: "Taguig", state: "NCR", zipBase: "16", lat: 14.5176, lon: 121.0509 },
 	]
+
+	const rows = Array.from({ length: OWNER_COUNT }, (_, idx) => {
+		const ownerN = idx + 1
+		const ownerEmail = `owner${ownerN}@example.com`
+		const ownerId = ownerIds[ownerEmail]
+		if (!ownerId) throw new Error(`Expected ${ownerEmail} in seed users`)
+
+		const cd = cityDefs[idx % cityDefs.length]!
+		const id = `seed-pharmacy-${String(ownerN).padStart(2, "0")}`
+
+		return {
+			id,
+			ownerId,
+			name: `Seed Pharmacy ${ownerN}`,
+			description: `Seed pharmacy (owner${ownerN})`,
+			address: `${100 + ownerN} Rizal Ave`,
+			city: cd.city,
+			municipality: null as string | null,
+			state: cd.state,
+			zipCode: `${cd.zipBase}${String(ownerN).padStart(2, "0")}`,
+			country: "PH",
+			certificateStatus: "approved" as const,
+			isActive: true,
+			latitude: cd.lat + ownerN * 0.001,
+			longitude: cd.lon + ownerN * 0.001,
+		}
+	})
 
 	for (const r of rows) {
 		await db
@@ -188,29 +290,61 @@ async function seedPharmacies(db: ReturnType<typeof createDBClient>, ownerIds: R
 				},
 			})
 	}
-	console.log("Seeded pharmacies (2).")
+	console.log(`Seeded pharmacies (${rows.length}).`)
 }
 
 async function seedBrands(db: ReturnType<typeof createDBClient>, ownerIds: Record<string, string>) {
 	const now = new Date()
-	const o1 = ownerIds["owner1@example.com"]
-	const o2 = ownerIds["owner2@example.com"]
-	if (!o1 || !o2) throw new Error("Expected owners for brand links")
+	const ownerEmails = Array.from({ length: OWNER_COUNT }, (_, idx) => `owner${idx + 1}@example.com`)
+	const ownerUserIds = ownerEmails.map(e => {
+		const id = ownerIds[e]
+		if (!id) throw new Error(`Expected ${e} in seed users`)
+		return id
+	})
 
-	const brandDefs = [
-		{ id: "seed-brand-biogesic", name: "Biogesic" },
-		{ id: "seed-brand-tempra", name: "Tempra" },
-		{ id: "seed-brand-calpol", name: "Calpol" },
-		{ id: "seed-brand-ritemed", name: "RiteMed" },
-		{ id: "seed-brand-neozep", name: "Neozep" },
-		{ id: "seed-brand-solmux", name: "Solmux" },
-		{ id: "seed-brand-enervon", name: "Enervon" },
-		{ id: "seed-brand-diatabs", name: "Diatabs" },
-		{ id: "seed-brand-alaxan", name: "Alaxan" },
-		{ id: "seed-brand-ceelin", name: "Ceelin" },
-		{ id: "seed-brand-bioflu", name: "Bioflu" },
-		{ id: "seed-brand-bactidol", name: "Bactidol" },
+	const baseBrandNames = [
+		"Biogesic",
+		"Tempra",
+		"Calpol",
+		"RiteMed",
+		"Neozep",
+		"Solmux",
+		"Enervon",
+		"Diatabs",
+		"Alaxan",
+		"Ceelin",
+		"Bioflu",
+		"Bactidol",
+		"Advil",
+		"Tylenol",
+		"Motrin",
+		"Benadryl",
+		"Claritin",
+		"Zyrtec",
+		"Robitussin",
+		"Mucinex",
+		"NyQuil",
+		"DayQuil",
+		"Pepto-Bismol",
+		"Imodium",
+		"Tums",
+		"Gaviscon",
+		"Nexium",
+		"Voltaren",
+		"Aleve",
+		"Panadol",
 	]
+
+	const brandNames = Array.from({ length: 60 }, (_, idx) => {
+		const base = baseBrandNames[idx % baseBrandNames.length]!
+		const suffix = idx < baseBrandNames.length ? "" : ` ${Math.floor(idx / baseBrandNames.length) + 1}`
+		return `${base}${suffix}`.trim()
+	})
+
+	const brandDefs = brandNames.map((name, idx) => ({
+		id: `seed-brand-${pad3(idx + 1)}`,
+		name,
+	}))
 
 	const nameToId: Record<string, string> = {}
 
@@ -225,34 +359,30 @@ async function seedBrands(db: ReturnType<typeof createDBClient>, ownerIds: Recor
 				createdAt: now,
 				updatedAt: now,
 			})
-			.onConflictDoUpdate({
-				target: brands.id,
-				set: {
-					name: b.name,
-					normalizedName: nn,
-					updatedAt: now,
-				},
+			.onConflictDoNothing({
+				target: brands.normalizedName,
 			})
-		nameToId[b.name] = b.id
+
+		const existing = await db.select({ id: brands.id }).from(brands).where(eq(brands.normalizedName, nn)).limit(1)
+		const id = existing[0]?.id
+		if (!id) throw new Error(`Failed to resolve brand id for normalizedName=${nn}`)
+
+		nameToId[b.name] = id
 	}
 
-	const links: { id: string; ownerId: string; brandId: string }[] = [
-		{ id: "seed-ob-bio-o1", ownerId: o1, brandId: nameToId["Biogesic"]! },
-		{ id: "seed-ob-bio-o2", ownerId: o2, brandId: nameToId["Biogesic"]! },
-		{ id: "seed-ob-tem-o1", ownerId: o1, brandId: nameToId["Tempra"]! },
-		{ id: "seed-ob-cal-o2", ownerId: o2, brandId: nameToId["Calpol"]! },
-		{ id: "seed-ob-rm-o1", ownerId: o1, brandId: nameToId["RiteMed"]! },
-		{ id: "seed-ob-rm-o2", ownerId: o2, brandId: nameToId["RiteMed"]! },
-		{ id: "seed-ob-neozep-o1", ownerId: o1, brandId: nameToId["Neozep"]! },
-		{ id: "seed-ob-neozep-o2", ownerId: o2, brandId: nameToId["Neozep"]! },
-		{ id: "seed-ob-solmux-o1", ownerId: o1, brandId: nameToId["Solmux"]! },
-		{ id: "seed-ob-enervon-o1", ownerId: o1, brandId: nameToId["Enervon"]! },
-		{ id: "seed-ob-diatabs-o1", ownerId: o1, brandId: nameToId["Diatabs"]! },
-		{ id: "seed-ob-alaxan-o1", ownerId: o1, brandId: nameToId["Alaxan"]! },
-		{ id: "seed-ob-ceelin-o1", ownerId: o1, brandId: nameToId["Ceelin"]! },
-		{ id: "seed-ob-bioflu-o1", ownerId: o1, brandId: nameToId["Bioflu"]! },
-		{ id: "seed-ob-bactidol-o1", ownerId: o1, brandId: nameToId["Bactidol"]! },
-	]
+	const links: { id: string; ownerId: string; brandId: string }[] = []
+	const brandIds = brandDefs.map(b => nameToId[b.name]!)
+	for (let ownerIdx = 0; ownerIdx < ownerUserIds.length; ownerIdx++) {
+		const ownerId = ownerUserIds[ownerIdx]!
+		for (let j = 0; j < 20; j++) {
+			const brandId = brandIds[(ownerIdx * 7 + j) % brandIds.length]!
+			links.push({
+				id: `seed-ob-${String(ownerIdx + 1).padStart(2, "0")}-${pad3(j + 1)}`,
+				ownerId,
+				brandId,
+			})
+		}
+	}
 
 	for (const l of links) {
 		await db
@@ -262,13 +392,8 @@ async function seedBrands(db: ReturnType<typeof createDBClient>, ownerIds: Recor
 				createdAt: now,
 				updatedAt: now,
 			})
-			.onConflictDoUpdate({
-				target: ownerBrands.id,
-				set: {
-					ownerId: l.ownerId,
-					brandId: l.brandId,
-					updatedAt: now,
-				},
+			.onConflictDoNothing({
+				target: [ownerBrands.ownerId, ownerBrands.brandId],
 			})
 	}
 
@@ -276,32 +401,50 @@ async function seedBrands(db: ReturnType<typeof createDBClient>, ownerIds: Recor
 	return nameToId
 }
 
-type SeedCategoryIds = {
-	o1Pain: string
-	o1Cold: string
-	o1Vitamins: string
-	o1Digestive: string
-	o1Skin: string
-	o2Pain: string
-}
+type SeedCategoriesByOwner = Record<string, { id: string; name: string; requiresPrescription: boolean }[]>
 
 async function seedProductCategories(
 	db: ReturnType<typeof createDBClient>,
 	ownerIds: Record<string, string>
-): Promise<SeedCategoryIds> {
+): Promise<SeedCategoriesByOwner> {
 	const now = new Date()
-	const o1 = ownerIds["owner1@example.com"]
-	const o2 = ownerIds["owner2@example.com"]
-	if (!o1 || !o2) throw new Error("Expected owners for categories")
-
-	const rows = [
-		{ id: "seed-category-pain-o1", ownerId: o1, name: "Pain Relief" },
-		{ id: "seed-category-cold-o1", ownerId: o1, name: "Cold & Flu" },
-		{ id: "seed-category-vitamins-o1", ownerId: o1, name: "Vitamins & Supplements" },
-		{ id: "seed-category-digestive-o1", ownerId: o1, name: "Digestive Care" },
-		{ id: "seed-category-skin-o1", ownerId: o1, name: "Skin Care" },
-		{ id: "seed-category-pain-o2", ownerId: o2, name: "Pain Relief" },
+	const categoryTemplates: { key: string; name: string; requiresPrescription: boolean }[] = [
+		{ key: "pain", name: "Pain Relief", requiresPrescription: false },
+		{ key: "cold", name: "Cold & Flu", requiresPrescription: false },
+		{ key: "allergy", name: "Allergy", requiresPrescription: false },
+		{ key: "digestive", name: "Digestive Care", requiresPrescription: false },
+		{ key: "vitamins", name: "Vitamins & Supplements", requiresPrescription: false },
+		{ key: "derm", name: "Skin Care", requiresPrescription: false },
+		{ key: "diabetes", name: "Diabetes Care", requiresPrescription: true },
+		{ key: "firstaid", name: "First Aid", requiresPrescription: false },
+		{ key: "cardio", name: "Heart Health", requiresPrescription: true },
+		{ key: "rx", name: "Prescription", requiresPrescription: true },
 	]
+
+	const byOwner: SeedCategoriesByOwner = {}
+	const rows: { id: string; ownerId: string; name: string; requiresPrescription: boolean }[] = []
+
+	for (let idx = 0; idx < OWNER_COUNT; idx++) {
+		const ownerN = idx + 1
+		const ownerEmail = `owner${ownerN}@example.com`
+		const ownerId = ownerIds[ownerEmail]
+		if (!ownerId) throw new Error(`Expected ${ownerEmail} in seed users`)
+
+		byOwner[ownerId] = categoryTemplates.map(t => ({
+			id: `seed-category-${String(ownerN).padStart(2, "0")}-${t.key}`,
+			name: t.name,
+			requiresPrescription: t.requiresPrescription,
+		}))
+
+		for (const t of categoryTemplates) {
+			rows.push({
+				id: `seed-category-${String(ownerN).padStart(2, "0")}-${t.key}`,
+				ownerId,
+				name: t.name,
+				requiresPrescription: t.requiresPrescription,
+			})
+		}
+	}
 
 	for (const r of rows) {
 		await db
@@ -311,7 +454,7 @@ async function seedProductCategories(
 				ownerId: r.ownerId,
 				name: r.name,
 				description: "",
-				requiresPrescription: false,
+				requiresPrescription: r.requiresPrescription,
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -320,20 +463,14 @@ async function seedProductCategories(
 				set: {
 					ownerId: r.ownerId,
 					name: r.name,
+					requiresPrescription: r.requiresPrescription,
 					updatedAt: now,
 				},
 			})
 	}
 
-	console.log("Seeded product categories (6).")
-	return {
-		o1Pain: "seed-category-pain-o1",
-		o1Cold: "seed-category-cold-o1",
-		o1Vitamins: "seed-category-vitamins-o1",
-		o1Digestive: "seed-category-digestive-o1",
-		o1Skin: "seed-category-skin-o1",
-		o2Pain: "seed-category-pain-o2",
-	}
+	console.log(`Seeded product categories (${rows.length}).`)
+	return byOwner
 }
 
 type ProductSeedRow = {
@@ -484,534 +621,115 @@ function medicalSearchTextForProduct(d: ProductSeedRow) {
 async function seedProducts(
 	db: ReturnType<typeof createDBClient>,
 	ctx: {
-		pharmacyMap: Record<string, string>
+		pharmacies: { id: string; ownerId: string }[]
 		brandMap: Record<string, string>
-		categories: SeedCategoryIds
+		categoriesByOwner: SeedCategoriesByOwner
 	}
 ) {
 	const now = new Date()
-	const ph = (key: "hp" | "mc") => (key === "hp" ? ctx.pharmacyMap.hp : ctx.pharmacyMap.mc)
-	const b = (name: string) => ctx.brandMap[name]!
-	const c = ctx.categories
 
-	const defs: ProductSeedRow[] = [
-		{
-			productId: "seed-product-1",
-			variantId: "seed-variant-1",
-			inventoryId: "seed-inv-1",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "Biogesic Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Biogesic",
-			brandKey: "Biogesic",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Box of 100",
-			unit: "box",
-			price: "120.00",
-			quantity: 80,
-		},
-		{
-			productId: "seed-product-2",
-			variantId: "seed-variant-2",
-			inventoryId: "seed-inv-2",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "Tempra Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Tempra",
-			brandKey: "Tempra",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Box of 50",
-			unit: "box",
-			price: "135.50",
-			quantity: 40,
-		},
-		{
-			productId: "seed-product-3",
-			variantId: "seed-variant-3",
-			inventoryId: "seed-inv-3",
-			pharmacyId: ph("mc"),
-			categoryId: c.o2Pain,
-			name: "Biogesic Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Biogesic",
-			brandKey: "Biogesic",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Box of 100",
-			unit: "box",
-			price: "118.00",
-			quantity: 60,
-		},
-		{
-			productId: "seed-product-4",
-			variantId: "seed-variant-4",
-			inventoryId: "seed-inv-4",
-			pharmacyId: ph("mc"),
-			categoryId: c.o2Pain,
-			name: "Calpol Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Calpol",
-			brandKey: "Calpol",
-			strength: "500mg",
-			dosageForm: "Syrup",
-			variantLabel: "Bottle 60ml",
-			unit: "bottle",
-			price: "95.00",
-			quantity: 35,
-		},
-		{
-			productId: "seed-product-5",
-			variantId: "seed-variant-5",
-			inventoryId: "seed-inv-5",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "RiteMed Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "RiteMed",
-			brandKey: "RiteMed",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Strip of 10",
-			unit: "strip",
-			price: "45.00",
-			quantity: 200,
-		},
-		{
-			productId: "seed-product-6",
-			variantId: "seed-variant-6",
-			inventoryId: "seed-inv-6",
-			pharmacyId: ph("mc"),
-			categoryId: c.o2Pain,
-			name: "RiteMed Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "RiteMed",
-			brandKey: "RiteMed",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Strip of 10",
-			unit: "strip",
-			price: "44.50",
-			quantity: 150,
-		},
-		{
-			productId: "seed-product-7",
-			variantId: "seed-variant-7",
-			inventoryId: "seed-inv-7",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "Biogesic Ibuprofen",
-			genericName: "Ibuprofen",
-			brandName: "Biogesic",
-			brandKey: "Biogesic",
-			strength: "200mg",
-			dosageForm: "Tablet",
-			variantLabel: "Box of 20",
-			unit: "box",
-			price: "210.00",
-			quantity: 25,
-		},
-		{
-			productId: "seed-product-8",
-			variantId: "seed-variant-8",
-			inventoryId: "seed-inv-8",
-			pharmacyId: ph("mc"),
-			categoryId: c.o2Pain,
-			name: "Advil Ibuprofen",
-			genericName: "Ibuprofen",
-			brandName: "RiteMed",
-			brandKey: "RiteMed",
-			strength: "200mg",
-			dosageForm: "Capsule",
-			variantLabel: "Bottle 30",
-			unit: "bottle",
-			price: "199.99",
-			quantity: 18,
-		},
-		// Owner1 / HealthPlus — additional catalog (16 products → 20+ at seed-pharmacy-1)
-		{
-			productId: "seed-product-9",
-			variantId: "seed-variant-9",
-			inventoryId: "seed-inv-9",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Cold,
-			name: "Neozep Cold Tablet",
-			genericName: "Phenylpropanolamine + Paracetamol",
-			brandName: "Neozep",
-			brandKey: "Neozep",
-			strength: "NA",
-			dosageForm: "Tablet",
-			variantLabel: "Strip of 4",
-			unit: "strip",
-			price: "52.00",
-			quantity: 120,
-		},
-		{
-			productId: "seed-product-10",
-			variantId: "seed-variant-10",
-			inventoryId: "seed-inv-10",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Cold,
-			name: "Neozep Non-Drowsy",
-			genericName: "Loratadine",
-			brandName: "Neozep",
-			brandKey: "Neozep",
-			strength: "10mg",
-			dosageForm: "Tablet",
-			variantLabel: "Box of 10",
-			unit: "box",
-			price: "168.00",
-			quantity: 45,
-		},
-		{
-			productId: "seed-product-11",
-			variantId: "seed-variant-11",
-			inventoryId: "seed-inv-11",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Cold,
-			name: "Solmux Carbocisteine",
-			genericName: "Carbocisteine",
-			brandName: "Solmux",
-			brandKey: "Solmux",
-			strength: "500mg",
-			dosageForm: "Capsule",
-			variantLabel: "Box of 20",
-			unit: "box",
-			price: "142.00",
-			quantity: 60,
-		},
-		{
-			productId: "seed-product-12",
-			variantId: "seed-variant-12",
-			inventoryId: "seed-inv-12",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Cold,
-			name: "Bioflu Multi-Symptom",
-			genericName: "Phenylephrine + Paracetamol",
-			brandName: "Bioflu",
-			brandKey: "Bioflu",
-			strength: "NA",
-			dosageForm: "Tablet",
-			variantLabel: "Strip of 5",
-			unit: "strip",
-			price: "88.00",
-			quantity: 90,
-		},
-		{
-			productId: "seed-product-13",
-			variantId: "seed-variant-13",
-			inventoryId: "seed-inv-13",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Vitamins,
-			name: "Enervon Multivitamins",
-			genericName: "Multivitamins",
-			brandName: "Enervon",
-			brandKey: "Enervon",
-			strength: "NA",
-			dosageForm: "Tablet",
-			variantLabel: "Bottle of 30",
-			unit: "bottle",
-			price: "195.00",
-			quantity: 55,
-		},
-		{
-			productId: "seed-product-14",
-			variantId: "seed-variant-14",
-			inventoryId: "seed-inv-14",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Vitamins,
-			name: "Ceelin Ascorbic Acid",
-			genericName: "Ascorbic Acid",
-			brandName: "Ceelin",
-			brandKey: "Ceelin",
-			strength: "100mg",
-			dosageForm: "Syrup",
-			variantLabel: "Bottle 120ml",
-			unit: "bottle",
-			price: "112.00",
-			quantity: 70,
-		},
-		{
-			productId: "seed-product-15",
-			variantId: "seed-variant-15",
-			inventoryId: "seed-inv-15",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Vitamins,
-			name: "Enervon-C Vitamin C",
-			genericName: "Ascorbic Acid",
-			brandName: "Enervon",
-			brandKey: "Enervon",
-			strength: "500mg",
-			dosageForm: "Tablet",
-			variantLabel: "Tin of 100",
-			unit: "tin",
-			price: "225.00",
-			quantity: 30,
-		},
-		{
-			productId: "seed-product-16",
-			variantId: "seed-variant-16",
-			inventoryId: "seed-inv-16",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Digestive,
-			name: "Diatabs Loperamide",
-			genericName: "Loperamide",
-			brandName: "Diatabs",
-			brandKey: "Diatabs",
-			strength: "2mg",
-			dosageForm: "Capsule",
-			variantLabel: "Strip of 6",
-			unit: "strip",
-			price: "38.00",
-			quantity: 150,
-		},
-		{
-			productId: "seed-product-17",
-			variantId: "seed-variant-17",
-			inventoryId: "seed-inv-17",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Digestive,
-			name: "Diatabs ORS",
-			genericName: "Oral Rehydration Salts",
-			brandName: "Diatabs",
-			brandKey: "Diatabs",
-			strength: "NA",
-			dosageForm: "Powder",
-			variantLabel: "Sachet 4.2g",
-			unit: "sachet",
-			price: "12.00",
-			quantity: 300,
-		},
-		{
-			productId: "seed-product-18",
-			variantId: "seed-variant-18",
-			inventoryId: "seed-inv-18",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Digestive,
-			name: "RiteMed Omeprazole",
-			genericName: "Omeprazole",
-			brandName: "RiteMed",
-			brandKey: "RiteMed",
-			strength: "20mg",
-			dosageForm: "Capsule",
-			variantLabel: "Bottle of 14",
-			unit: "bottle",
-			price: "96.00",
-			quantity: 40,
-		},
-		{
-			productId: "seed-product-19",
-			variantId: "seed-variant-19",
-			inventoryId: "seed-inv-19",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "Alaxan Ibuprofen + Paracetamol",
-			genericName: "Ibuprofen + Paracetamol",
-			brandName: "Alaxan",
-			brandKey: "Alaxan",
-			strength: "200mg/325mg",
-			dosageForm: "Tablet",
-			variantLabel: "Strip of 10",
-			unit: "strip",
-			price: "72.00",
-			quantity: 100,
-		},
-		{
-			productId: "seed-product-20",
-			variantId: "seed-variant-20",
-			inventoryId: "seed-inv-20",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Pain,
-			name: "Biogesic Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Biogesic",
-			brandKey: "Biogesic",
-			strength: "250mg",
-			dosageForm: "Suspension",
-			variantLabel: "Bottle 60ml",
-			unit: "bottle",
-			price: "95.00",
-			quantity: 42,
-		},
-		{
-			productId: "seed-product-21",
-			variantId: "seed-variant-21",
-			inventoryId: "seed-inv-21",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Skin,
-			name: "Bactidol Oral Antiseptic",
-			genericName: "Hexetidine",
-			brandName: "Bactidol",
-			brandKey: "Bactidol",
-			strength: "0.1%",
-			dosageForm: "Solution",
-			variantLabel: "Bottle 120ml",
-			unit: "bottle",
-			price: "185.00",
-			quantity: 28,
-		},
-		{
-			productId: "seed-product-22",
-			variantId: "seed-variant-22",
-			inventoryId: "seed-inv-22",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Skin,
-			name: "RiteMed Isopropyl Alcohol",
-			genericName: "Isopropyl Alcohol",
-			brandName: "RiteMed",
-			brandKey: "RiteMed",
-			strength: "70%",
-			dosageForm: "Solution",
-			variantLabel: "Bottle 500ml",
-			unit: "bottle",
-			price: "65.00",
-			quantity: 80,
-		},
-		{
-			productId: "seed-product-23",
-			variantId: "seed-variant-23",
-			inventoryId: "seed-inv-23",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Skin,
-			name: "Tempra Paracetamol",
-			genericName: "Paracetamol",
-			brandName: "Tempra",
-			brandKey: "Tempra",
-			strength: "250mg",
-			dosageForm: "Suspension",
-			variantLabel: "Bottle 60ml",
-			unit: "bottle",
-			price: "128.00",
-			quantity: 36,
-		},
-		{
-			productId: "seed-product-24",
-			variantId: "seed-variant-24",
-			inventoryId: "seed-inv-24",
-			pharmacyId: ph("hp"),
-			categoryId: c.o1Cold,
-			name: "Solmux Adult Syrup",
-			genericName: "Carbocisteine",
-			brandName: "Solmux",
-			brandKey: "Solmux",
-			strength: "250mg/5ml",
-			dosageForm: "Syrup",
-			variantLabel: "Bottle 60ml",
-			unit: "bottle",
-			price: "118.00",
-			quantity: 48,
-		},
-	]
+	const b = (name: string) => {
+		const id = ctx.brandMap[name]
+		if (!id) throw new Error(`Missing brand in brandMap: ${name}`)
+		return id
+	}
 
-	const extraVariants: ProductVariantSeedRow[] = [
-		{
-			id: "seed-variant-25",
-			productId: "seed-product-1",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-25",
-			label: "Strip of 10",
-			unit: "strip",
-			sortOrder: 1,
-			strength: "500mg",
-			dosageForm: "Tablet",
-			price: "18.00",
-			quantity: 220,
-		},
-		{
-			id: "seed-variant-26",
-			productId: "seed-product-1",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-26",
-			label: "Bottle 60ml",
-			unit: "bottle",
-			sortOrder: 2,
-			strength: "250mg/5ml",
-			dosageForm: "Suspension",
-			price: "96.00",
-			quantity: 64,
-		},
-		{
-			id: "seed-variant-27",
-			productId: "seed-product-8",
-			pharmacyId: ph("mc"),
-			inventoryId: "seed-inv-27",
-			label: "Box of 20",
-			unit: "box",
-			sortOrder: 1,
-			strength: "200mg",
-			dosageForm: "Tablet",
-			price: "152.00",
-			quantity: 52,
-		},
-		{
-			id: "seed-variant-28",
-			productId: "seed-product-12",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-28",
-			label: "Box of 24",
-			unit: "box",
-			sortOrder: 1,
-			strength: "NA",
-			dosageForm: "Tablet",
-			price: "165.00",
-			quantity: 46,
-		},
-		{
-			id: "seed-variant-29",
-			productId: "seed-product-12",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-29",
-			label: "Bottle 60ml",
-			unit: "bottle",
-			sortOrder: 2,
-			strength: "NA",
-			dosageForm: "Syrup",
-			price: "142.00",
-			quantity: 38,
-		},
-		{
-			id: "seed-variant-30",
-			productId: "seed-product-16",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-30",
-			label: "Box of 100",
-			unit: "box",
-			sortOrder: 1,
-			strength: "2mg",
-			dosageForm: "Capsule",
-			price: "296.00",
-			quantity: 25,
-		},
-		{
-			id: "seed-variant-31",
-			productId: "seed-product-21",
-			pharmacyId: ph("hp"),
-			inventoryId: "seed-inv-31",
-			label: "Bottle 60ml",
-			unit: "bottle",
-			sortOrder: 1,
-			strength: "0.1%",
-			dosageForm: "Solution",
-			price: "126.00",
-			quantity: 32,
-		},
-	]
+	const dosageForms = ["Tablet", "Capsule", "Syrup", "Suspension", "Solution", "Powder", "Cream", "Ointment"] as const
+	const units = ["box", "strip", "bottle", "sachet", "tube", "jar", "tin", "piece"] as const
+	const strengths = ["50mg", "100mg", "200mg", "250mg", "500mg", "10mg", "20mg", "70%", "0.1%", "250mg/5ml"] as const
 
-	const extrasByProduct = extraVariants.reduce<Record<string, ProductVariantSeedRow[]>>((acc, row) => {
-		acc[row.productId] ??= []
-		acc[row.productId]!.push(row)
-		return acc
-	}, {})
+	const brandNames = Object.keys(ctx.brandMap)
+	if (brandNames.length === 0) throw new Error("brandMap is empty")
+
+	const generics = [
+		"Paracetamol",
+		"Ibuprofen",
+		"Cetirizine",
+		"Loratadine",
+		"Carbocisteine",
+		"Dextromethorphan",
+		"Guaifenesin",
+		"Omeprazole",
+		"Loperamide",
+		"Oral Rehydration Salts",
+		"Metformin",
+		"Amlodipine",
+		"Atorvastatin",
+		"Amoxicillin",
+		"Azithromycin",
+		"Hexetidine",
+		"Isopropyl Alcohol",
+		"Hydrocortisone",
+		"Mupirocin",
+	] as const
+
+	const defs: ProductSeedRow[] = []
+
+	for (let i = 0; i < PRODUCT_COUNT; i++) {
+		const pharmacy = ctx.pharmacies[i % ctx.pharmacies.length]!
+		const ownerCats = ctx.categoriesByOwner[pharmacy.ownerId]
+		if (!ownerCats || ownerCats.length === 0) throw new Error(`Missing categories for ownerId=${pharmacy.ownerId}`)
+
+		const cat = ownerCats[i % ownerCats.length]!
+		const genericName = pickDeterministic([...generics], i * 17 + pharmacy.id.length)
+		const brandName = pickDeterministic(brandNames, i * 31 + pharmacy.id.length)
+		const dosageForm = pickDeterministic([...dosageForms], i * 13)
+		const strength = pickDeterministic([...strengths], i * 19)
+		const unit = pickDeterministic([...units], i * 23)
+
+		const productNo = i + 1
+		const productId = `seed-product-${pad4(productNo)}`
+		const variantId = `seed-variant-${pad4(productNo)}-01`
+		const inventoryId = `seed-inv-${pad4(productNo)}-01`
+
+		const name = `${brandName} ${genericName}`
+		const variantLabel =
+			unit === "box"
+				? "Box"
+				: unit === "strip"
+					? "Strip"
+					: unit === "bottle"
+						? "Bottle"
+						: unit === "sachet"
+							? "Sachet"
+							: unit === "tube"
+								? "Tube"
+								: unit === "jar"
+									? "Jar"
+									: unit === "tin"
+										? "Tin"
+										: "Piece"
+
+		const price = (25 + (i % 250) * 0.75).toFixed(2)
+		const quantity = 5 + (i % 120)
+
+		defs.push({
+			productId,
+			variantId,
+			inventoryId,
+			pharmacyId: pharmacy.id,
+			categoryId: cat.id,
+			name,
+			genericName,
+			brandName,
+			brandKey: brandName,
+			strength,
+			dosageForm,
+			variantLabel,
+			unit,
+			price,
+			quantity,
+			// allow medicalSearchTextForProduct() to enrich the important FTS fields
+		})
+	}
+
+	const extrasByProduct: Record<string, ProductVariantSeedRow[]> = {}
 
 	// Keep seeded variant cardinality deterministic across reruns:
 	// remove stale variants on seeded products that are not part of the current seed spec.
 	const seedProductIds = defs.map(d => d.productId)
 	const allowedVariantIds = [
 		...defs.map(d => d.variantId),
-		...extraVariants.map(v => v.id),
 	]
 	await db
 		.delete(medicalProductVariants)
@@ -1146,7 +864,80 @@ async function seedProducts(
 		}
 	}
 
-	console.log("Seeded medical products (24), variants (31), and inventory rows (31).")
+	console.log(
+		`Seeded medical products (${defs.length}), variants (${allowedVariantIds.length}), and inventory rows (${allowedVariantIds.length}).`
+	)
+}
+
+async function seedStaffAndAssignments(
+	db: ReturnType<typeof createDBClient>,
+	ownerIds: Record<string, string>,
+	staffUserIds: Record<string, string>
+) {
+	const now = new Date()
+
+	for (let ownerIdx = 0; ownerIdx < OWNER_COUNT; ownerIdx++) {
+		const ownerN = ownerIdx + 1
+		const ownerEmail = `owner${ownerN}@example.com`
+		const ownerId = ownerIds[ownerEmail]
+		if (!ownerId) throw new Error(`Expected ${ownerEmail} in seed users`)
+
+		const pharmacyId = `seed-pharmacy-${String(ownerN).padStart(2, "0")}`
+
+		for (let staffIdx = 0; staffIdx < STAFF_PER_OWNER; staffIdx++) {
+			const staffN = staffIdx + 1
+			const staffEmail = `staff_owner${ownerN}_${staffN}@example.com`
+			const userId = staffUserIds[staffEmail]
+			if (!userId) throw new Error(`Expected staff user ${staffEmail} in seed users`)
+
+			const staffId = `seed-staff-${String(ownerN).padStart(2, "0")}-${String(staffN).padStart(2, "0")}`
+			const linkId = `seed-phstaff-${String(ownerN).padStart(2, "0")}-${String(staffN).padStart(2, "0")}`
+
+			await db
+				.insert(staff)
+				.values({
+					id: staffId,
+					userId,
+					ownerId,
+					department: "Pharmacy",
+					position: "Assistant",
+					specialization: "General",
+					isActive: true,
+					createdAt: now,
+					updatedAt: now,
+				})
+				.onConflictDoUpdate({
+					target: staff.id,
+					set: {
+						userId,
+						ownerId,
+						department: "Pharmacy",
+						position: "Assistant",
+						specialization: "General",
+						isActive: true,
+						updatedAt: now,
+					},
+				})
+
+			await db
+				.insert(pharmacyStaff)
+				.values({
+					id: linkId,
+					pharmacyId,
+					staffId,
+					assignedAt: now,
+				})
+				.onConflictDoUpdate({
+					target: pharmacyStaff.id,
+					set: {
+						pharmacyId,
+						staffId,
+					},
+				})
+		}
+	}
+
+	console.log(`Seeded staff profiles (${OWNER_COUNT * STAFF_PER_OWNER}) and pharmacy assignments.`)
 }
 
 async function seed() {
@@ -1155,22 +946,32 @@ async function seed() {
 
 	const allUsers = buildSeedUsers()
 	const ownerIds: Record<string, string> = {}
+	const staffUserIds: Record<string, string> = {}
 
 	for (const u of allUsers) {
 		const id = await seedUser(auth, db, u)
 		if (u.role === "owner") ownerIds[u.email] = id
+		if (u.role === "staff") staffUserIds[u.email] = id
 	}
 
 	await seedPharmacies(db, ownerIds)
 	const brandMap = await seedBrands(db, ownerIds)
-	const categories = await seedProductCategories(db, ownerIds)
-
-	const pharmacyMap = { hp: "seed-pharmacy-1", mc: "seed-pharmacy-2" }
+	const categoriesByOwner = await seedProductCategories(db, ownerIds)
+	await seedStaffAndAssignments(db, ownerIds, staffUserIds)
 
 	await seedProducts(db, {
-		pharmacyMap,
+		pharmacies: Array.from({ length: OWNER_COUNT }, (_, idx) => {
+			const ownerN = idx + 1
+			const ownerEmail = `owner${ownerN}@example.com`
+			const ownerId = ownerIds[ownerEmail]
+			if (!ownerId) throw new Error(`Expected ${ownerEmail} in seed users`)
+			return {
+				id: `seed-pharmacy-${String(ownerN).padStart(2, "0")}`,
+				ownerId,
+			}
+		}),
 		brandMap,
-		categories,
+		categoriesByOwner,
 	})
 
 	console.log("Seed complete.")

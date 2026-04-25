@@ -27,9 +27,47 @@ export const StaffStatsSchema = z.object({
 	completedReservations: z.number().int(),
 })
 
+export const StaffDashboardStatsSchema = z.object({
+	totalProductsManaged: z.number().int(),
+	itemsOutOfStock: z.number().int(),
+	lowStockAlerts: z.number().int(),
+})
+
 export const MonthlySalesPointSchema = z.object({
 	name: z.string(),
 	sales: z.number(),
+})
+
+export const StaffDashboardTrendPointSchema = z.object({
+	day: z.string(),
+	stock: z.number().int(),
+})
+
+export const StaffDashboardRecentUpdateSchema = z.object({
+	id: z.string(),
+	productName: z.string(),
+	variantLabel: z.string().nullable().optional(),
+	currentQuantity: z.number().int().nullable(),
+	direction: z.enum(["increase", "decrease", "update"]),
+	action: z.string(),
+	updatedAt: z.string(),
+})
+
+export const StaffDashboardInventoryRowSchema = z.object({
+	id: z.string(),
+	productName: z.string(),
+	variantLabel: z.string().nullable().optional(),
+	sku: z.string(),
+	stockLimit: z.number().int(),
+	currentStock: z.number().int(),
+	stockStatus: z.enum(["ok", "low", "out", "unavailable"]),
+})
+
+export const StaffDashboardResponseSchema = z.object({
+	stats: StaffDashboardStatsSchema,
+	trend: z.array(StaffDashboardTrendPointSchema),
+	recentUpdates: z.array(StaffDashboardRecentUpdateSchema),
+	inventoryList: z.array(StaffDashboardInventoryRowSchema),
 })
 
 export const TopProductSchema = z.object({
@@ -121,7 +159,12 @@ export const AuditEventsResponseSchema = z.object({
 export type PlatformStats = z.infer<typeof PlatformStatsSchema>
 export type OwnerStats = z.infer<typeof OwnerStatsSchema>
 export type StaffStats = z.infer<typeof StaffStatsSchema>
+export type StaffDashboardStats = z.infer<typeof StaffDashboardStatsSchema>
 export type MonthlySalesPoint = z.infer<typeof MonthlySalesPointSchema>
+export type StaffDashboardTrendPoint = z.infer<typeof StaffDashboardTrendPointSchema>
+export type StaffDashboardRecentUpdate = z.infer<typeof StaffDashboardRecentUpdateSchema>
+export type StaffDashboardInventoryRow = z.infer<typeof StaffDashboardInventoryRowSchema>
+export type StaffDashboardResponse = z.infer<typeof StaffDashboardResponseSchema>
 export type TopProduct = z.infer<typeof TopProductSchema>
 export type ReviewRatingPoint = z.infer<typeof ReviewRatingPointSchema>
 export type SearchTrendPoint = z.infer<typeof SearchTrendPointSchema>

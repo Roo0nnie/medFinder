@@ -11,6 +11,7 @@ urlpatterns = [
     path("pharmacies/", include("api.v1.pharmacies.urls")),
     path("brands/", include("api.v1.brands.urls")),
     path("admin/brands/", include("api.v1.brands.admin_urls")),
+    path("admin/", include("api.v1.admin.urls")),
     path("products/", include("api.v1.products.urls")),
     path("inventory/", include("api.v1.inventory.urls")),
     path("reviews/", include("api.v1.reviews.urls")),

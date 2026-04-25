@@ -403,24 +403,16 @@ export function StaffProductTable({
 					>
 						<ChevronLeft className="h-4 w-4" />
 					</Button>
-					{Array.from({ length: pageCount }, (_, i) => i + 1).map(
-						page => (
-							<Button
-								key={page}
-								variant={
-									table.getState().pagination.pageIndex === page - 1
-										? "default"
-										: "outline"
-								}
-								size="icon"
-								className="h-8 w-8"
-								onClick={() => table.setPageIndex(page - 1)}
-								aria-label={`Go to page ${page}`}
-							>
-								{page}
-							</Button>
-						)
-					)}
+					<Button
+						variant="default"
+						size="icon"
+						className="h-8 w-8"
+						aria-label={`Current page`}
+						disabled
+					>
+						{table.getState().pagination.pageIndex + 1}
+					</Button>
+
 					<Button
 						variant="outline"
 						size="icon"

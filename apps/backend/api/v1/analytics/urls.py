@@ -20,6 +20,7 @@ from .views import (
     PlatformStatsView,
     ProductEngagementCreateView,
     ProductSearchSelectionCreateView,
+    StaffDashboardView,
     StaffStatsView,
     TopProductsView,
 )
@@ -33,6 +34,7 @@ urlpatterns = [
         OwnerReviewRatingsView.as_view(),
         name="analytics-owner-review-ratings",
     ),
+    path("staff-dashboard/", StaffDashboardView.as_view(), name="analytics-staff-dashboard"),
     path("staff-stats/", StaffStatsView.as_view(), name="analytics-staff-stats"),
     path("monthly-sales/", MonthlySalesView.as_view(), name="analytics-monthly-sales"),
     path("top-products/", TopProductsView.as_view(), name="analytics-top-products"),

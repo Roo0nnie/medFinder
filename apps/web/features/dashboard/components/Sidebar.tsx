@@ -8,11 +8,11 @@ import {
 	AlertTriangle,
 	BarChart3,
 	FileQuestion,
+	FolderTree,
 	LayoutDashboard,
 	LogOut,
 	MessageSquare,
 	Package,
-	Settings,
 	Store,
 	Tag,
 	Users,
@@ -30,6 +30,7 @@ import {
 } from "@/core/components/ui/dropdown-menu"
 import { cn, getDisplayName, getInitials } from "@/core/lib/utils"
 import { OwnerHelpDialog } from "@/features/dashboard/components/owner-help-dialog"
+import { AdminPharmacyManagementSidebar } from "@/features/dashboard/components/AdminPharmacyManagementSidebar"
 import { OwnerProductManagementSidebar } from "@/features/dashboard/components/OwnerProductManagementSidebar"
 import { useAuth } from "@/services/better-auth/context/auth-provider"
 import { useSignOutMutation } from "@/features/auth/api/session.hooks"
@@ -44,13 +45,18 @@ interface SidebarProps {
 const adminLinks = [
 	{ href: "/dashboard/admin", label: "Dashboard", icon: LayoutDashboard },
 	{ href: "/dashboard/admin/users", label: "User Management", icon: Users },
-	{ href: "/dashboard/admin/pharmacies", label: "Pharmacy Management", icon: Store },
+	{
+		href: "/dashboard/admin/pharmacies",
+		label: "Pharmacy Management",
+		icon: Store,
+		isPharmacyManagementNav: true as const,
+	},
 	{ href: "/dashboard/admin/products", label: "Product Monitoring", icon: Activity },
 	{ href: "/dashboard/admin/brands", label: "Brand catalog", icon: Tag },
+	{ href: "/dashboard/admin/categories", label: "Categories", icon: FolderTree },
 	{ href: "/dashboard/admin/reviews", label: "Reviews & Ratings", icon: MessageSquare },
 	{ href: "/dashboard/admin/analytics", label: "Reports & Analytics", icon: BarChart3 },
 	{ href: "/dashboard/admin/audits", label: "Audit Logs", icon: Activity },
-	{ href: "/dashboard/admin/settings", label: "Settings", icon: Settings },
 ] as const
 
 const ownerLinks = [
@@ -75,7 +81,6 @@ const staffLinks = [
 	{ href: "/dashboard/staff/stock-alerts", label: "Stock Alerts", icon: AlertTriangle },
 	{ href: "/dashboard/staff/reports", label: "Reports", icon: BarChart3 },
 	{ href: "/dashboard/staff/audits", label: "Audit Logs", icon: Activity },
-	{ href: "/dashboard/staff/settings", label: "Settings", icon: Settings },
 ] as const
 
 export function Sidebar({ role, collapsed }: SidebarProps) {
@@ -135,6 +140,18 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 			<div className={cn("flex-1 overflow-y-auto py-6", collapsed ? "px-2" : "px-3")}>
 				<nav className="space-y-1">
 					{links.map(link => {
+						if (
+							role === "admin" &&
+							"isPharmacyManagementNav" in link &&
+							link.isPharmacyManagementNav
+						) {
+							return (
+								<AdminPharmacyManagementSidebar
+									key="pharmacy-management"
+									collapsed={collapsed}
+								/>
+							)
+						}
 						if (
 							role === "owner" &&
 							"isProductManagementNav" in link &&
@@ -238,11 +255,6 @@ export function Sidebar({ role, collapsed }: SidebarProps) {
 								<DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/profile` as any)}>
 									<span className="text-sm">Profile</span>
 								</DropdownMenuItem>
-								{role !== "owner" && (
-									<DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/settings` as any)}>
-										<span className="text-sm">Settings</span>
-									</DropdownMenuItem>
-								)}
 								<DropdownMenuItem
 									onClick={() => {
 										if (role === "owner") {

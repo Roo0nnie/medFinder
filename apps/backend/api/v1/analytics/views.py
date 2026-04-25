@@ -18,6 +18,7 @@ from .serializers import (
     ProductSearchSelectionCreateSerializer,
     ReviewRatingPointSerializer,
     SearchTrendPointSerializer,
+    StaffDashboardResponseSerializer,
     StaffStatsSerializer,
     TopProductSerializer,
 )
@@ -66,6 +67,21 @@ class StaffStatsView(APIView):
         user_id = request.query_params.get("userId") or str(request.user.id)
         stats = services.get_staff_stats(user_id)
         serializer = StaffStatsSerializer(stats)
+        return Response(serializer.data)
+
+
+class StaffDashboardView(APIView):
+    """
+    GET inventory dashboard data for staff users.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if (getattr(request.user, "role", None) or "") != "staff":
+            return Response({"detail": "Staff access required."}, status=403)
+        data = services.get_staff_dashboard(user_id=str(request.user.id))
+        serializer = StaffDashboardResponseSerializer(data)
         return Response(serializer.data)
 
 
@@ -481,10 +497,9 @@ class SessionAuditView(APIView):
         elif role == "staff":
             owner_id = owner_id_for_staff_user(str(user.id))
         else:
-            return Response({"success": True}, status=200)
-
-        if not owner_id:
-            return Response({"success": True}, status=200)
+            # No tenant scope: store actor id in owner_id so the event appears in platform-wide
+            # admin audit views without leaking into owner-scoped audit pages.
+            owner_id = str(getattr(user, "id", "") or "")
 
         actor_uid, actor_role = audit_actor_from_request(request)
         safe_log_audit_event(

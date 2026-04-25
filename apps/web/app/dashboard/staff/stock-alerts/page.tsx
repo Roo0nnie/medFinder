@@ -58,6 +58,7 @@ import {
 } from "@/core/components/ui/table"
 import { useToast } from "@/core/components/ui/use-toast"
 import { cn } from "@/core/lib/utils"
+import { postAuditEvent } from "@/features/dashboard/api/analytics.hooks"
 import { useCreateDeletionRequestMutation } from "@/features/deletion-requests/api/deletion-requests.hooks"
 import { useMyPharmaciesQuery } from "@/features/pharmacies/api/pharmacies.hooks"
 import { getStockStatus, type StockStatusKind } from "@/features/products/lib/stock-status"
@@ -340,12 +341,41 @@ export default function StaffStockAlertsPage() {
 			return
 		}
 		try {
+			const prevQuantity = editingRow.quantity
+			const prevPrice = Number(editingRow.price ?? 0)
+			const nextPrice = p
+			const prevAvailable = editingRow.isAvailable
+			const nextAvailable = editAvailable
+			const productLabel = [
+				editingRow.productName,
+				editingRow.variantLabel ? `(${editingRow.variantLabel})` : "",
+			]
+				.filter(Boolean)
+				.join(" ")
+
 			await updateMutation.mutateAsync({
 				id: editingRow.id,
 				quantity: q,
 				price: String(p),
 				isAvailable: editAvailable,
 			})
+
+			void postAuditEvent({
+				action: "UPDATE",
+				resourceType: "PharmacyInventory",
+				resourceId: editingRow.id,
+				details: [
+					productLabel,
+					`quantity ${prevQuantity}->${q}`,
+					prevPrice !== nextPrice ? `price ${prevPrice}->${nextPrice}` : "",
+					prevAvailable !== nextAvailable
+						? `available ${prevAvailable ? "yes" : "no"}->${nextAvailable ? "yes" : "no"}`
+						: "",
+				]
+					.filter(Boolean)
+					.join(" · "),
+			})
+
 			toast({ title: "Stock updated" })
 			setEditingRow(null)
 		} catch (e) {
@@ -544,18 +574,16 @@ export default function StaffStockAlertsPage() {
 							>
 								<ChevronLeft className="h-4 w-4" />
 							</Button>
-							{Array.from({ length: pageCount }, (_, i) => i + 1).map(p => (
-								<Button
-									key={p}
-									variant={table.getState().pagination.pageIndex === p - 1 ? "default" : "outline"}
-									size="icon"
-									className="h-8 w-8"
-									onClick={() => table.setPageIndex(p - 1)}
-									aria-label={`Page ${p}`}
-								>
-									{p}
-								</Button>
-							))}
+							<Button
+								variant="default"
+								size="icon"
+								className="h-8 w-8"
+								aria-label={`Page ${table.getState().pagination.pageIndex + 1}`}
+								disabled
+							>
+								{table.getState().pagination.pageIndex + 1}
+							</Button>
+		
 							<Button
 								variant="outline"
 								size="icon"

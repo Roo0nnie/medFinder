@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { Route } from "next"
 import { useRouter } from "next/navigation"
 
+import { Button } from "@/core/components/ui/button"
 import { Card, CardContent } from "@/core/components/ui/card"
 import { Input } from "@/core/components/ui/input"
 import { useInView } from "@/core/hooks/use-in-view"
@@ -235,6 +236,15 @@ export function LandingPharmacySection({ isCustomer = false }: { isCustomer?: bo
 					Find pharmacies near you. Filter by city or municipality.
 				</p>
 			</section>
+
+			<div className="flex flex-wrap items-center gap-2">
+				<Button type="button" onClick={() => router.push("/pharmacies/map" as Route)} className="shrink-0">
+					Find nearest pharmacy
+				</Button>
+				<p className="text-muted-foreground max-w-xl text-sm">
+					Open the map to see your location, driving routes, and the closest approved pharmacy.
+				</p>
+			</div>
 
 			<div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
 				<div className="relative w-full sm:max-w-md">

@@ -5,6 +5,7 @@ import {
 	PlatformStatsSchema,
 	OwnerStatsSchema,
 	StaffStatsSchema,
+	StaffDashboardResponseSchema,
 	MonthlySalesPointSchema,
 	TopProductSchema,
 	ReviewRatingPointSchema,
@@ -66,6 +67,20 @@ export const analyticsContract = {
 		})
 		.input(StaffStatsParamsSchema.partial())
 		.output(StaffStatsSchema),
+
+	/**
+	 * Get staff dashboard summary
+	 * GET /analytics/staff-dashboard
+	 */
+	staffDashboard: oc
+		.route({
+			method: "GET",
+			path: "/analytics/staff-dashboard",
+			summary: "Staff dashboard",
+			description: "Retrieve owner-scoped inventory dashboard data for the authenticated staff user",
+			tags: ["Analytics"],
+		})
+		.output(StaffDashboardResponseSchema),
 
 	/**
 	 * Review counts per star (1–5), pharmacy + product reviews for owner scope

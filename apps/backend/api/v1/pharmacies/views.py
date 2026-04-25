@@ -73,6 +73,23 @@ class PharmacyListView(APIView):
         state = request.query_params.get("state")
         is_active_param = request.query_params.get("is_active")
 
+        north = request.query_params.get("north")
+        south = request.query_params.get("south")
+        east = request.query_params.get("east")
+        west = request.query_params.get("west")
+        north_f = south_f = east_f = west_f = None
+        if north is not None and south is not None and east is not None and west is not None:
+            try:
+                north_f = float(north)
+                south_f = float(south)
+                east_f = float(east)
+                west_f = float(west)
+            except (TypeError, ValueError):
+                return Response(
+                    {"detail": "north, south, east, and west must be valid numbers when provided together."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         is_active = None
         if is_active_param is not None:
             is_active = is_active_param.lower() != "false"
@@ -86,6 +103,10 @@ class PharmacyListView(APIView):
             search_query=search_query,
             city=city,
             state=state,
+            north=north_f,
+            south=south_f,
+            east=east_f,
+            west=west_f,
         )
 
         role = getattr(request.user, "role", None) if getattr(request.user, "is_authenticated", False) else None
@@ -96,6 +117,52 @@ class PharmacyListView(APIView):
             pharmacies = pharmacies.filter(certificate_status="approved", is_active=True)
 
         serializer = PharmacyListSerializer(pharmacies, many=True)
+        return Response(serializer.data)
+
+
+class PharmacyNearestView(APIView):
+    """
+    GET pharmacies nearest to a point (lat, lng), ordered by straight-line distance (km).
+    Public; only returns active, certificate-approved pharmacies with coordinates.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        lat_raw = request.query_params.get("lat")
+        lng_raw = request.query_params.get("lng")
+        if lat_raw is None or lng_raw is None:
+            return Response(
+                {"detail": "Query parameters lat and lng are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            lat = float(lat_raw)
+            lng = float(lng_raw)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "lat and lng must be valid numbers."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if lat < -90 or lat > 90 or lng < -180 or lng > 180:
+            return Response(
+                {"detail": "lat must be between -90 and 90, lng between -180 and 180."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        radius_raw = request.query_params.get("radiusKm") or "25"
+        limit_raw = request.query_params.get("limit") or "20"
+        try:
+            radius_km = float(radius_raw)
+            limit = int(limit_raw)
+        except (TypeError, ValueError):
+            return Response(
+                {"detail": "radiusKm and limit must be valid numbers."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        qs = services.find_nearest_pharmacies(lat=lat, lng=lng, radius_km=radius_km, limit=limit)
+        serializer = PharmacyListSerializer(list(qs), many=True)
         return Response(serializer.data)
 
 
@@ -382,7 +449,7 @@ class PharmacyCertificateReviewView(APIView):
             )
 
         try:
-            services.get_pharmacy_by_id(pk)
+            pharmacy_existing = services.get_pharmacy_by_id(pk)
         except Pharmacy.DoesNotExist:
             return Response({"detail": "Pharmacy not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -400,6 +467,24 @@ class PharmacyCertificateReviewView(APIView):
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Curated audit: certificate approve/reject (owner-scoped, so owners can see it;
+        # also visible in platform-wide admin audit listing).
+        try:
+            oid = str(getattr(pharmacy, "owner_id", None) or getattr(pharmacy_existing, "owner_id", "") or "")
+        except Exception:
+            oid = ""
+        if oid:
+            actor_uid, actor_role = audit_actor_from_request(request)
+            safe_log_audit_event(
+                owner_id=oid,
+                actor_user_id=actor_uid,
+                actor_role=actor_role,
+                action="APPROVE" if status_value == "approved" else "REJECT",
+                resource_type="PharmacyCertificate",
+                resource_id=str(pk),
+                details=(review_note or "")[:4000],
+            )
 
         out_serializer = PharmacyDetailSerializer(pharmacy)
         return Response(out_serializer.data, status=status.HTTP_200_OK)

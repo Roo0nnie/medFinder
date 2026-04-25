@@ -6,6 +6,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.v1.analytics.audit_helpers import audit_actor_from_request, safe_log_audit_event
+from api.v1.analytics.audit_helpers import owner_id_from_pharmacy_id
 from api.v1.inventory.models import PharmacyInventory
 from api.v1.pharmacies.models import PharmacyStaff
 from api.v1.staff.models import Staff
@@ -79,6 +81,25 @@ class ReservationListCreateView(APIView):
             quantity=data["quantity"],
         )
 
+        # Curated audit: reservation lifecycle (owner-scoped when resolvable)
+        try:
+            inv = PharmacyInventory.objects.get(pk=data["inventoryId"])
+        except PharmacyInventory.DoesNotExist:
+            inv = None
+        if inv:
+            oid = owner_id_from_pharmacy_id(str(inv.pharmacy_id))
+            if oid:
+                actor_uid, actor_role = audit_actor_from_request(request)
+                safe_log_audit_event(
+                    owner_id=oid,
+                    actor_user_id=actor_uid,
+                    actor_role=actor_role or "customer",
+                    action="CREATE",
+                    resource_type="ProductReservation",
+                    resource_id=str(reservation.id),
+                    details=f"inventory={data['inventoryId']} qty={data['quantity']}",
+                )
+
         out_serializer = ProductReservationSerializer(reservation)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -124,11 +145,37 @@ class ReservationDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        prev_status = str(getattr(reservation, "status", "") or "")
+        prev_qty = int(getattr(reservation, "quantity", 0) or 0)
         reservation = services.update_reservation(
             pk,
             quantity=data.get("quantity"),
             status=data.get("status"),
         )
+
+        # Curated audit: update (owner-scoped when resolvable)
+        try:
+            inv = PharmacyInventory.objects.get(pk=reservation.inventory_id)
+        except PharmacyInventory.DoesNotExist:
+            inv = None
+        if inv:
+            oid = owner_id_from_pharmacy_id(str(inv.pharmacy_id))
+            if oid:
+                actor_uid, actor_role = audit_actor_from_request(request)
+                changes = []
+                if data.get("quantity") is not None and int(reservation.quantity) != prev_qty:
+                    changes.append(f"quantity {prev_qty}->{int(reservation.quantity)}")
+                if data.get("status") is not None and str(reservation.status) != prev_status:
+                    changes.append(f"status {prev_status}->{str(reservation.status)}")
+                safe_log_audit_event(
+                    owner_id=oid,
+                    actor_user_id=actor_uid,
+                    actor_role=actor_role,
+                    action="UPDATE",
+                    resource_type="ProductReservation",
+                    resource_id=str(reservation.id),
+                    details=f"inventory={reservation.inventory_id}" + ((" " + ", ".join(changes)) if changes else ""),
+                )
 
         out_serializer = ProductReservationSerializer(reservation)
         return Response(out_serializer.data)
@@ -149,6 +196,24 @@ class ReservationDetailView(APIView):
             )
 
         result = services.cancel_reservation(pk)
+        # Curated audit: cancel (owner-scoped when resolvable)
+        try:
+            inv = PharmacyInventory.objects.get(pk=reservation.inventory_id)
+        except PharmacyInventory.DoesNotExist:
+            inv = None
+        if inv:
+            oid = owner_id_from_pharmacy_id(str(inv.pharmacy_id))
+            if oid:
+                actor_uid, actor_role = audit_actor_from_request(request)
+                safe_log_audit_event(
+                    owner_id=oid,
+                    actor_user_id=actor_uid,
+                    actor_role=actor_role,
+                    action="CANCEL",
+                    resource_type="ProductReservation",
+                    resource_id=str(reservation.id),
+                    details=f"inventory={reservation.inventory_id}",
+                )
         return Response(result)
 
 

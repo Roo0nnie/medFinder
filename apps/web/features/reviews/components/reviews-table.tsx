@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Star, Trash2 } from "lucide-react"
+import { Eye, MoreHorizontal, Star, Trash2 } from "lucide-react"
 
 import { DataTable } from "@/core/components/data-table/data-table"
 import { SortableHeader } from "@/core/components/data-table/sortable-header"
@@ -22,6 +22,8 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/core/components/ui/select"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/core/components/ui/dialog"
+import { Separator } from "@/core/components/ui/separator"
 import { usePharmacyReviewsQuery, type PharmacyReview } from "@/features/reviews/api/reviews.hooks"
 
 type ReviewRow = PharmacyReview & {
@@ -39,6 +41,8 @@ export type ReviewsTableProps = {
 export function ReviewsTable({ onDelete, onDeleteMany, selectionClearKey }: ReviewsTableProps) {
 	const [ratingFilter, setRatingFilter] = useState<string>("")
 	const [selectedRows, setSelectedRows] = useState<ReviewRow[]>([])
+	const [detailsOpen, setDetailsOpen] = useState(false)
+	const [reviewForDetails, setReviewForDetails] = useState<ReviewRow | null>(null)
 	const selectedRating = ratingFilter ? Number(ratingFilter) : undefined
 
 	const reviewsQuery = usePharmacyReviewsQuery(undefined, selectedRating, { enabled: true })
@@ -136,15 +140,6 @@ export function ReviewsTable({ onDelete, onDeleteMany, selectionClearKey }: Revi
 				cell: ({ row }) => <span className="font-semibold">{row.original.rating}/5</span>,
 			},
 			{
-				accessorKey: "comment",
-				header: ({ column }) => <SortableHeader column={column} label="Comment" />,
-				cell: ({ row }) => (
-					<div className="max-w-xl">
-						<p className="text-sm">{row.original.comment || "No comment provided."}</p>
-					</div>
-				),
-			},
-			{
 				id: "actions",
 				header: () => (
 					<div className="text-right">
@@ -164,6 +159,15 @@ export function ReviewsTable({ onDelete, onDeleteMany, selectionClearKey }: Revi
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
+									<DropdownMenuItem
+										onClick={() => {
+											setReviewForDetails(r)
+											setDetailsOpen(true)
+										}}
+									>
+										<Eye className="mr-2 h-4 w-4" />
+										View details
+									</DropdownMenuItem>
 									{onDelete ? (
 										<>
 											<DropdownMenuSeparator />
@@ -222,24 +226,75 @@ export function ReviewsTable({ onDelete, onDeleteMany, selectionClearKey }: Revi
 	)
 
 	return (
-		<DataTable
-			data={rows}
-			columns={columns}
-			toolbarAboveSearch={toolbarAboveSearch}
-			toolbarRight={toolbarRight}
-			isLoading={reviewsQuery.isLoading}
-			errorText={
-				reviewsQuery.isError
-					? reviewsQuery.error instanceof Error
-						? reviewsQuery.error.message
-						: "Failed to load reviews."
-					: null
-			}
-			searchPlaceholder="Search reviews..."
-			getRowId={row => row.id}
-			onSelectedRowsChange={setSelectedRows}
-			selectionClearKey={selectionClearKey}
-		/>
+		<>
+			<DataTable
+				data={rows}
+				columns={columns}
+				toolbarAboveSearch={toolbarAboveSearch}
+				toolbarRight={toolbarRight}
+				isLoading={reviewsQuery.isLoading}
+				errorText={
+					reviewsQuery.isError
+						? reviewsQuery.error instanceof Error
+							? reviewsQuery.error.message
+							: "Failed to load reviews."
+						: null
+				}
+				searchPlaceholder="Search reviews..."
+				getRowId={row => row.id}
+				onSelectedRowsChange={setSelectedRows}
+				selectionClearKey={selectionClearKey}
+			/>
+
+			<Dialog
+				open={detailsOpen}
+				onOpenChange={open => {
+					setDetailsOpen(open)
+					if (!open) setReviewForDetails(null)
+				}}
+			>
+				<DialogContent className="sm:max-w-lg">
+					<DialogHeader>
+						<DialogTitle>Review details</DialogTitle>
+						<DialogDescription>Full review information, including description.</DialogDescription>
+					</DialogHeader>
+
+					{reviewForDetails ? (
+						<div className="space-y-3">
+							<div className="grid gap-2 sm:grid-cols-2">
+								<div>
+									<div className="text-muted-foreground text-xs">Customer</div>
+									<div className="text-sm font-medium">{reviewForDetails.customerName ?? "Customer"}</div>
+								</div>
+								<div>
+									<div className="text-muted-foreground text-xs">Rating</div>
+									<div className="text-sm font-medium">{reviewForDetails.rating}/5</div>
+								</div>
+								<div className="sm:col-span-2">
+									<div className="text-muted-foreground text-xs">Created</div>
+									<div className="text-sm">
+										{reviewForDetails.createdAt
+											? new Date(reviewForDetails.createdAt).toLocaleString()
+											: "—"}
+									</div>
+								</div>
+							</div>
+
+							<Separator />
+
+							<div>
+								<div className="text-muted-foreground text-xs">Description</div>
+								<div className="bg-muted/30 mt-1 rounded-md p-3">
+									<p className="text-sm whitespace-pre-wrap">
+										{reviewForDetails.comment?.trim() ? reviewForDetails.comment : "—"}
+									</p>
+								</div>
+							</div>
+						</div>
+					) : null}
+				</DialogContent>
+			</Dialog>
+		</>
 	)
 }
 

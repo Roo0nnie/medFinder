@@ -10,6 +10,7 @@ import type {
 	PeakHourPoint,
 	ReviewRatingPoint,
 	SearchTrendPoint,
+	StaffDashboardResponse,
 	TopProduct,
 } from "@repo/contracts"
 
@@ -37,6 +38,13 @@ export function useOwnerStatsQuery() {
 	return useQuery({
 		queryKey: ["analytics", "owner-stats"],
 		queryFn: () => apiFetch<OwnerStats>("/v1/analytics/owner-stats/"),
+	})
+}
+
+export function useStaffDashboardQuery() {
+	return useQuery({
+		queryKey: ["analytics", "staff-dashboard"],
+		queryFn: () => apiFetch<StaffDashboardResponse>("/v1/analytics/staff-dashboard/"),
 	})
 }
 

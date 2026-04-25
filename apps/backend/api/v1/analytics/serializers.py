@@ -27,9 +27,47 @@ class StaffStatsSerializer(serializers.Serializer):
     completedReservations = serializers.IntegerField()
 
 
+class StaffDashboardStatsSerializer(serializers.Serializer):
+    totalProductsManaged = serializers.IntegerField()
+    itemsOutOfStock = serializers.IntegerField()
+    lowStockAlerts = serializers.IntegerField()
+
+
 class MonthlySalesPointSerializer(serializers.Serializer):
     name = serializers.CharField()
     sales = serializers.FloatField()
+
+
+class StaffDashboardTrendPointSerializer(serializers.Serializer):
+    day = serializers.CharField()
+    stock = serializers.IntegerField()
+
+
+class StaffDashboardRecentUpdateSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    productName = serializers.CharField()
+    variantLabel = serializers.CharField(required=False, allow_null=True)
+    currentQuantity = serializers.IntegerField(required=False, allow_null=True)
+    direction = serializers.ChoiceField(choices=["increase", "decrease", "update"])
+    action = serializers.CharField()
+    updatedAt = serializers.CharField()
+
+
+class StaffDashboardInventoryRowSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    productName = serializers.CharField()
+    variantLabel = serializers.CharField(required=False, allow_null=True)
+    sku = serializers.CharField()
+    stockLimit = serializers.IntegerField()
+    currentStock = serializers.IntegerField()
+    stockStatus = serializers.ChoiceField(choices=["ok", "low", "out", "unavailable"])
+
+
+class StaffDashboardResponseSerializer(serializers.Serializer):
+    stats = StaffDashboardStatsSerializer()
+    trend = StaffDashboardTrendPointSerializer(many=True)
+    recentUpdates = StaffDashboardRecentUpdateSerializer(many=True)
+    inventoryList = StaffDashboardInventoryRowSerializer(many=True)
 
 
 class TopProductSerializer(serializers.Serializer):

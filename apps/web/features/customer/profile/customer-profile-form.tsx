@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Eye, EyeOff, ImageIcon, Loader2, Upload } from "lucide-react"
 
 import { authClient } from "@/services/better-auth/auth-client"
-import { updateUser } from "@/features/users/api/users.api"
+import { clearMyUserLocation, updateUser } from "@/features/users/api/users.api"
 import { sessionKeys } from "@/features/auth/api/session.hooks"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/core/components/ui/avatar"
@@ -36,6 +36,10 @@ type CustomerUser = {
 	image?: string | null
 	profileImageUrl?: string | null
 	role?: string | null
+	/** Opt-in stored map coordinates from pharmacy finder. */
+	latitude?: number | null
+	longitude?: number | null
+	locationConsentAt?: string | null
 }
 
 const MAX_PROFILE_IMAGE_BYTES = 1 * 1024 * 1024
@@ -155,6 +159,22 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 		},
 	})
 
+	const clearStoredLocationMutation = useMutation({
+		mutationFn: () => clearMyUserLocation(),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: sessionKeys.all })
+			router.refresh()
+			toast({ title: "Saved map location cleared" })
+		},
+		onError: (err: unknown) => {
+			toast({
+				title: "Could not clear location",
+				description: err instanceof Error ? err.message : "Please try again.",
+				variant: "destructive",
+			})
+		},
+	})
+
 	const changePasswordMutation = useMutation({
 		mutationFn: async (input: { currentPassword: string; newPassword: string; revokeOtherSessions: boolean }) => {
 			const result = await authClient.changePassword(input)
@@ -175,7 +195,15 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 		},
 	})
 
-	const isPending = updateProfileMutation.isPending || changePasswordMutation.isPending
+	const isPending =
+		updateProfileMutation.isPending || changePasswordMutation.isPending || clearStoredLocationMutation.isPending
+
+	const hasStoredMapLocation =
+		user.locationConsentAt != null &&
+		typeof user.latitude === "number" &&
+		typeof user.longitude === "number" &&
+		Number.isFinite(user.latitude) &&
+		Number.isFinite(user.longitude)
 
 	const displayedPhotoSrc = pendingPhotoBlobUrl || (photoUrl?.trim() ? photoUrl.trim() : null)
 	const pwStrength = passwordStrengthLabel(newPasswordDraft)
@@ -186,6 +214,39 @@ export function CustomerProfileForm({ user }: { user: CustomerUser }) {
 				<h1 className="text-2xl font-semibold tracking-tight">Your profile</h1>
 				<p className="text-muted-foreground text-sm">Update your information and security settings.</p>
 			</div>
+
+			{hasStoredMapLocation ? (
+				<Card className="border-border/60">
+					<CardHeader className="space-y-1.5">
+						<CardTitle className="text-base">Map location</CardTitle>
+						<CardDescription>
+							You previously chose to save your coordinates for the pharmacy map. You can remove them at any
+							time.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						<p className="text-muted-foreground text-sm">
+							Last saved with consent on{" "}
+							{user.locationConsentAt
+								? new Date(user.locationConsentAt).toLocaleString(undefined, {
+										dateStyle: "medium",
+										timeStyle: "short",
+									})
+								: "—"}
+							.
+						</p>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={isPending}
+							onClick={() => clearStoredLocationMutation.mutate()}
+						>
+							{clearStoredLocationMutation.isPending && <Spinner className="mr-2 size-4 animate-spin" />}
+							Clear saved location
+						</Button>
+					</CardContent>
+				</Card>
+			) : null}
 
 			<div className="grid gap-6 lg:grid-cols-2">
 				<Card className="transition-shadow hover:shadow-sm">

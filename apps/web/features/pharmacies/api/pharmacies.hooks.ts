@@ -137,6 +137,8 @@ export type Pharmacy = {
 	isActive: boolean
 	createdAt?: string
 	updatedAt?: string
+	/** Straight-line distance in km when returned from nearest endpoint. */
+	distance?: number | null
 }
 
 export function useMyPharmaciesQuery() {

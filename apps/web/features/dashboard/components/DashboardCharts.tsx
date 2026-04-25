@@ -290,12 +290,36 @@ export function ReviewRatingsLineChart({
 
 interface InventoryTrendsChartProps {
   data: { day: string; stock: number }[];
+  title?: string;
+  subtitle?: string;
 }
 
-export function InventoryTrendsChart({ data }: InventoryTrendsChartProps) {
+export function InventoryTrendsChart({
+  data,
+  title = "Inventory Trends",
+  subtitle,
+}: InventoryTrendsChartProps) {
+  if (!data.length) {
+    return (
+      <div className="min-h-[200px] w-full rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-4">
+          <h3 className="text-base font-medium text-foreground">{title}</h3>
+          {subtitle ? (
+            <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p>
+          ) : null}
+        </div>
+        <p className="text-muted-foreground text-sm">No inventory activity yet.</p>
+      </div>
+    );
+  }
   return (
     <div className="h-[300px] w-full rounded-xl border border-border bg-card p-6 shadow-sm">
-      <h3 className="text-base font-medium text-foreground mb-6">Inventory Trends</h3>
+      <div className="mb-6">
+        <h3 className="text-base font-medium text-foreground">{title}</h3>
+        {subtitle ? (
+          <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p>
+        ) : null}
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
           <CartesianGrid

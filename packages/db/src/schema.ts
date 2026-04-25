@@ -21,6 +21,15 @@ export const users = createTable("users", t => ({
 	last_name: t.text("last_name").notNull(),
 	middle_name: t.text("middle_name"),
 	phone: t.text("phone"),
+	/** Last known latitude (WGS84). Persist only with explicit user consent. */
+	latitude: t.real("latitude"),
+	/** Last known longitude (WGS84). Persist only with explicit user consent. */
+	longitude: t.real("longitude"),
+	/** Geolocation accuracy in meters, from the browser Geolocation API when available. */
+	locationAccuracy: t.real("location_accuracy"),
+	locationUpdatedAt: t.timestamp("location_updated_at"),
+	/** When the user first opted in to storing location on the server. */
+	locationConsentAt: t.timestamp("location_consent_at"),
 	role: t.text("role").notNull().default("customer"),
 	createdAt: t.timestamp("created_at").notNull().defaultNow(),
 	updatedAt: t.timestamp("updated_at").notNull().defaultNow(),
@@ -162,6 +171,7 @@ export const pharmacies = createTable(
 		index("pharmacies_owner_id_idx").on(t.ownerId),
 		index("pharmacies_is_active_idx").on(t.isActive),
 		index("pharmacies_city_idx").on(t.city),
+		index("pharmacies_active_geo_idx").on(t.isActive, t.latitude, t.longitude),
 	]
 )
 

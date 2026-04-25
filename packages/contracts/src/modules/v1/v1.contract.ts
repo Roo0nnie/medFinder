@@ -9,6 +9,7 @@ import { reviewsContract } from "./reviews/reviews.contract.js"
 import { analyticsContract } from "./analytics/analytics.contract.js"
 import { deletionRequestsContract } from "./deletion-requests/deletion-requests.contract.js"
 import { staffContract } from "./staff/staff.contract.js"
+import { adminContract } from "./admin/admin.contract.js"
 
 /**
  * V1 contract router (versioned paths: /v1/health, etc)
@@ -23,6 +24,7 @@ export const v1Contract = oc.prefix("/v1").router(
 		reservations: reservationsContract,
 		reviews: reviewsContract,
 		analytics: analyticsContract,
+		admin: adminContract,
 		deletionRequests: deletionRequestsContract,
 		staff: staffContract,
 	})

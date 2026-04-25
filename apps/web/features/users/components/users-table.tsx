@@ -5,6 +5,8 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import Link from "next/link"
 
 import { Button } from "@/core/components/ui/button"
+import { buttonVariants } from "@/core/components/ui/button-variants"
+import { cn } from "@/core/lib/utils"
 import {
 	Table,
 	TableBody,
@@ -45,11 +47,13 @@ export function UsersTable({ users }: UsersTableProps) {
 						<TableCell>{user.email}</TableCell>
 						<TableCell>{user.role}</TableCell>
 						<TableCell className="text-right">
-							<Button variant="ghost" size="icon" asChild>
-								<Link href={`/users/${user.id}/edit`}>
-									<HugeiconsIcon icon={Pencil} className="size-4" />
-								</Link>
-							</Button>
+							<Link
+								href={`/users/${user.id}/edit` as any}
+								className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+								aria-label="Edit user"
+							>
+								<HugeiconsIcon icon={Pencil} className="size-4" />
+							</Link>
 							<Button
 								variant="ghost"
 								size="icon"

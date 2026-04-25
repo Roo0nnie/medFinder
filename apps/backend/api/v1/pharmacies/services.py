@@ -1,6 +1,7 @@
 """
 Pharmacy business logic and CRUD operations.
 """
+import math
 import mimetypes
 import os
 import uuid
@@ -8,7 +9,8 @@ from typing import Callable, Iterable, Optional
 
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
-from django.db.models import Q, QuerySet
+from django.db.models import FloatField, Q, QuerySet
+from django.db.models.expressions import RawSQL
 from django.utils import timezone
 
 from .models import Pharmacy
@@ -35,6 +37,10 @@ def get_all_pharmacies(
     search_query: Optional[str] = None,
     city: Optional[str] = None,
     state: Optional[str] = None,
+    north: Optional[float] = None,
+    south: Optional[float] = None,
+    east: Optional[float] = None,
+    west: Optional[float] = None,
 ) -> QuerySet[Pharmacy]:
     qs = Pharmacy.objects.all()
 
@@ -57,7 +63,74 @@ def get_all_pharmacies(
             | Q(state__icontains=search_query)
         )
 
+    if (
+        north is not None
+        and south is not None
+        and east is not None
+        and west is not None
+        and north >= south
+    ):
+        qs = qs.filter(
+            latitude__isnull=False,
+            longitude__isnull=False,
+            latitude__gte=south,
+            latitude__lte=north,
+        )
+        if west <= east:
+            qs = qs.filter(longitude__gte=west, longitude__lte=east)
+        else:
+            # Viewport crosses the antimeridian (rare); OR the two longitude spans.
+            qs = qs.filter(Q(longitude__gte=west) | Q(longitude__lte=east))
+
     return qs.order_by("-updated_at")
+
+
+def find_nearest_pharmacies(
+    *,
+    lat: float,
+    lng: float,
+    radius_km: float = 25.0,
+    limit: int = 20,
+) -> QuerySet[Pharmacy]:
+    """
+    Approved, active pharmacies within radius_km of (lat, lng), ordered by Haversine distance (km).
+    Uses a latitude/longitude bounding-box prefilter before Haversine for index use.
+    """
+    if limit < 1:
+        limit = 1
+    if limit > 100:
+        limit = 100
+    radius_km = max(0.5, min(radius_km, 500.0))
+
+    deg = radius_km / 111.0
+    cos_lat = max(0.0001, math.cos(math.radians(lat)))
+    lat_min, lat_max = lat - deg, lat + deg
+    lng_delta = deg / cos_lat
+    lng_min, lng_max = lng - lng_delta, lng + lng_delta
+
+    distance_sql = (
+        "6371 * acos(GREATEST(-1.0, LEAST(1.0, "
+        "cos(radians(%s)) * cos(radians(latitude)) * cos(radians(longitude) - radians(%s)) + "
+        "sin(radians(%s)) * sin(radians(latitude)))))"
+    )
+
+    return (
+        Pharmacy.objects.filter(
+            is_active=True,
+            certificate_status="approved",
+            latitude__isnull=False,
+            longitude__isnull=False,
+            latitude__gte=lat_min,
+            latitude__lte=lat_max,
+            longitude__gte=lng_min,
+            longitude__lte=lng_max,
+        )
+        .annotate(
+            distance=RawSQL(distance_sql, [lat, lng, lat], output_field=FloatField()),
+        )
+        .filter(distance__lte=radius_km)
+        .order_by("distance")[:limit]
+    )
 
 
 def get_pharmacy_by_id(pk: str) -> Pharmacy:

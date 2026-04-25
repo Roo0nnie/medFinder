@@ -5,6 +5,8 @@ IMPORTANT: User creation must happen via Better Auth (e.g., auth.api.signUpEmail
 Direct table writes to create users will not populate the accounts table with passwords,
 making those users unable to log in. This service only handles read/update/delete operations.
 """
+from typing import Optional
+
 from .models import User
 
 
@@ -64,3 +66,64 @@ def delete_user(pk):
     user = User.objects.get(pk=pk)
     user.delete()
     return {"success": True, "id": str(pk)}
+
+
+def save_user_location(
+    user_id: str,
+    *,
+    latitude: float,
+    longitude: float,
+    accuracy: Optional[float] = None,
+    consent: bool = False,
+):
+    """
+    Persist last-known coordinates on the user row. Only call when consent is True.
+    """
+    from django.utils import timezone
+
+    if not consent:
+        raise ValueError("consent must be true to persist location")
+
+    user = User.objects.get(pk=user_id)
+    user.latitude = latitude
+    user.longitude = longitude
+    user.location_accuracy = accuracy
+    now = timezone.now()
+    user.location_updated_at = now
+    if user.location_consent_at is None:
+        user.location_consent_at = now
+    user.updated_at = now
+    user.save(
+        update_fields=[
+            "latitude",
+            "longitude",
+            "location_accuracy",
+            "location_updated_at",
+            "location_consent_at",
+            "updated_at",
+        ]
+    )
+    return user
+
+
+def clear_user_location(user_id: str):
+    from django.utils import timezone
+
+    user = User.objects.get(pk=user_id)
+    user.latitude = None
+    user.longitude = None
+    user.location_accuracy = None
+    user.location_updated_at = None
+    user.location_consent_at = None
+    user.updated_at = timezone.now()
+    user.save(
+        update_fields=[
+            "latitude",
+            "longitude",
+            "location_accuracy",
+            "location_updated_at",
+            "location_consent_at",
+            "updated_at",
+        ]
+    )
+    return user

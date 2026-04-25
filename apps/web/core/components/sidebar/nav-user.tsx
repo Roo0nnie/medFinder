@@ -39,14 +39,11 @@ export function NavUser({ session }: { session: AuthSession }) {
 		<SidebarMenu>
 			<SidebarMenuItem>
 				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={
-							<SidebarMenuButton
-								size="lg"
-								className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-							/>
-						}
-					>
+					<DropdownMenuTrigger>
+						<SidebarMenuButton
+							size="lg"
+							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+						>
 						<Avatar className="h-8 w-8 rounded-lg">
 							<AvatarImage src={session.user?.image ?? undefined} alt={getDisplayName(session.user)} />
 							<AvatarFallback className="rounded-lg">
@@ -58,6 +55,7 @@ export function NavUser({ session }: { session: AuthSession }) {
 							<span className="truncate text-xs">{session.user?.email ?? ""}</span>
 						</div>
 						<HugeiconsIcon icon={UnfoldMoreIcon} className="ml-auto size-4" strokeWidth={2} />
+						</SidebarMenuButton>
 					</DropdownMenuTrigger>
 
 					<DropdownMenuContent

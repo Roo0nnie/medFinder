@@ -1,6 +1,7 @@
 """
 Analytics business logic and aggregate queries.
 """
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -116,6 +117,229 @@ def get_staff_stats(user_id: str) -> Dict[str, int]:
     return {
         "activeReservations": active_reservations,
         "completedReservations": completed_reservations,
+    }
+
+
+def _inventory_scope_for_owner(owner_id: str) -> tuple[List[str], List[PharmacyInventory]]:
+    pharmacy_ids = list(Pharmacy.objects.filter(owner_id=owner_id).values_list("id", flat=True))
+    inventory_rows = list(
+        PharmacyInventory.objects.filter(pharmacy_id__in=pharmacy_ids).order_by("-updated_at")
+    )
+    return pharmacy_ids, inventory_rows
+
+
+def _product_threshold_map(product_ids: set[str]) -> Dict[str, int]:
+    if not product_ids:
+        return {}
+    return {
+        p.id: int(p.low_stock_threshold if p.low_stock_threshold is not None else 5)
+        for p in MedicalProduct.objects.filter(id__in=product_ids)
+    }
+
+
+def _stock_status(*, quantity: int, stock_limit: int, is_available: bool) -> str:
+    if quantity <= 0:
+        return "out"
+    if not is_available:
+        return "unavailable"
+    if quantity <= stock_limit:
+        return "low"
+    return "ok"
+
+
+def _audit_direction(action: str, details: str) -> str:
+    match = re.search(r"quantity\s+(-?\d+)->(-?\d+)", details or "")
+    if match:
+        before_qty = int(match.group(1))
+        after_qty = int(match.group(2))
+        if after_qty > before_qty:
+            return "increase"
+        if after_qty < before_qty:
+            return "decrease"
+    if action == "CREATE":
+        return "increase"
+    if action == "DELETE":
+        return "decrease"
+    return "update"
+
+
+def _product_id_from_audit_details(details: str) -> Optional[str]:
+    match = re.search(r"product=([^\s,]+)", details or "")
+    if not match:
+        return None
+    return match.group(1)
+
+
+def get_staff_dashboard(*, user_id: str) -> Dict[str, Any]:
+    """
+    Owner-scoped inventory dashboard for the authenticated staff user.
+    """
+    try:
+        staff_profile = Staff.objects.get(user_id=user_id)
+    except Staff.DoesNotExist:
+        return {
+            "stats": {
+                "totalProductsManaged": 0,
+                "itemsOutOfStock": 0,
+                "lowStockAlerts": 0,
+            },
+            "trend": [
+                {
+                    "day": (timezone.localdate() - timedelta(days=offset)).strftime("%a"),
+                    "stock": 0,
+                }
+                for offset in range(6, -1, -1)
+            ],
+            "recentUpdates": [],
+            "inventoryList": [],
+        }
+
+    owner_id = str(staff_profile.owner_id)
+    _, inventory_rows = _inventory_scope_for_owner(owner_id)
+    product_ids = {row.product_id for row in inventory_rows}
+    variant_ids = {
+        row.variant_id
+        for row in inventory_rows
+        if getattr(row, "variant_id", None)
+    }
+    product_map = {
+        p.id: p
+        for p in MedicalProduct.objects.filter(id__in=product_ids)
+    }
+    variant_map = {
+        variant.id: variant.label
+        for variant in MedicalProductVariant.objects.filter(id__in=variant_ids)
+    }
+    thresholds = _product_threshold_map(product_ids)
+
+    total_products_managed = len(product_ids)
+    items_out_of_stock = 0
+    low_stock_alerts = 0
+    for row in inventory_rows:
+        quantity = int(row.quantity or 0)
+        stock_limit = thresholds.get(row.product_id, 5)
+        if quantity <= 0:
+            items_out_of_stock += 1
+        elif quantity <= stock_limit:
+            low_stock_alerts += 1
+
+    today = timezone.localdate()
+    start_day = today - timedelta(days=6)
+    trend_rows = (
+        AuditEvent.objects.filter(
+            owner_id=owner_id,
+            resource_type="PharmacyInventory",
+            action__in=["CREATE", "UPDATE", "DELETE"],
+            created_at__date__gte=start_day,
+        )
+        .annotate(period=TruncDate("created_at"))
+        .values("period")
+        .annotate(total=Count("id"))
+    )
+    trend_map = {
+        row["period"]: int(row["total"])
+        for row in trend_rows
+        if row["period"] is not None
+    }
+    trend = [
+        {
+            "day": (start_day + timedelta(days=index)).strftime("%a"),
+            "stock": trend_map.get(start_day + timedelta(days=index), 0),
+        }
+        for index in range(7)
+    ]
+
+    recent_audits = list(
+        AuditEvent.objects.filter(
+            owner_id=owner_id,
+            resource_type="PharmacyInventory",
+            action__in=["CREATE", "UPDATE", "DELETE"],
+        ).order_by("-created_at")[:10]
+    )
+    recent_inventory_ids = [ev.resource_id for ev in recent_audits if ev.resource_id]
+    recent_inventory_map = {
+        row.id: row
+        for row in PharmacyInventory.objects.filter(id__in=recent_inventory_ids)
+    }
+    recent_product_ids = {
+        row.product_id
+        for row in recent_inventory_map.values()
+    }
+    for ev in recent_audits:
+        parsed_product_id = _product_id_from_audit_details(ev.details or "")
+        if parsed_product_id:
+            recent_product_ids.add(parsed_product_id)
+    if recent_product_ids:
+        product_map.update(
+            {
+                p.id: p
+                for p in MedicalProduct.objects.filter(id__in=recent_product_ids)
+            }
+        )
+    recent_variant_ids = {
+        row.variant_id
+        for row in recent_inventory_map.values()
+        if getattr(row, "variant_id", None)
+    }
+    recent_variant_map = {
+        variant.id: variant.label
+        for variant in MedicalProductVariant.objects.filter(id__in=recent_variant_ids)
+    }
+    recent_updates: List[Dict[str, Any]] = []
+    for ev in recent_audits:
+        inventory_row = recent_inventory_map.get(ev.resource_id or "")
+        product_id = inventory_row.product_id if inventory_row else _product_id_from_audit_details(ev.details or "")
+        product = product_map.get(product_id) if product_id else None
+        recent_updates.append(
+            {
+                "id": ev.id,
+                "productName": product.name if product else (product_id or "Inventory item"),
+                "variantLabel": (
+                    recent_variant_map.get(inventory_row.variant_id)
+                    if inventory_row and getattr(inventory_row, "variant_id", None)
+                    else None
+                ),
+                "currentQuantity": int(inventory_row.quantity) if inventory_row else None,
+                "direction": _audit_direction(ev.action, ev.details or ""),
+                "action": ev.action,
+                "updatedAt": ev.created_at.isoformat() if ev.created_at else "",
+            }
+        )
+
+    inventory_list: List[Dict[str, Any]] = []
+    for row in inventory_rows[:10]:
+        product = product_map.get(row.product_id)
+        stock_limit = thresholds.get(row.product_id, 5)
+        quantity = int(row.quantity or 0)
+        inventory_list.append(
+            {
+                "id": row.id,
+                "productName": product.name if product else row.product_id,
+                "variantLabel": (
+                    variant_map.get(row.variant_id)
+                    if getattr(row, "variant_id", None)
+                    else None
+                ),
+                "sku": f"MED-{str(row.product_id).upper()[:8]}",
+                "stockLimit": stock_limit,
+                "currentStock": quantity,
+                "stockStatus": _stock_status(
+                    quantity=quantity,
+                    stock_limit=stock_limit,
+                    is_available=bool(row.is_available),
+                ),
+            }
+        )
+
+    return {
+        "stats": {
+            "totalProductsManaged": total_products_managed,
+            "itemsOutOfStock": items_out_of_stock,
+            "lowStockAlerts": low_stock_alerts,
+        },
+        "trend": trend,
+        "recentUpdates": recent_updates,
+        "inventoryList": inventory_list,
     }
 
 
@@ -547,9 +771,19 @@ def log_audit_event(
 
 def list_audit_events_for_owner(*, owner_id: str, limit: int = 200) -> List[Dict[str, Any]]:
     rows = AuditEvent.objects.filter(owner_id=owner_id).order_by("-created_at")[: max(1, min(limit, 500))]
+    actor_ids = [ev.actor_user_id for ev in rows if ev.actor_user_id]
+    user_map: Dict[str, User] = {}
+    if actor_ids:
+        user_map = {str(u.id): u for u in User.objects.filter(id__in=actor_ids)}
     out: List[Dict[str, Any]] = []
     for ev in rows:
-        actor_label = ev.actor_user_id or "—"
+        actor_key = str(ev.actor_user_id) if ev.actor_user_id else ""
+        actor_label = actor_key or "—"
+        if ev.actor_user_id:
+            u = user_map.get(actor_key)
+            if u:
+                parts = [p for p in [(u.first_name or "").strip(), (u.last_name or "").strip()] if p]
+                actor_label = " ".join(parts) if parts else (u.email or actor_key)
         out.append(
             {
                 "id": ev.id,

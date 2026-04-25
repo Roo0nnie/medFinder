@@ -297,18 +297,17 @@ export function DataTable<TData>({
 						<span className="sr-only">Previous page</span>
 					</Button>
 
-					{Array.from({ length: pageCount }, (_, i) => i + 1).map(page => (
-						<Button
-							key={page}
-							variant={currentPage === page ? "default" : "outline"}
-							size="icon"
-							className="h-8 w-8"
-							onClick={() => setPageIndex(page - 1)}
-							aria-label={`Go to page ${page}`}
-						>
-							{page}
-						</Button>
-					))}
+					<Button
+						key={currentPage}
+						variant="default"
+						size="icon"
+						className="h-8 w-8"
+						aria-label={`Current page: ${currentPage}`}
+						disabled
+					>
+						{currentPage}
+					</Button>
+
 
 					<Button
 						variant="outline"
