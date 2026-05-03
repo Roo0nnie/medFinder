@@ -302,10 +302,8 @@ export function PharmacyCertificateReview({ status }: { status: VerificationStat
 					</div>
 
 					<DialogFooter className="gap-2 sm:gap-0">
-						<DialogClose asChild>
-							<Button type="button" variant="outline" disabled={reviewMutation.isPending}>
-								Cancel
-							</Button>
+						<DialogClose render={<Button type="button" variant="outline" disabled={reviewMutation.isPending} />}>
+							Cancel
 						</DialogClose>
 						<Button type="button" onClick={() => void handleSubmit()} disabled={reviewMutation.isPending}>
 							{reviewMutation.isPending ? "Saving..." : "Confirm"}

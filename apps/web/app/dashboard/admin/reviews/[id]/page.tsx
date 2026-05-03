@@ -21,8 +21,8 @@ export default function AdminReviewDetailsPage({ params }: { params: { id: strin
 						<h1 className="text-foreground text-3xl font-bold tracking-tight">Review details</h1>
 						<p className="text-muted-foreground mt-2 text-sm">Full review information, including description.</p>
 					</div>
-					<Button asChild variant="outline">
-						<Link href="/dashboard/admin/reviews">Back to reviews</Link>
+					<Button render={<Link href="/dashboard/admin/reviews" />} variant="outline">
+						Back to reviews
 					</Button>
 				</div>
 
