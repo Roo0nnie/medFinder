@@ -1,0 +1,4 @@
+# Backend deploys to Render, not Vercel.
+# Excluding apps/backend prevents Vercel's Python autodetect from
+# tripping on apps/backend/manage.py and trying to import django.
+apps/backend
