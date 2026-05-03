@@ -7,6 +7,8 @@ from typing import Optional
 from django.db.models import QuerySet
 from django.utils import timezone
 
+from api.v1.products.models import MedicalProductVariant
+
 from .models import PharmacyInventory
 
 
@@ -28,6 +30,23 @@ def list_inventory(
         qs = qs.filter(is_available=is_available)
 
     return qs.order_by("-updated_at")
+
+
+def variant_label_map_for_inventory_qs(qs: QuerySet[PharmacyInventory]) -> dict[str, str]:
+    """
+    One query for distinct variant ids on this queryset, one query for labels.
+    Used to avoid N+1 MedicalProductVariant lookups when listing inventory.
+    """
+    variant_ids = list(
+        qs.exclude(variant_id__isnull=True)
+        .exclude(variant_id="")
+        .values_list("variant_id", flat=True)
+        .distinct()
+    )
+    if not variant_ids:
+        return {}
+    rows = MedicalProductVariant.objects.filter(pk__in=variant_ids).values("id", "label")
+    return {str(r["id"]): r["label"] for r in rows}
 
 
 def get_inventory_by_id(inventory_id: str) -> PharmacyInventory:

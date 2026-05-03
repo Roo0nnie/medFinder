@@ -15,13 +15,14 @@ class PharmacyInventorySerializer(serializers.ModelSerializer):
     variantLabel = serializers.SerializerMethodField()
 
     def get_variantLabel(self, obj):
-        if not getattr(obj, "variant_id", None):
+        vid = getattr(obj, "variant_id", None)
+        if not vid:
             return None
-        try:
-            v = MedicalProductVariant.objects.get(pk=obj.variant_id)
-            return v.label
-        except MedicalProductVariant.DoesNotExist:
-            return None
+        labels = self.context.get("variant_labels")
+        if isinstance(labels, dict):
+            return labels.get(str(vid))
+        row = MedicalProductVariant.objects.filter(pk=vid).values_list("label", flat=True).first()
+        return row
 
     discountPrice = serializers.DecimalField(
         source="discount_price",

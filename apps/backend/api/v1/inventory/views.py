@@ -68,7 +68,10 @@ class InventoryListView(APIView):
             )
         if allowed_pharmacies is not None:
             inventory = inventory.filter(pharmacy_id__in=allowed_pharmacies)
-        serializer = PharmacyInventorySerializer(inventory, many=True)
+        variant_labels = services.variant_label_map_for_inventory_qs(inventory)
+        serializer = PharmacyInventorySerializer(
+            inventory, many=True, context={"variant_labels": variant_labels}
+        )
         return Response(serializer.data)
 
     def post(self, request):
