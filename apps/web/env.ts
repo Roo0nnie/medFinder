@@ -1,7 +1,7 @@
 import { createEnv } from "@t3-oss/env-nextjs"
 import { z } from "zod/v4"
 
-	export const env = createEnv({
+export const env = createEnv({
 	shared: {
 		// Server Configuration
 		NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -9,7 +9,19 @@ import { z } from "zod/v4"
 
 	server: {
 		/** Django origin (no trailing slash). Enables same-origin cookie auth via next.config rewrites. */
-		BACKEND_PROXY_URL: z.string().optional(),
+		BACKEND_PROXY_URL: z
+			.string()
+			.url()
+			.optional()
+			.superRefine((val, ctx) => {
+				if (process.env.VERCEL === "1" && !val?.trim()) {
+					ctx.addIssue({
+						code: "custom",
+						message:
+							"BACKEND_PROXY_URL is required on Vercel (your Django API origin, e.g. https://your-api.onrender.com). Without it, /api/v1/* is not rewritten and returns 404.",
+					})
+				}
+			}),
 		VERCEL_BRANCH_URL: z.string().optional(),
 		VERCEL_PROJECT_PRODUCTION_URL: z.string().optional(),
 		VERCEL_URL: z.string().optional(),
@@ -37,5 +49,8 @@ import { z } from "zod/v4"
 		NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
 	},
 
-	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
+	// Vercel sets CI=1; still validate so missing BACKEND_PROXY_URL fails the build instead of shipping broken rewrites.
+	skipValidation:
+		process.env.npm_lifecycle_event === "lint" ||
+		(process.env.CI === "true" && process.env.VERCEL !== "1"),
 })

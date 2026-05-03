@@ -4,6 +4,13 @@ import type { NextConfig } from "next"
 
 import "./env"
 
+if (process.env.VERCEL === "1" && !process.env.BACKEND_PROXY_URL?.trim()) {
+	throw new Error(
+		"BACKEND_PROXY_URL must be set in Vercel project env (Django base URL, no trailing slash, e.g. https://your-api.onrender.com). " +
+			"Otherwise /api/v1/* is not proxied and the app returns 404.",
+	)
+}
+
 /** @type {import("next").NextConfig} */
 const config: NextConfig = {
 	typedRoutes: true,

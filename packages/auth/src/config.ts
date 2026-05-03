@@ -26,7 +26,10 @@ export const authEnv = createEnv({
 		GOOGLE_CLIENT_SECRET: z.string().optional(),
 	},
 	runtimeEnv: process.env,
-	skipValidation: !!process.env.CI || process.env.npm_lifecycle_event === "lint",
+	// Match apps/web/env.ts: validate on Vercel builds even though CI=1.
+	skipValidation:
+		process.env.npm_lifecycle_event === "lint" ||
+		(process.env.CI === "true" && process.env.VERCEL !== "1"),
 })
 
 /**
@@ -47,6 +50,18 @@ export const AUTH_BASE_PATH = "/auth"
  *
  * @returns Better Auth instance
  */
+/** Vercel sets VERCEL_URL without scheme; ensure Better Auth accepts this deployment origin. */
+function trustedOriginsWithVercel(): string[] {
+	const fromEnv = (authEnv.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean)
+	const host = process.env.VERCEL_URL?.trim()
+	if (!host) return fromEnv
+	const origin = /^https?:\/\//i.test(host) ? host : `https://${host}`
+	return [...new Set([...fromEnv, origin])]
+}
+
 export function createAuth(): ReturnType<typeof betterAuth> {
 	const db = createDBClient()
 
@@ -83,7 +98,7 @@ export function createAuth(): ReturnType<typeof betterAuth> {
 				clientSecret: authEnv.GOOGLE_CLIENT_SECRET as string,
 			},
 		},
-		trustedOrigins: authEnv.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [],
+		trustedOrigins: trustedOriginsWithVercel(),
 		plugins: [
 			openAPI({
 				path: "/reference",
