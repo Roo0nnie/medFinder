@@ -1,19 +1,21 @@
-/** Allowed values for product list pagination (landing + pharmacy storefront). Multiples of 3 so a 3-column grid fills rows evenly. */
-export const PAGE_SIZE_OPTIONS = [3, 6, 12, 24, 60, 99] as const
+/** Allowed values for product list pagination (landing + pharmacy storefront). Multiples of 4 so a 4-column grid fills rows evenly. */
+export const PAGE_SIZE_OPTIONS = [4, 8, 12, 24, 60, 96] as const
 
 export type ProductListPageSize = (typeof PAGE_SIZE_OPTIONS)[number]
 
 /** Key for `localStorage` + `storage` event sync across tabs. */
 export const PRODUCT_LIST_PAGE_SIZE_STORAGE_KEY = "medfinder:products-per-page"
 
-const DEFAULT_PAGE_SIZE: ProductListPageSize = 6
+const DEFAULT_PAGE_SIZE: ProductListPageSize = 8
 
-/** Previous option values → nearest valid size after options were constrained to multiples of 3. */
+/** Stale or removed option values → nearest valid size in {@link PAGE_SIZE_OPTIONS}. */
 const LEGACY_STORED_PAGE_SIZE: Partial<Record<number, ProductListPageSize>> = {
-	2: 3,
-	4: 6,
+	2: 4,
+	3: 4,
+	6: 8,
 	58: 60,
-	100: 99,
+	99: 96,
+	100: 96,
 }
 
 function isPageSize(n: number): n is ProductListPageSize {

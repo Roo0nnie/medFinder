@@ -21,6 +21,7 @@ const config: NextConfig = {
 
 	typescript: { ignoreBuildErrors: true },
 	reactCompiler: true,
+	skipTrailingSlashRedirect: true,
 
 	devIndicators: {
 		position: "bottom-right",
@@ -37,7 +38,7 @@ const config: NextConfig = {
 		const backend = process.env.BACKEND_PROXY_URL?.trim().replace(/\/$/, "")
 		if (!backend) return []
 		return {
-			beforeFiles: [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*` }],
+			beforeFiles: [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*/` }],
 		}
 	},
 }
