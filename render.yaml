@@ -15,8 +15,10 @@ services:
     runtime: docker
     region: oregon
     plan: free
-    dockerfilePath: ./apps/backend/Dockerfile
-    dockerContext: ./apps/backend
+    # Monorepo: scope this service to the Django app (not the repo-root Node Dockerfile).
+    rootDir: apps/backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /api/v1/health/
     envVars:
       - key: DATABASE_URL

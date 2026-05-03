@@ -1,4 +1,8 @@
-# Multi-stage build for Turborepo monorepo
+# Multi-stage build for the Turborepo monorepo (Next.js + shared packages).
+# This is NOT the Django API image. To deploy the Python backend on Render, use:
+#   Settings → Root Directory: apps/backend   → Dockerfile Path: ./Dockerfile
+# or see apps/backend/.env.example (Render section).
+#
 # Stage 1: Builder - Build all packages and dependencies
 FROM node:22-alpine AS builder
 
