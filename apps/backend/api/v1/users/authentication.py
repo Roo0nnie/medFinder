@@ -4,6 +4,12 @@ Custom authentication backend that trusts Better Auth session cookies.
 Reads the `better-auth.session_token` (or `authjs.session-token`) cookie,
 looks up the matching session in the shared Postgres `sessions` table, and
 attaches the corresponding user to `request.user`.
+
+Browser clients should call the Django API through the same origin as the
+Next.js app (e.g. NEXT_PUBLIC_API_BASE_URL = NEXT_PUBLIC_APP_URL + "/api" with
+Next rewrites to Django) so these cookies are sent. Cookies set by /api/auth
+on the web origin are not sent to a different API host (e.g. Render) on
+cross-origin fetch even with credentials: "include".
 """
 from datetime import datetime
 

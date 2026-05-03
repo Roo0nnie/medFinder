@@ -7,7 +7,10 @@ import { z } from "zod/v4"
 		NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 	},
 
-	server: {},
+	server: {
+		/** Django origin (no trailing slash). Enables same-origin cookie auth via next.config rewrites. */
+		BACKEND_PROXY_URL: z.string().optional(),
+	},
 
 	client: {
 		// Public URLs
@@ -20,6 +23,7 @@ import { z } from "zod/v4"
 
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
+		BACKEND_PROXY_URL: process.env.BACKEND_PROXY_URL,
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
 		NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION,
