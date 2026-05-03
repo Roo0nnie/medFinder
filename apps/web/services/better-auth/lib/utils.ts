@@ -1,8 +1,4 @@
-import { cache } from "react"
-
-import { env } from "@/env"
-
-const LOCAL_APP_ORIGIN = "http://localhost:8001"
+const LOCAL_APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:8001"
 
 function normalizeOrigin(value: string | undefined): string | null {
 	const trimmed = value?.trim().replace(/\/+$/, "")
@@ -22,8 +18,8 @@ function normalizeOrigin(value: string | undefined): string | null {
 	}
 }
 
-export const getAppOrigin = cache(() => {
-	const configuredOrigin = normalizeOrigin(env.NEXT_PUBLIC_APP_URL)
+export function getAppOrigin(): string {
+	const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL)
 	if (configuredOrigin) return configuredOrigin
 
 	if (typeof window !== "undefined" && window.location.origin) {
@@ -31,13 +27,13 @@ export const getAppOrigin = cache(() => {
 	}
 
 	return (
-		normalizeOrigin(env.VERCEL_PROJECT_PRODUCTION_URL) ??
-		normalizeOrigin(env.VERCEL_BRANCH_URL) ??
-		normalizeOrigin(env.VERCEL_URL) ??
+		normalizeOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ??
+		normalizeOrigin(process.env.VERCEL_BRANCH_URL) ??
+		normalizeOrigin(process.env.VERCEL_URL) ??
 		LOCAL_APP_ORIGIN
 	)
-})
+}
 
-export const getAuthUrl = cache(() => {
+export function getAuthUrl(): string {
 	return `${getAppOrigin()}/api/auth`
-})
+}
