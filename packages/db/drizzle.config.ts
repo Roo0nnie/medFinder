@@ -9,8 +9,8 @@ const appTableNames = [
 	"audit_events",
 	"brands",
 	"deletion_requests",
-	"medical_product_variants",
 	"medical_products",
+	"medical_product_variants",
 	"owner_brands",
 	"pharmacies",
 	"pharmacy_inventory",
@@ -38,8 +38,9 @@ export default defineConfig({
 	// Restrict introspection to our tables so unrelated rows in `public` (e.g. Django `auth_*`,
 	// `django_*`) are not used as rename candidates and are not dropped.
 	tablesFilter: [...appTableNames],
-	// Tells the kit we run on Supabase so built-in roles are not managed as drift.
-	entities: { roles: { provider: "supabase" } },
+	// Do not set `entities.roles` here: with an object like `{ provider: "supabase" }` the kit
+	// still introspects other DB roles (e.g. PostgreSQL's `pg_checkpoint`) and may emit
+	// `DROP ROLE`, which fails on Supabase/pooler. Omit roles so push never manages roles.
 	dbCredentials: {
 		url: process.env.DATABASE_URL || "",
 	},
