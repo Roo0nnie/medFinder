@@ -22,7 +22,7 @@ class ProductPageEngagement(models.Model):
         db_table = "product_page_engagements"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["product_id", "created_at"]),
+            models.Index(fields=["product_id", "created_at"], name="analytics_pr_product_idx"),
         ]
 
 
@@ -45,7 +45,7 @@ class AuditEvent(models.Model):
         db_table = "audit_events"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["owner_id", "created_at"]),
+            models.Index(fields=["owner_id", "created_at"], name="audit_events_owner_created_idx"),
         ]
 
 
@@ -66,5 +66,5 @@ class ProductSearchSelection(models.Model):
         db_table = "product_search_selections"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["owner_id", "product_id"]),
+            models.Index(fields=["owner_id", "product_id"], name="prod_search_sel_owner_prod_idx"),
         ]
