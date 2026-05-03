@@ -64,19 +64,12 @@ DATABASES = {
     }
 }
 
-# Parse DATABASE_URL if set (overrides individual vars)
+# Parse DATABASE_URL if set (handles sslmode= query params, URL-encoded passwords, etc.)
 _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
-    import re
-    _m = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)", _db_url)
-    if _m:
-        DATABASES["default"].update({
-            "USER": _m.group(1),
-            "PASSWORD": _m.group(2),
-            "HOST": _m.group(3),
-            "PORT": _m.group(4),
-            "NAME": _m.group(5),
-        })
+    import dj_database_url
+
+    DATABASES["default"] = dj_database_url.parse(_db_url, conn_max_age=600)
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

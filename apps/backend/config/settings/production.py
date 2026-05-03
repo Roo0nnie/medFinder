@@ -14,3 +14,23 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 if not any(ALLOWED_HOSTS):
     raise ValueError("ALLOWED_HOSTS must be set in production")
+
+# HTTPS origins for CSRF (e.g. https://api.example.com,https://app.example.com)
+_csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(",") if o.strip()]
+
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+_mw = list(MIDDLEWARE)
+_sec = _mw.index("django.middleware.security.SecurityMiddleware")
+_mw.insert(_sec + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+MIDDLEWARE = _mw
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
