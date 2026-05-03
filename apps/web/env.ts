@@ -10,6 +10,9 @@ import { z } from "zod/v4"
 	server: {
 		/** Django origin (no trailing slash). Enables same-origin cookie auth via next.config rewrites. */
 		BACKEND_PROXY_URL: z.string().optional(),
+		VERCEL_BRANCH_URL: z.string().optional(),
+		VERCEL_PROJECT_PRODUCTION_URL: z.string().optional(),
+		VERCEL_URL: z.string().optional(),
 	},
 
 	client: {
@@ -24,6 +27,9 @@ import { z } from "zod/v4"
 	runtimeEnv: {
 		NODE_ENV: process.env.NODE_ENV,
 		BACKEND_PROXY_URL: process.env.BACKEND_PROXY_URL,
+		VERCEL_BRANCH_URL: process.env.VERCEL_BRANCH_URL,
+		VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+		VERCEL_URL: process.env.VERCEL_URL,
 		NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 		NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
 		NEXT_PUBLIC_API_VERSION: process.env.NEXT_PUBLIC_API_VERSION,
