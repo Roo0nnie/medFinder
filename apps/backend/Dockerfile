@@ -36,8 +36,8 @@ USER appuser
 ENV DJANGO_SETTINGS_MODULE=config.settings.production
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 3000
+EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD sh -c 'wget --no-verbose --tries=1 --spider "http://127.0.0.1:${PORT:-3000}/api/v1/health/" || exit 1'
+  CMD sh -c 'wget --no-verbose --tries=1 --spider "http://127.0.0.1:${PORT:-10000}/api/v1/health/" || exit 1'
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD []
