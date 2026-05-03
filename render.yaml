@@ -1,13 +1,6 @@
-# Optional Render Blueprint: Postgres + Django API (monorepo).
-# Dashboard: New → Blueprint → connect repo → select this file if prompted.
-# Or create the Web Service manually using the notes in apps/backend/.env.example.
-# If a plan name is rejected, pick an available Postgres / Web plan in the Render UI.
-
-databases:
-  - name: medfinder-db
-    databaseName: medfinder
-    user: medfinder
-    plan: free
+# Optional Render Blueprint: Django API service only.
+# Dashboard: New -> Blueprint -> connect repo -> select this file if prompted.
+# Or configure the existing Web Service manually using apps/backend/.env.example.
 
 services:
   - type: web
@@ -15,16 +8,17 @@ services:
     runtime: docker
     region: oregon
     plan: free
-    # Monorepo: scope this service to the Django app (not the repo-root Node Dockerfile).
+    # Monorepo: scope this service to the Django app, not the repo-root Node Dockerfile.
     rootDir: apps/backend
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/v1/health/
     envVars:
+      - key: DEBUG
+        value: "false"
+      # Keep your existing production database URL, for example Supabase or Render Postgres.
       - key: DATABASE_URL
-        fromDatabase:
-          name: medfinder-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: ALLOWED_HOSTS

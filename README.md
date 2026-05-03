@@ -161,10 +161,16 @@ import { todos, users } from "@repo/db/schema"
 This template includes Docker and AWS ECS configurations:
 
 - **Docker**: `docker-compose.yml` for local containerized development
+- **Render**: `render.yaml` deploys the Django API with `apps/backend/Dockerfile`
 - **CI/CD**: GitHub Actions workflows for staging and production
 - **AWS**: ECS task definitions in `aws/ecs/`
 
-See `aws/setup-guide.md` for deployment instructions.
+For Render, keep the API service scoped to `apps/backend` so it does not build
+the repo-root Node Dockerfile. If you deploy the Next.js web app separately, use
+`apps/web/Dockerfile` and set `NEXT_PUBLIC_APP_URL`,
+`NEXT_PUBLIC_API_BASE_URL`, and `NEXT_PUBLIC_API_VERSION`.
+
+See `aws/setup-guide.md` for AWS deployment instructions.
 
 ## Links
 
