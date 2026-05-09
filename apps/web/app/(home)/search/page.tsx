@@ -20,6 +20,7 @@ type SearchPageProps = {
 		q?: string
 		categoryId?: string
 		prefix?: string
+		searchByName?: string
 		searchType?: "plain" | "websearch"
 		page?: string
 		pageSize?: string
@@ -87,6 +88,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 	const q = (sp.q ?? "").trim()
 	const categoryId = (sp.categoryId ?? "").trim()
 	const prefix = (sp.prefix ?? "").toLowerCase() === "true"
+	const searchByName = (sp.searchByName ?? "").toLowerCase() === "true"
 	const searchType = sp.searchType === "websearch" ? "websearch" : "plain"
 
 	const page = Math.max(1, toInt(sp.page, 1))
@@ -103,6 +105,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 	qp.set("limit", String(limit))
 	qp.set("offset", String(offset))
 	if (prefix) qp.set("prefix", "true")
+	if (searchByName) qp.set("searchByName", "true")
 	if (searchType) qp.set("searchType", searchType)
 
 	let products: ApiProduct[] = []
@@ -122,12 +125,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 	const nextHref =
 		products.length < limit
 			? null
-			: (`/search?q=${encodeURIComponent(q)}&categoryId=${encodeURIComponent(categoryId)}&prefix=${String(prefix)}&searchType=${searchType}&pageSize=${String(resolvedPageSize)}&page=${page + 1}` as Route)
+			: (`/search?q=${encodeURIComponent(q)}&categoryId=${encodeURIComponent(categoryId)}&prefix=${String(prefix)}&searchByName=${String(searchByName)}&searchType=${searchType}&pageSize=${String(resolvedPageSize)}&page=${page + 1}` as Route)
 
 	const prevHref =
 		page <= 1
 			? null
-			: (`/search?q=${encodeURIComponent(q)}&categoryId=${encodeURIComponent(categoryId)}&prefix=${String(prefix)}&searchType=${searchType}&pageSize=${String(resolvedPageSize)}&page=${page - 1}` as Route)
+			: (`/search?q=${encodeURIComponent(q)}&categoryId=${encodeURIComponent(categoryId)}&prefix=${String(prefix)}&searchByName=${String(searchByName)}&searchType=${searchType}&pageSize=${String(resolvedPageSize)}&page=${page - 1}` as Route)
 
 	return (
 		<div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8">
@@ -164,6 +167,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <label className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
             <input id="prefix" name="prefix" type="checkbox" defaultChecked={prefix} value="true" />
             <span>Prefix match</span>
+        </label>
+        <label className="text-muted-foreground mt-2 flex items-center gap-2 text-sm">
+            <input
+                id="searchByName"
+                name="searchByName"
+                type="checkbox"
+                defaultChecked={searchByName}
+                value="true"
+            />
+            <span>Search by Product Name</span>
         </label>
     </div>
 

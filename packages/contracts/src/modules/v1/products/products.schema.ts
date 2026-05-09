@@ -81,6 +81,7 @@ export const ProductSearchSchema = z.object({
 	limit: z.number().int().min(0).max(100).optional(),
 	offset: z.number().int().min(0).optional(),
 	prefix: z.boolean().optional(),
+	searchByName: z.boolean().optional(),
 	searchType: z.enum(["plain", "websearch"]).optional(),
 })
 

@@ -94,6 +94,7 @@ def list_products(
     offset: Optional[int] = None,
     prefix: bool = False,
     search_type: str = "plain",
+    search_by_name: bool = False,
 ) -> QuerySet[MedicalProduct]:
     qs = MedicalProduct.objects.all()
 
@@ -112,61 +113,66 @@ def list_products(
     if query:
         query = query.strip()
         if query:
-            if prefix:
-                raw = _build_prefix_raw_query(query)
-                search_query = SearchQuery(raw, search_type="raw", config="english") if raw else None
+            if search_by_name:
+                # Direct product-name match only. No FTS, no variant/text fallbacks.
+                # Compiles to: WHERE "name" ILIKE 'query%'
+                qs = qs.filter(name__istartswith=query).order_by("name")
             else:
-                search_query = SearchQuery(query, search_type=search_type, config="english")
+                if prefix:
+                    raw = _build_prefix_raw_query(query)
+                    search_query = SearchQuery(raw, search_type="raw", config="english") if raw else None
+                else:
+                    search_query = SearchQuery(query, search_type=search_type, config="english")
 
-            vector = (
-                SearchVector("name", weight="A", config="english")
-                + SearchVector("generic_name", weight="A", config="english")
-                + SearchVector("brand_name", weight="B", config="english")
-                + SearchVector("search_synonyms", weight="B", config="english")
-                + SearchVector("indications", weight="C", config="english")
-                + SearchVector("active_ingredients", weight="C", config="english")
-                + SearchVector("manufacturer", weight="D", config="english")
-                + SearchVector("description", weight="D", config="english")
-            )
-
-            variant_match_product_ids = MedicalProductVariant.objects.filter(
-                Q(label__icontains=query)
-                | Q(unit__icontains=query)
-                | Q(strength__icontains=query)
-                | Q(dosage_form__icontains=query)
-            ).values("product_id")
-
-            # Hybrid recovery for short/infix terms (e.g., "flu", "gesic").
-            token_count = len([part for part in query.split() if part])
-            fallback_enabled = token_count == 1 and 2 <= len(query) <= 6
-            product_text_fallback_filter = (
-                Q(name__icontains=query)
-                | Q(brand_name__icontains=query)
-                | Q(generic_name__icontains=query)
-                | Q(search_synonyms__icontains=query)
-                | Q(indications__icontains=query)
-                | Q(active_ingredients__icontains=query)
-            )
-            fallback_filter = Q(id__in=variant_match_product_ids)
-            if fallback_enabled:
-                fallback_filter = fallback_filter | product_text_fallback_filter
-
-            if search_query is not None:
-                qs = (
-                    qs.annotate(rank=SearchRank(vector, search_query))
-                    .filter(Q(rank__gt=0) | fallback_filter)
-                    .annotate(
-                        search_bucket=Case(
-                            When(rank__gt=0, then=Value(0)),
-                            default=Value(1),
-                            output_field=IntegerField(),
-                        )
-                    )
-                    .distinct()
-                    .order_by("search_bucket", "-rank", "name")
+                vector = (
+                    SearchVector("name", weight="A", config="english")
+                    + SearchVector("generic_name", weight="A", config="english")
+                    + SearchVector("brand_name", weight="B", config="english")
+                    + SearchVector("search_synonyms", weight="B", config="english")
+                    + SearchVector("indications", weight="C", config="english")
+                    + SearchVector("active_ingredients", weight="C", config="english")
+                    + SearchVector("manufacturer", weight="D", config="english")
+                    + SearchVector("description", weight="D", config="english")
                 )
-            else:
-                qs = qs.filter(fallback_filter).distinct().order_by("name")
+
+                variant_match_product_ids = MedicalProductVariant.objects.filter(
+                    Q(label__icontains=query)
+                    | Q(unit__icontains=query)
+                    | Q(strength__icontains=query)
+                    | Q(dosage_form__icontains=query)
+                ).values("product_id")
+
+                # Hybrid recovery for short/infix terms (e.g., "flu", "gesic").
+                token_count = len([part for part in query.split() if part])
+                fallback_enabled = token_count == 1 and 2 <= len(query) <= 6
+                product_text_fallback_filter = (
+                    Q(name__icontains=query)
+                    | Q(brand_name__icontains=query)
+                    | Q(generic_name__icontains=query)
+                    | Q(search_synonyms__icontains=query)
+                    | Q(indications__icontains=query)
+                    | Q(active_ingredients__icontains=query)
+                )
+                fallback_filter = Q(id__in=variant_match_product_ids)
+                if fallback_enabled:
+                    fallback_filter = fallback_filter | product_text_fallback_filter
+
+                if search_query is not None:
+                    qs = (
+                        qs.annotate(rank=SearchRank(vector, search_query))
+                        .filter(Q(rank__gt=0) | fallback_filter)
+                        .annotate(
+                            search_bucket=Case(
+                                When(rank__gt=0, then=Value(0)),
+                                default=Value(1),
+                                output_field=IntegerField(),
+                            )
+                        )
+                        .distinct()
+                        .order_by("search_bucket", "-rank", "name")
+                    )
+                else:
+                    qs = qs.filter(fallback_filter).distinct().order_by("name")
         else:
             qs = qs.order_by("name")
     else:

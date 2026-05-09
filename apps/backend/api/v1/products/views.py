@@ -94,6 +94,7 @@ class ProductListView(APIView):
         limit_param = request.query_params.get("limit")
         offset_param = request.query_params.get("offset")
         prefix_param = request.query_params.get("prefix")
+        search_by_name_param = request.query_params.get("searchByName")
         search_type = request.query_params.get("searchType") or "plain"
 
         requires_prescription = None
@@ -117,6 +118,10 @@ class ProductListView(APIView):
         if prefix_param is not None:
             prefix = prefix_param.lower() == "true"
 
+        search_by_name = False
+        if search_by_name_param is not None:
+            search_by_name = search_by_name_param.lower() == "true"
+
         if search_type not in ("plain", "websearch"):
             return Response(
                 {"detail": "searchType must be one of: plain, websearch"},
@@ -132,6 +137,7 @@ class ProductListView(APIView):
             offset=None,
             prefix=prefix,
             search_type=search_type,
+            search_by_name=search_by_name,
         )
         if _is_public_request(request):
             approved_pharmacy_ids = _get_cached_approved_pharmacy_ids()
