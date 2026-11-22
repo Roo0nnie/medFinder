@@ -2,21 +2,17 @@ name: CI
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - dev
-  #     - staging
-  #     - production
-  #   paths-ignore:
-  #     - "**.md"
-  #     - ".vscode/**"
-  #     - "docs/**"
-  # pull_request:
-  #   types: [opened, synchronize, reopened]
-  #   paths-ignore:
-  #     - "**.md"
-  #     - ".vscode/**"
-  #     - "docs/**"
+  push:
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - "**.md"
+      - ".vscode/**"
+      - "docs/**"
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:
@@ -24,51 +20,96 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: Lint and Typecheck
-    timeout-minutes: 15
+  web:
+    name: Web (lint, typecheck, build)
+    timeout-minutes: 20
     runs-on: ubuntu-latest
-    # Skip if this is a push right after a PR merge (PR already ran CI)
-    if: github.event_name == 'pull_request' || github.event.head_commit.message != 'Merge pull request'
+    env:
+      # Placeholder public URLs; env validation is skipped when CI=true (apps/web/env.ts).
+      NEXT_PUBLIC_APP_URL: http://localhost:8001
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api
+      NEXT_PUBLIC_API_VERSION: v1
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 10.27.0
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
         with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
+        id: install
         run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
 
-      - name: Format Check
-        run: pnpm format
+      # Typecheck and build still run if lint fails, so every signal is reported.
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm typecheck
+
+      - name: Build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm build
+
+  backend:
+    name: Backend (Django tests on PostgreSQL)
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medfinder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: apps/backend
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/medfinder
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/medfinder
+      SECRET_KEY: ci-only-not-secret
+      DEBUG: "false"
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system check
+        run: python manage.py check
+
+      - name: Apply Django migrations
+        run: python manage.py migrate --noinput
+
+      - name: Run tests
+        run: python manage.py test --settings=config.settings.test -v 2
