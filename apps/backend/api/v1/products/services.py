@@ -158,12 +158,16 @@ def list_products(
                     fallback_filter = fallback_filter | product_text_fallback_filter
 
                 if search_query is not None:
+                    # Match on `vector @@ query`, not `rank > 0`: ts_rank returns a tiny
+                    # non-zero value (1e-20) for multi-term queries even when nothing
+                    # matches, which would otherwise return the whole catalog.
                     qs = (
-                        qs.annotate(rank=SearchRank(vector, search_query))
-                        .filter(Q(rank__gt=0) | fallback_filter)
+                        qs.alias(search_vector=vector)
+                        .annotate(rank=SearchRank(vector, search_query))
+                        .filter(Q(search_vector=search_query) | fallback_filter)
                         .annotate(
                             search_bucket=Case(
-                                When(rank__gt=0, then=Value(0)),
+                                When(search_vector=search_query, then=Value(0)),
                                 default=Value(1),
                                 output_field=IntegerField(),
                             )

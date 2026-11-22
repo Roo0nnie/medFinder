@@ -10,7 +10,7 @@
 		"start": "gunicorn config.wsgi:application --bind 0.0.0.0:3000",
 		"format": "echo \"No TypeScript sources to format in Django backend\"",
 		"lint": "echo \"Skipping JS lint for Django backend\"",
-		"test": "echo \"No tests for Django backend\"",
+		"test": "python manage.py test --settings=config.settings.test",
 		"typecheck": "echo \"No TypeScript typecheck for Django backend\""
 	}
 }
