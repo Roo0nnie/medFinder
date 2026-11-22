@@ -9,6 +9,8 @@ node_modules
 
 # Python (virtualenvs, bytecode, generated)
 apps/backend/media/
+apps/backend/Python/
+tmpclaude-*
 .venv/
 venv/
 env/
